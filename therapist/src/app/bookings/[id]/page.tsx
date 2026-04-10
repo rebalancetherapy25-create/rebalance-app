@@ -1,0 +1,205 @@
+'use client';
+
+import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { useParams, useRouter } from 'next/navigation';
+import api from '@/lib/api';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { ArrowLeft, Calendar, Clock, Link2, User } from 'lucide-react';
+
+type Booking = {
+  _id: string;
+  date: string;
+  time: string;
+  sessionType: string;
+  status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
+  meetingLink?: string;
+  userId?: { name?: string; email?: string };
+  guestContact?: { name: string; email: string };
+};
+
+// Use local dates (not UTC) so defaults match the therapist's calendar day.
+const isoToday = () => {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+
+export default function BookingDetailPage() {
+  const params = useParams<{ id: string }>();
+  const router = useRouter();
+  const id = params?.id;
+
+  const [booking, setBooking] = useState<Booking | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const [meetingLink, setMeetingLink] = useState('');
+  const [rescheduleDate, setRescheduleDate] = useState(isoToday());
+  const [rescheduleTime, setRescheduleTime] = useState('10:00');
+  const [saving, setSaving] = useState(false);
+
+  const client = useMemo(() => {
+    const name = booking?.userId?.name || booking?.guestContact?.name || 'Client';
+    const email = booking?.userId?.email || booking?.guestContact?.email || '';
+    return { name, email };
+  }, [booking]);
+
+  const refresh = async () => {
+    if (!id) return;
+    setLoading(true);
+    setError('');
+    try {
+      await api.get('/therapist-auth/me');
+      const res = await api.get(`/therapist/bookings/${id}`);
+      setBooking(res.data);
+      setMeetingLink(res.data?.meetingLink || '');
+      setRescheduleDate(res.data?.date || isoToday());
+      setRescheduleTime(res.data?.time || '10:00');
+    } catch (e: unknown) {
+      const status = (e as { response?: { status?: number } })?.response?.status;
+      if (status === 401 || status === 403) {
+        router.push('/login?reason=unauthorized');
+        return;
+      }
+      const message = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      setError(message || 'Failed to load booking.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  const patch = async (payload: any) => {
+    if (!id) return;
+    setSaving(true);
+    setError('');
+    try {
+      await api.put(`/therapist/bookings/${id}`, payload);
+      await refresh();
+    } catch (e: unknown) {
+      const message = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      setError(message || 'Update failed.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return <div className="text-sm text-muted-foreground">Loading…</div>;
+  }
+
+  if (!booking) {
+    return (
+      <div className="space-y-4">
+        <div className="text-sm text-destructive">{error || 'Booking not found.'}</div>
+        <Button onClick={() => router.push('/bookings')} variant="outline" className="rounded-xl">Back</Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-1">
+          <Link href="/bookings" className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline">
+            <ArrowLeft className="w-4 h-4" /> Back to bookings
+          </Link>
+          <h1 className="text-3xl font-heading font-extrabold tracking-tight">Booking</h1>
+          <p className="text-muted-foreground">Update meeting link, status, or reschedule.</p>
+        </div>
+        <Button onClick={refresh} variant="outline" className="rounded-xl">Refresh</Button>
+      </div>
+
+      {error && (
+        <div className="rounded-xl border border-destructive/20 bg-destructive/5 text-destructive px-4 py-3 text-sm">
+          {error}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="border-none shadow-card rounded-2xl overflow-hidden">
+          <CardHeader>
+            <CardTitle className="font-heading">Details</CardTitle>
+            <CardDescription>ID: {booking._id}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="rounded-xl border bg-white px-4 py-3">
+              <div className="text-sm font-semibold flex items-center gap-2">
+                <User className="w-4 h-4 text-muted-foreground" />
+                {client.name} {client.email && <span className="text-xs text-muted-foreground">({client.email})</span>}
+              </div>
+              <div className="text-xs text-muted-foreground mt-1 flex items-center gap-3">
+                <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> {booking.date}</span>
+                <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {booking.time} ({booking.sessionType})</span>
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">Status: <span className="font-semibold text-foreground">{booking.status}</span></div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-semibold flex items-center gap-2">
+                <Link2 className="w-4 h-4 text-muted-foreground" /> Meeting link
+              </label>
+              <Input value={meetingLink} onChange={(e) => setMeetingLink(e.target.value)} className="h-11 rounded-xl bg-white" placeholder="https://..." />
+              <div className="flex items-center gap-2">
+                <Button disabled={saving} onClick={() => patch({ meetingLink })} className="rounded-xl">Save link</Button>
+                {booking.meetingLink && (
+                  <a href={booking.meetingLink} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-primary hover:underline">
+                    Open
+                  </a>
+                )}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2 pt-2">
+              {booking.status === 'pending' && (
+                <Button disabled={saving} onClick={() => patch({ status: 'confirmed' })} className="rounded-xl">Confirm</Button>
+              )}
+              {booking.status === 'confirmed' && (
+                <Button disabled={saving} onClick={() => patch({ status: 'completed' })} className="rounded-xl">Mark completed</Button>
+              )}
+              {(booking.status === 'pending' || booking.status === 'confirmed') && (
+                <Button disabled={saving} onClick={() => patch({ status: 'cancelled' })} variant="destructive" className="rounded-xl">Cancel</Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-none shadow-card rounded-2xl overflow-hidden">
+          <CardHeader>
+            <CardTitle className="font-heading">Reschedule</CardTitle>
+            <CardDescription>Move this booking to a new date/time if the slot is available.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-semibold">New date</label>
+              <Input value={rescheduleDate} onChange={(e) => setRescheduleDate(e.target.value)} className="h-11 rounded-xl bg-white" placeholder="YYYY-MM-DD" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-semibold">New time</label>
+              <Input value={rescheduleTime} onChange={(e) => setRescheduleTime(e.target.value)} className="h-11 rounded-xl bg-white" placeholder="HH:mm" />
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                disabled={saving || booking.status === 'cancelled' || booking.status === 'completed'}
+                onClick={() => patch({ reschedule: { date: rescheduleDate, time: rescheduleTime } })}
+                className="rounded-xl"
+              >
+                Reschedule
+              </Button>
+              <span className="text-xs text-muted-foreground">Uses your availability calendar and prevents conflicts.</span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}

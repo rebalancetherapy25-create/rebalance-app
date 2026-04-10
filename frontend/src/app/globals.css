@@ -1,0 +1,85 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+
+
+@layer base {
+  html {
+    overflow-x: hidden;
+  }
+
+  body {
+    overflow-x: hidden;
+  }
+
+  :root {
+    --background: 330 25% 97%;
+    --foreground: 332 22% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 332 22% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 332 22% 15%;
+    --primary: 334 42% 29%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 330 25% 97%;
+    --secondary-foreground: 334 42% 29%;
+    --muted: 330 25% 94%;
+    --muted-foreground: 339 11% 49%;
+    --accent: 341 48% 69%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 330 25% 90%;
+    --input: 330 25% 90%;
+    --ring: 334 42% 29%;
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+    --radius: 0.875rem; /* 14px average */
+  }
+  .dark {
+    /* Auto dark mode variables mapping to similar scheme, but standard Shadcn default for safety. Adjust later if needed. */
+    --background: 332 22% 10%;
+    --foreground: 330 25% 97%;
+    --card: 332 22% 12%;
+    --card-foreground: 330 25% 97%;
+    --popover: 332 22% 12%;
+    --popover-foreground: 330 25% 97%;
+    --primary: 341 48% 69%;
+    --primary-foreground: 332 22% 15%;
+    --secondary: 332 22% 16%;
+    --secondary-foreground: 330 25% 97%;
+    --muted: 332 22% 16%;
+    --muted-foreground: 339 11% 65%;
+    --accent: 341 48% 69%;
+    --accent-foreground: 332 22% 15%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 332 22% 16%;
+    --input: 332 22% 16%;
+    --ring: 341 48% 69%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
