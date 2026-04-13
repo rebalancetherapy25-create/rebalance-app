@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ShieldCheck } from 'lucide-react';
 import api from '@/lib/api';
@@ -12,7 +12,7 @@ import { useToast } from '@/components/ui/toaster';
 import { emailPattern, getApiErrorMessage, getErrorMessages } from '@/lib/form-validation';
 import { cn } from '@/lib/utils';
 
-export default function TherapistLoginPage() {
+function TherapistLoginContent() {
   const router = useRouter();
   const params = useSearchParams();
   const reason = params.get('reason');
@@ -135,5 +135,17 @@ export default function TherapistLoginPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function TherapistLoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-8 h-8 rounded-full border-4 border-primary/30 border-t-primary animate-spin" />
+      </div>
+    }>
+      <TherapistLoginContent />
+    </Suspense>
   );
 }
