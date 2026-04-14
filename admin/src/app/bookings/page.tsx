@@ -15,7 +15,8 @@ import { getApiErrorMessage, getErrorMessages, isValidUrl } from '@/lib/form-val
 
 interface Booking {
     _id: string;
-    userId: { _id: string; name: string; email: string };
+    userId?: { _id: string; name: string; email: string } | null;
+    guestContact?: { name: string; email: string };
     therapistId: { _id: string; name: string };
     date: string;
     time: string;
@@ -250,15 +251,6 @@ export default function BookingsPage() {
         }
     };
 
-    const getStatusStyle = (status: Booking['status']) => {
-        switch (status) {
-            case 'confirmed': return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
-            case 'completed': return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
-            case 'cancelled': return 'bg-red-500/10 text-red-400 border-red-500/20';
-            default: return 'bg-amber-500/10 text-amber-400 border-amber-500/20'; // pending
-        }
-    };
-
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center bg-neutral-900 p-6 rounded-2xl shadow-sm border border-neutral-800">
@@ -309,8 +301,15 @@ export default function BookingsPage() {
                                                     <UserIcon className="w-4 h-4 text-neutral-400" />
                                                 </div>
                                                 <div>
-                                                    <div className="font-medium text-white">{booking.userId?.name || 'Unknown User'}</div>
-                                                    <div className="text-xs text-neutral-500">{booking.userId?.email || ''}</div>
+                                                    <div className="font-medium text-white">
+                                                        {booking.userId?.name || booking.guestContact?.name || 'Unknown User'}
+                                                    </div>
+                                                    <div className="text-xs text-neutral-500">
+                                                        {booking.userId?.email || booking.guestContact?.email || ''}
+                                                        {!booking.userId && booking.guestContact && (
+                                                            <span className="ml-1.5 text-[10px] text-amber-500/80 font-medium uppercase tracking-wide">Guest</span>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
                                         </td>
@@ -346,10 +345,6 @@ export default function BookingsPage() {
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex justify-end items-center gap-3">
-                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusStyle(booking.status)}`}>
-                                                    {booking.status}
-                                                </span>
-
                                                 <select
                                                     disabled={updatingId === booking._id}
                                                     value={booking.status}
@@ -485,7 +480,7 @@ export default function BookingsPage() {
                     </DialogHeader>
                     <div className="py-4">
                         <p className="text-neutral-400 text-sm">
-                            Are you sure you want to delete this booking for <span className="text-white font-medium">{bookingToDelete?.userId?.name}</span> with <span className="text-white font-medium">{bookingToDelete?.therapistId?.name}</span>?
+                            Are you sure you want to delete this booking for <span className="text-white font-medium">{bookingToDelete?.userId?.name || bookingToDelete?.guestContact?.name || 'Unknown User'}</span> with <span className="text-white font-medium">{bookingToDelete?.therapistId?.name}</span>?
                             This action cannot be undone.
                         </p>
                     </div>
@@ -517,7 +512,7 @@ export default function BookingsPage() {
                     </DialogHeader>
                     <form onSubmit={handleEditSubmit} noValidate className="space-y-4 py-4">
                         <div className="text-sm text-neutral-400">
-                            Client: <span className="text-white font-medium">{editingBooking?.userId?.name}</span>
+                            Client: <span className="text-white font-medium">{editingBooking?.userId?.name || editingBooking?.guestContact?.name || 'Unknown User'}</span>
                             <span className="text-neutral-500"> • </span>
                             Therapist: <span className="text-white font-medium">{editingBooking?.therapistId?.name}</span>
                         </div>

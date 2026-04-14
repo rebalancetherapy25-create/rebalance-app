@@ -69,12 +69,16 @@ export const lockSlot = async (req: Request, res: Response) => {
             {
                 therapistId: therapistId as string,
                 date: normalizedDate,
-                'slots.time': normalizedTime,
-                'slots.isBooked': false,
-                $or: [
-                    { 'slots.reservedUntil': { $exists: false } },
-                    { 'slots.reservedUntil': { $lt: now } },
-                ],
+                slots: {
+                    $elemMatch: {
+                        time: normalizedTime,
+                        isBooked: false,
+                        $or: [
+                            { reservedUntil: { $exists: false } },
+                            { reservedUntil: { $lt: now } },
+                        ],
+                    },
+                },
             },
             {
                 $set: { 'slots.$.reservedUntil': lockExpiry },

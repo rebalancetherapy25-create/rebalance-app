@@ -338,11 +338,12 @@ export default function BookingFlow({
                         if (verifyRes.ok) {
                             setCurrentStep(4);
                         } else {
-                            alert("Payment verification failed");
+                            const errData = await verifyRes.json().catch(() => ({}));
+                            setErrors((prev) => ({ ...prev, payment: errData?.error || 'Payment verification failed. Please contact support.' }));
                         }
                     } catch (err) {
                         console.error('Verification error', err);
-                        alert("Payment verification failed");
+                        setErrors((prev) => ({ ...prev, payment: 'Payment verification failed. Please contact support.' }));
                     }
                 },
                 prefill: {
@@ -459,7 +460,7 @@ export default function BookingFlow({
                             <div className="space-y-3">
                                 <div className="flex items-center justify-between">
                                     <h4 className="font-heading font-black text-sm lg:text-base text-foreground tracking-tight">Pick a Date</h4>
-                                    <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider bg-background/50 px-2 py-0.5 rounded-md border border-border/20">7 Days</span>
+                                    <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider bg-background/50 px-2 py-0.5 rounded-md border border-border/20">14 Days</span>
                                 </div>
                                 <div className="flex w-full gap-2.5 overflow-x-auto pb-4 pt-2">
                                     {dateOptions.map((option) => {

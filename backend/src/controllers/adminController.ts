@@ -1,13 +1,13 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
-import { User, Therapist, Booking, Availability } from '../models';
-import { extractWeeklyTemplate, getTemplateSlotsForDate, normalizeDate, normalizeTime } from '../utils/schedule';
+import { User, Therapist, Booking } from '../models';
+import { extractWeeklyTemplate, normalizeDate, normalizeTime } from '../utils/schedule';
 import { runBookingMaintenance } from '../services/bookingMaintenanceService';
 import { createTherapistAccountAndInvite } from '../services/therapistInviteService';
 import { sendEmail } from '../services/emailService';
 import { bookingRescheduledEmail } from '../emails/templates/bookingRescheduled';
 import { bookingCancelledEmail } from '../emails/templates/bookingCancelled';
-import { rescheduleBooking } from '../services/bookingStateService';
+import { rescheduleBooking, syncAvailabilityForStatus } from '../services/bookingStateService';
 
 const VALID_BOOKING_STATUSES = new Set(['pending', 'confirmed', 'completed', 'cancelled']);
 const VALID_SESSION_TYPES = new Set(['video', 'phone', 'chat', 'audio']);
@@ -26,78 +26,6 @@ const normalizeSessionType = (value: string): 'video' | 'phone' | 'chat' | 'audi
     return normalized as 'video' | 'phone' | 'chat' | 'audio';
 };
 
-const ensureRuntimeAvailabilityForDate = async (therapist: any, date: string) => {
-    const therapistId = String(therapist._id);
-    const existing = await Availability.findOne({ therapistId, date });
-    if (existing) return existing;
-
-    const templateSlots = getTemplateSlotsForDate(therapist, date);
-    if (templateSlots.length === 0) return null;
-
-    try {
-        return await Availability.create({
-            therapistId,
-            date,
-            slots: templateSlots.map((slot) => ({ time: slot, isBooked: false })),
-        });
-    } catch (error: any) {
-        if (error?.code === 11000) {
-            return Availability.findOne({ therapistId, date });
-        }
-        throw error;
-    }
-};
-
-const syncAvailabilityForStatus = async (booking: any, nextStatus: string, previousStatus?: string): Promise<{ ok: boolean; error?: string }> => {
-    const wasBooked = previousStatus === 'confirmed' || previousStatus === 'completed';
-    const shouldBeBooked = nextStatus === 'confirmed' || nextStatus === 'completed';
-
-    if (wasBooked === shouldBeBooked) {
-        return { ok: true };
-    }
-
-    const therapist = await Therapist.findById(booking.therapistId);
-    if (!therapist) {
-        return { ok: false, error: 'Therapist not found for availability sync' };
-    }
-
-    const runtimeAvailability = await ensureRuntimeAvailabilityForDate(therapist, booking.date);
-    if (!runtimeAvailability) {
-        return { ok: false, error: 'No availability template exists for this therapist/date' };
-    }
-
-    const slotExists = runtimeAvailability.slots.some((slot: any) => String(slot.time) === String(booking.time));
-    if (!slotExists) {
-        return { ok: false, error: 'Selected slot is not in therapist availability for that date' };
-    }
-
-    if (shouldBeBooked) {
-        const lockResult = await Availability.updateOne(
-            {
-                therapistId: booking.therapistId,
-                date: booking.date,
-                slots: { $elemMatch: { time: booking.time, isBooked: false } },
-            },
-            { $set: { 'slots.$.isBooked': true }, $unset: { 'slots.$.reservedUntil': 1 } }
-        );
-
-        if (lockResult.modifiedCount === 0) {
-            return { ok: false, error: 'Selected slot is already booked' };
-        }
-        return { ok: true };
-    }
-
-    const releaseResult = await Availability.updateOne(
-        { therapistId: booking.therapistId, date: booking.date, 'slots.time': booking.time },
-        { $set: { 'slots.$.isBooked': false }, $unset: { 'slots.$.reservedUntil': 1 } }
-    );
-
-    if (releaseResult.matchedCount === 0) {
-        return { ok: false, error: 'Availability slot was not found for release' };
-    }
-
-    return { ok: true };
-};
 
 export const getDashboardStats = async (req: Request, res: Response) => {
     try {
@@ -152,6 +80,7 @@ export const createUser = async (req: Request, res: Response) => {
             email,
             password: hashedPassword,
             role: role || 'user',
+            isVerified: true,
         });
 
         res.status(201).json({
@@ -174,8 +103,15 @@ export const updateUser = async (req: Request, res: Response) => {
             return res.status(404).json({ error: 'User not found' });
         }
 
+        if (email && String(email).trim().toLowerCase() !== user.email) {
+            const existing = await User.findOne({ email: String(email).trim().toLowerCase(), _id: { $ne: user._id } }).select('_id');
+            if (existing) {
+                return res.status(400).json({ error: 'Email is already in use' });
+            }
+        }
+
         user.name = name || user.name;
-        user.email = email || user.email;
+        user.email = email ? String(email).trim().toLowerCase() : user.email;
         user.role = role || user.role;
 
         await user.save();
@@ -424,8 +360,15 @@ export const updateAdminProfile = async (req: Request, res: Response) => {
             return res.status(404).json({ error: 'User not found' });
         }
 
+        if (email && String(email).trim().toLowerCase() !== user.email) {
+            const existing = await User.findOne({ email: String(email).trim().toLowerCase(), _id: { $ne: userId } }).select('_id');
+            if (existing) {
+                return res.status(400).json({ error: 'Email is already in use' });
+            }
+        }
+
         user.name = name || user.name;
-        user.email = email || user.email;
+        user.email = email ? String(email).trim().toLowerCase() : user.email;
 
         await user.save();
 
@@ -444,6 +387,13 @@ export const updateAdminPassword = async (req: Request, res: Response) => {
     try {
         const userId = (req as any).user.userId;
         const { currentPassword, newPassword } = req.body;
+
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({ error: 'Current password and new password are required' });
+        }
+        if (String(newPassword).length < 8) {
+            return res.status(400).json({ error: 'New password must be at least 8 characters long' });
+        }
 
         const user = await User.findById(userId);
         if (!user || !user.password) {
@@ -479,6 +429,12 @@ export const updateBookingStatus = async (req: Request, res: Response) => {
         const previousTime = booking.time;
         let didReschedule = false;
         let didCancel = false;
+
+        // Reject combined reschedule+status — reschedule saves to DB first; if status sync
+        // then fails the booking ends up with new date/time but old status (inconsistent state).
+        if ((req.body?.reschedule?.date || req.body?.reschedule?.time) && req.body?.status !== undefined) {
+            return res.status(400).json({ error: 'Cannot reschedule and change status in the same request. Apply each change separately.' });
+        }
 
         // Reschedule (admin)
         if (req.body?.reschedule?.date || req.body?.reschedule?.time) {

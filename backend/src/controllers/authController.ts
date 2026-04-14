@@ -205,7 +205,7 @@ export const forgotPassword = async (req: Request, res: Response) => {
 
         const token = jwt.sign(
             { userId: user._id.toString(), purpose: 'password-reset' },
-            config.jwtSecret,
+            config.jwtRefreshSecret,
             { expiresIn: '1h' }
         );
 
@@ -251,7 +251,7 @@ export const resetPassword = async (req: Request, res: Response) => {
 
         let decoded: { userId: string; purpose?: string };
         try {
-            decoded = jwt.verify(String(token), config.jwtSecret) as { userId: string; purpose?: string };
+            decoded = jwt.verify(String(token), config.jwtRefreshSecret) as { userId: string; purpose?: string };
         } catch {
             return res.status(400).json({ error: 'Reset link is invalid or has expired' });
         }
@@ -363,6 +363,9 @@ export const updateMyPassword = async (req: AuthRequest, res: Response) => {
         }
         if (!currentPassword || !newPassword) {
             return res.status(400).json({ error: 'Current password and new password are required' });
+        }
+        if (String(newPassword).length < 8) {
+            return res.status(400).json({ error: 'New password must be at least 8 characters long' });
         }
 
         const user = await User.findById(userId);

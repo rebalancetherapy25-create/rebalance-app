@@ -193,6 +193,12 @@ export const updateTherapistBooking = async (req: TherapistAuthRequest, res: Res
         const previousDate = booking.date;
         const previousTime = booking.time;
 
+        // Reject combined reschedule+status — reschedule saves to DB first; if status sync
+        // then fails the booking ends up with new date/time but old status (inconsistent state).
+        if ((req.body?.reschedule?.date || req.body?.reschedule?.time) && req.body?.status !== undefined) {
+            return res.status(400).json({ error: 'Cannot reschedule and change status in the same request. Apply each change separately.' });
+        }
+
         let didReschedule = false;
         let didCancel = false;
 

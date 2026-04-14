@@ -219,7 +219,7 @@ export const verifyPayment = async (req: AuthRequest, res: Response) => {
             return res.status(200).json({ success: true, booking, idempotent: true });
         }
 
-        if (booking.status !== 'pending' && booking.status !== 'cancelled') {
+        if (booking.status !== 'pending') {
             return res.status(409).json({ error: `Booking is already ${booking.status}` });
         }
 
@@ -257,7 +257,6 @@ export const verifyPayment = async (req: AuthRequest, res: Response) => {
 
         booking.status = 'confirmed';
         booking.razorpayPaymentId = razorpay_payment_id;
-        booking.meetingLink = `https://zoom.us/mock/${booking._id}`;
         try {
             await booking.save();
         } catch (saveError) {

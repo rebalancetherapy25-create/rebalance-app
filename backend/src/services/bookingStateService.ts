@@ -127,7 +127,9 @@ export const rescheduleBooking = async (bookingId: string, therapistId: string, 
 
     const oldDate = booking.date;
     const oldTime = booking.time;
-    const shouldReleaseOld = booking.status === 'confirmed';
+    // For confirmed bookings, release the slot (mark isBooked=false).
+    // For pending bookings, the slot isn't marked isBooked but may hold a reservedUntil lock — release it too.
+    const shouldReleaseOld = booking.status === 'confirmed' || booking.status === 'pending';
 
     if (shouldReleaseOld) {
         const releasedOld = await releaseSlot(therapistId, oldDate, oldTime);

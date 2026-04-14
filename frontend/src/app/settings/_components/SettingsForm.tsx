@@ -70,7 +70,11 @@ export default function SettingsForm() {
     return (
         <div className="flex-1 w-full space-y-8">
             {message && (
-                <div className="bg-primary/5 border border-primary/20 text-primary px-4 py-3 rounded-xl text-sm font-medium">
+                <div className={`px-4 py-3 rounded-xl text-sm font-medium border ${
+                    message.toLowerCase().includes('success') || message.toLowerCase().includes('updated')
+                        ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                        : 'bg-destructive/5 border-destructive/20 text-destructive'
+                }`}>
                     {message}
                 </div>
             )}

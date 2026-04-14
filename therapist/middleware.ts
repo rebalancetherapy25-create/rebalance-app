@@ -9,18 +9,37 @@ const hasTherapistCookies = (request: NextRequest) => {
   return Boolean(accessToken || refreshToken);
 };
 
-const isTherapistFromBackend = async (request: NextRequest) => {
+// Try /therapist-auth/me. If the access token is expired (401), silently refresh
+// it first. Returns whether valid and any new cookies from the refresh.
+const resolveTherapistAuth = async (
+  request: NextRequest,
+): Promise<{ isValid: boolean; setCookieHeader?: string }> => {
+  const cookieHeader = request.headers.get('cookie') || '';
+
   try {
     const meRes = await fetch(`${getApiBase()}/therapist-auth/me`, {
-      method: 'GET',
-      headers: {
-        cookie: request.headers.get('cookie') || '',
-      },
+      headers: { cookie: cookieHeader },
       cache: 'no-store',
     });
-    return meRes.ok;
+
+    if (meRes.ok) return { isValid: true };
+
+    // Non-401 (e.g. 403 suspended) — not recoverable.
+    if (meRes.status !== 401) return { isValid: false };
+
+    // Access token expired — try the refresh endpoint.
+    const refreshRes = await fetch(`${getApiBase()}/therapist-auth/refresh`, {
+      method: 'POST',
+      headers: { cookie: cookieHeader },
+      cache: 'no-store',
+    });
+
+    if (!refreshRes.ok) return { isValid: false };
+
+    const setCookieHeader = refreshRes.headers.get('set-cookie') ?? undefined;
+    return { isValid: true, setCookieHeader };
   } catch {
-    return false;
+    return { isValid: false };
   }
 };
 
@@ -29,8 +48,9 @@ export async function middleware(request: NextRequest) {
   const isAuthenticated = hasTherapistCookies(request);
 
   if (pathname === '/login') {
-    if (isAuthenticated && await isTherapistFromBackend(request)) {
-      return NextResponse.redirect(new URL('/availability', request.url));
+    if (isAuthenticated) {
+      const { isValid } = await resolveTherapistAuth(request);
+      if (isValid) return NextResponse.redirect(new URL('/availability', request.url));
     }
     return NextResponse.next();
   }
@@ -39,11 +59,19 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  if (!await isTherapistFromBackend(request)) {
+  const { isValid, setCookieHeader } = await resolveTherapistAuth(request);
+
+  if (!isValid) {
     return NextResponse.redirect(new URL('/login?reason=unauthorized', request.url));
   }
 
-  return NextResponse.next();
+  const response = NextResponse.next();
+  // Forward refreshed cookies so the browser gets the new access token
+  // without the therapist being logged out every 15 minutes.
+  if (setCookieHeader) {
+    response.headers.set('set-cookie', setCookieHeader);
+  }
+  return response;
 }
 
 export const config = {
@@ -51,4 +79,3 @@ export const config = {
     '/((?!api|_next/static|_next/image|favicon.ico).*)',
   ],
 };
-
