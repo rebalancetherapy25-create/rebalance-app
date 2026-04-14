@@ -8,7 +8,7 @@ import { Twitter, Instagram, Linkedin, ArrowRight } from 'lucide-react';
 export function Footer() {
     const pathname = usePathname();
 
-    if (pathname.startsWith('/dashboard') || pathname.startsWith('/book') || pathname === '/login' || pathname === '/signup' || pathname === '/forgot-password' || pathname === '/reset-password') {
+    if (pathname.startsWith('/dashboard') || pathname.startsWith('/book') || pathname === '/login' || pathname === '/signup' || pathname === '/forgot-password' || pathname === '/reset-password' || pathname === '/verify-email') {
         return null;
     }
 

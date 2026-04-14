@@ -28,6 +28,32 @@ const optional = (name: string): string | undefined => {
     return value || undefined;
 };
 
+const DEFAULT_EMAIL_FROM = 'Rebalance <onboarding@resend.dev>';
+
+const unwrapQuoted = (value: string) => value.trim().replace(/^['"]+|['"]+$/g, '');
+
+const normalizeEmailFrom = (value?: string) => {
+    if (!value) return DEFAULT_EMAIL_FROM;
+
+    const cleaned = unwrapQuoted(value);
+    const namedMatch = cleaned.match(/^\s*([^<>\r\n]+?)\s*<\s*([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})\s*>/i);
+    if (namedMatch) {
+        const displayName = unwrapQuoted(namedMatch[1] ?? '');
+        const email = namedMatch[2];
+        if (email) {
+            return `${displayName} <${email}>`;
+        }
+    }
+
+    const bareMatch = cleaned.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+    if (bareMatch) {
+        return bareMatch[0];
+    }
+
+    console.warn(`[env] EMAIL_FROM is invalid. Falling back to ${DEFAULT_EMAIL_FROM}.`);
+    return DEFAULT_EMAIL_FROM;
+};
+
 const isCrossOrigin = (source?: string, target?: string): boolean => {
     if (!source || !target) return false;
     try {
@@ -54,7 +80,7 @@ const config = {
     therapistUrl: optional('THERAPIST_URL') || 'http://localhost:3002',
     backendUrl: optional('BACKEND_URL'),
     resendApiKey: optional('RESEND_API_KEY'),
-    emailFrom: optional('EMAIL_FROM') || 'Rebalance <no-reply@rebalance.health>',
+    emailFrom: normalizeEmailFrom(optional('EMAIL_FROM')),
     isProduction: env === 'production',
 };
 

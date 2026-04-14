@@ -10,7 +10,7 @@ export const metadata = {
 
 export default function ForgotPasswordPage() {
     return (
-        <div className="min-h-[100ddvh] bg-background px-4 py-12 sm:px-6 sm:py-16 flex flex-col items-center">
+        <div className="min-h-[100dvh] bg-background px-4 py-12 sm:px-6 sm:py-16 flex flex-col items-center">
             <div className="mb-6 flex w-full max-w-md items-center justify-center sm:justify-start">
                 <Logo width={140} height={40} />
             </div>

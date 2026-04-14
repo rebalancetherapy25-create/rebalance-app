@@ -23,7 +23,7 @@ export const sendEmail = async ({ to, subject, html }: { to: string; subject: st
 
         if (!res.ok) {
             const text = await res.text().catch(() => '');
-            console.error('[Email] Resend send failed:', res.status, text);
+            console.error('[Email] Resend send failed:', res.status, { from: config.emailFrom, to, subject, response: text });
             return false;
         }
 

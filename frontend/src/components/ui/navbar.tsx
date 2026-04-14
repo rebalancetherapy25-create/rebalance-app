@@ -21,7 +21,7 @@ export function Navbar() {
     }, []);
 
     // Do not show on specific routes that have their own navigation
-    if (pathname.startsWith('/dashboard') || pathname.startsWith('/book') || pathname === '/login' || pathname === '/signup' || pathname === '/forgot-password' || pathname === '/reset-password') {
+    if (pathname.startsWith('/dashboard') || pathname.startsWith('/book') || pathname === '/login' || pathname === '/signup' || pathname === '/forgot-password' || pathname === '/reset-password' || pathname === '/verify-email') {
         return null;
     }
 

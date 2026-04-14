@@ -95,11 +95,17 @@ export default function VerifyEmailForm() {
     return (
         <form onSubmit={handleVerify} noValidate className="space-y-6">
             <div className="space-y-3">
+                <div className="rounded-2xl border border-border/60 bg-accent/5 px-4 py-3 text-center">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Verification email</p>
+                    <p className="mt-1 break-all text-sm font-medium text-foreground sm:text-base">{email}</p>
+                </div>
                 <Input
                     type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     maxLength={6}
                     placeholder="••••••"
-                    className="h-16 text-center text-3xl font-mono tracking-[0.5em] outline-none rounded-xl bg-accent/5 border-border focus-visible:ring-primary pl-[0.5em]"
+                    className="h-14 rounded-xl border-border bg-accent/5 px-4 text-center font-mono text-2xl tracking-[0.28em] outline-none focus-visible:ring-primary sm:h-16 sm:text-3xl sm:tracking-[0.42em]"
                     value={otp}
                     onChange={(e) => {
                         const val = e.target.value.replace(/\D/g, '');
@@ -115,7 +121,7 @@ export default function VerifyEmailForm() {
             <Button
                 type="submit"
                 disabled={submitting || otp.length !== 6}
-                className="w-full h-12 rounded-xl text-md font-medium bg-primary text-text-inverse hover:bg-primary/90 shadow-md transition-all"
+                className="h-12 w-full rounded-xl bg-primary text-base font-medium text-text-inverse shadow-md transition-all hover:bg-primary/90"
             >
                 {submitting ? 'Verifying...' : 'Verify Email'}
             </Button>

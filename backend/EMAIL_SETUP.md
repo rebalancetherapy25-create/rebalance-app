@@ -7,6 +7,8 @@ The backend sends transactional emails via the Resend HTTP API.
 - `RESEND_API_KEY`: Resend API key.
 - `EMAIL_FROM`: Sender address that is verified in Resend.
   - Example: `ReBalance <no-reply@yourdomain.com>`
+  - If you do not have a verified domain yet, the backend now falls back to `Rebalance <onboarding@resend.dev>`.
+  - Do not append other shell assignments to this value. A broken value like `"Rebalance <no-reply@yourdomain.com>"NODE_ENV=production` will be rejected by Resend.
 - `THERAPIST_URL`: Therapist portal base URL.
   - Dev default: `http://localhost:3002`
 
@@ -24,4 +26,3 @@ The backend sends transactional emails via the Resend HTTP API.
 - Booking rescheduled / cancelled
   - Trigger: `PUT /api/admin/bookings/:id` or `PUT /api/therapist/bookings/:id` with `reschedule` or `status=cancelled`
   - Templates: `backend/src/emails/templates/bookingRescheduled.ts`, `backend/src/emails/templates/bookingCancelled.ts`
-
