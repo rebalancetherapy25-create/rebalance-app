@@ -118,9 +118,11 @@ export default function ResetPasswordForm() {
             <Button
                 type="submit"
                 disabled={submitting}
+                loading={submitting}
+                loadingText="Updating password..."
                 className="w-full h-12 rounded-xl text-md font-medium bg-primary text-text-inverse hover:bg-primary/90 shadow-md"
             >
-                {submitting ? 'Updating password...' : 'Update Password'}
+                Update Password
             </Button>
         </form>
     );

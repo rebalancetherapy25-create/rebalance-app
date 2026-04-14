@@ -4,9 +4,10 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { User, Sparkles, Loader2, Heart, Search, SlidersHorizontal, ChevronDown } from 'lucide-react';
+import { User, Sparkles, Heart, Search, SlidersHorizontal, ChevronDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Pagination } from '@/components/ui/pagination';
+import { Skeleton } from '@/components/ui/skeleton';
 import api from '@/lib/api';
 
 export interface Therapist {
@@ -163,9 +164,24 @@ export default function TherapistFilters({
                 </div>
 
                 {loading ? (
-                    <div className="flex flex-col items-center justify-center py-40 gap-6">
-                        <Loader2 className="w-12 h-12 text-accent motion-safe:animate-spin" />
-                        <p className="text-muted-foreground font-medium motion-safe:animate-pulse text-lg">Curating your perfect matches...</p>
+                    <div className="space-y-8">
+                        <div className="flex items-center justify-between px-2">
+                            <Skeleton className="h-4 w-52" />
+                            <Skeleton className="h-4 w-28" />
+                        </div>
+                        <div className="grid gap-x-6 gap-y-16 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                            {Array.from({ length: 8 }).map((_, index) => (
+                                <div key={index} className="space-y-5">
+                                    <Skeleton className="aspect-[4/5] w-full rounded-[2.5rem]" />
+                                    <div className="space-y-3 px-2">
+                                        <Skeleton className="h-7 w-2/3" />
+                                        <Skeleton className="h-4 w-1/2" />
+                                        <Skeleton className="h-4 w-full" />
+                                        <Skeleton className="h-4 w-5/6" />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 ) : error ? (
                     <div className="text-center py-32 space-y-4 max-w-md mx-auto">

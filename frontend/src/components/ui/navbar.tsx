@@ -189,10 +189,12 @@ export function Navbar() {
                                     variant="ghost"
                                     onClick={logout}
                                     disabled={loggingOut}
+                                    loading={loggingOut}
+                                    loadingText="Logging out..."
                                     className="rounded-full px-4 font-semibold text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                                 >
                                     <LogOut className="h-4 w-4" />
-                                    {loggingOut ? 'Logging out...' : 'Log out'}
+                                    Log out
                                 </Button>
                             </>
                         ) : (
@@ -286,9 +288,11 @@ export function Navbar() {
                                     className="h-12 w-full rounded-2xl border-border/70 text-base font-bold"
                                     onClick={logout}
                                     disabled={loggingOut}
+                                    loading={loggingOut}
+                                    loadingText="Logging out..."
                                 >
                                     <LogOut className="h-4 w-4" />
-                                    {loggingOut ? 'Logging out...' : 'Log out'}
+                                    Log out
                                 </Button>
                             </div>
                         ) : authStatus === 'loading' ? (

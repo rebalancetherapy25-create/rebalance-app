@@ -1,4 +1,9 @@
-import TherapistFilters from './_components/TherapistFilters';
+import dynamic from 'next/dynamic';
+import { TherapistFiltersSkeleton } from '@/components/loading/skeletons';
+
+const TherapistFilters = dynamic(() => import('./_components/TherapistFilters'), {
+    loading: () => <TherapistFiltersSkeleton />,
+});
 
 export const metadata = {
     title: 'Find a Therapist | Rebalance',

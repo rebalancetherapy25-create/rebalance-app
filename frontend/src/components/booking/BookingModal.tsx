@@ -1,10 +1,15 @@
 "use client";
 
+import dynamic from 'next/dynamic';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
 import { Dialog, DialogContent, DialogTrigger, DialogTitle } from '@/components/ui/dialog';
-import BookingFlow from './BookingFlow';
+import { BookingFlowSkeleton } from '@/components/loading/skeletons';
+
+const BookingFlow = dynamic(() => import('./BookingFlow'), {
+    loading: () => <BookingFlowSkeleton />,
+});
 
 interface BookingModalProps {
     therapistId: string;

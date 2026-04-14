@@ -92,9 +92,11 @@ export default function ForgotPasswordForm() {
             <Button
                 type="submit"
                 disabled={submitting}
+                loading={submitting}
+                loadingText="Sending reset link..."
                 className="w-full h-12 rounded-xl text-md font-medium bg-primary text-text-inverse hover:bg-primary/90 shadow-md"
             >
-                {submitting ? 'Sending link...' : 'Send Reset Link'}
+                Send Reset Link
             </Button>
         </form>
     );

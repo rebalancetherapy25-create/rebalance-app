@@ -1,8 +1,14 @@
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Leaf, ArrowRight, Star, ShieldCheck, Heart, Sparkles } from 'lucide-react';
-import FeaturedTherapists from '@/components/FeaturedTherapists';
+import { FeaturedTherapistsSkeleton } from '@/components/loading/skeletons';
+
+const FeaturedTherapists = dynamic(() => import('@/components/FeaturedTherapists'), {
+  loading: () => <FeaturedTherapistsSkeleton />,
+  ssr: false,
+});
 
 export default async function LandingPage() {
   let bannerImage = "https://images.unsplash.com/photo-1573497620053-ea5300f94f21?q=80&w=2000&auto=format&fit=crop";

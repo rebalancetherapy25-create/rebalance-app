@@ -135,9 +135,11 @@ export default function AuthForm() {
             <Button
                 type="submit"
                 disabled={submitting}
+                loading={submitting}
+                loadingText="Signing in..."
                 className="h-11 w-full rounded-[1rem] bg-primary text-sm font-semibold text-primary-foreground shadow-[0_16px_26px_-20px_rgba(74,35,52,0.9)] transition-colors hover:bg-primary/95"
             >
-                {submitting ? 'Signing in...' : 'Sign in'}
+                Sign in
             </Button>
         </form>
     );

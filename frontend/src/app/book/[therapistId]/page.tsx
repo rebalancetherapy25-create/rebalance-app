@@ -1,8 +1,13 @@
 "use client";
 
+import dynamic from 'next/dynamic';
 import { useState, useEffect } from 'react';
-import BookingFlow from '@/components/booking/BookingFlow';
 import { useRouter } from 'next/navigation';
+import { BookingFlowSkeleton } from '@/components/loading/skeletons';
+
+const BookingFlow = dynamic(() => import('@/components/booking/BookingFlow'), {
+    loading: () => <BookingFlowSkeleton />,
+});
 
 interface TherapistForBooking {
     id: string;
@@ -47,10 +52,11 @@ export default function BookingFlowPage({ params }: { params: { therapistId: str
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-background">
-                <div className="animate-pulse flex flex-col items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-primary/20"></div>
-                    <p className="text-sm font-bold text-primary/40 uppercase tracking-widest">Loading Experience...</p>
+            <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-10 font-sans sm:px-6 sm:py-12">
+                <div className="absolute top-[-10%] left-[-10%] h-[40%] w-[40%] rounded-full bg-primary/5 blur-[120px]" />
+                <div className="absolute bottom-[-10%] right-[-10%] h-[40%] w-[40%] rounded-full bg-accent/5 blur-[120px]" />
+                <div className="relative z-10 w-full max-w-[850px]">
+                    <BookingFlowSkeleton />
                 </div>
             </div>
         );

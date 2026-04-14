@@ -1,7 +1,12 @@
+import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
+import { SettingsFormSkeleton } from '@/components/loading/skeletons';
 import { Calendar, Settings, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
-import SettingsForm from './_components/SettingsForm';
+
+const SettingsForm = dynamic(() => import('./_components/SettingsForm'), {
+    loading: () => <SettingsFormSkeleton />,
+});
 
 export const metadata = {
     title: 'Settings | Rebalance',

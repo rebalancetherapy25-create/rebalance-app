@@ -121,20 +121,25 @@ export default function VerifyEmailForm() {
             <Button
                 type="submit"
                 disabled={submitting || otp.length !== 6}
+                loading={submitting}
+                loadingText="Verifying..."
                 className="h-12 w-full rounded-xl bg-primary text-base font-medium text-text-inverse shadow-md transition-all hover:bg-primary/90"
             >
-                {submitting ? 'Verifying...' : 'Verify Email'}
+                Verify Email
             </Button>
             
             <div className="text-center">
-                <button
+                <Button
                     type="button"
+                    variant="ghost"
                     onClick={handleResend}
                     disabled={resending || cooldown > 0}
-                    className="text-sm font-semibold text-primary transition-colors hover:text-primary/80 disabled:opacity-50 disabled:hover:text-primary"
+                    loading={resending}
+                    loadingText="Sending..."
+                    className="h-auto px-2 py-1 text-sm font-semibold text-primary transition-colors hover:bg-transparent hover:text-primary/80 disabled:hover:text-primary"
                 >
-                    {resending ? 'Sending...' : cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}
-                </button>
+                    {cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}
+                </Button>
             </div>
         </form>
     );

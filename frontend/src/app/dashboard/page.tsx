@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { DashboardContentSkeleton } from '@/components/loading/skeletons';
 import { Calendar, Settings, Video, Clock, ArrowRight } from 'lucide-react';
 import api from '@/lib/api';
 
@@ -93,11 +94,13 @@ export default function DashboardPage() {
                         </div>
                     </aside>
 
+                    {loading ? (
+                        <DashboardContentSkeleton />
+                    ) : (
                     <div className="flex-1 w-full space-y-6">
                         <h2 className="text-xl font-heading font-semibold text-foreground">Upcoming Sessions</h2>
-                        {loading && <p className="text-muted-foreground">Loading bookings...</p>}
                         {error && <p className="text-destructive text-sm">{error}</p>}
-                        {!loading && !error && upcoming.length === 0 && (
+                        {!error && upcoming.length === 0 && (
                             <p className="text-muted-foreground">No upcoming sessions yet.</p>
                         )}
 
@@ -136,7 +139,7 @@ export default function DashboardPage() {
                         ))}
 
                         <h2 className="text-xl font-heading font-semibold text-foreground mt-12 mb-4">Past Sessions</h2>
-                        {!loading && past.length === 0 && <p className="text-muted-foreground">No past sessions yet.</p>}
+                        {past.length === 0 && <p className="text-muted-foreground">No past sessions yet.</p>}
                         {past.map((booking) => (
                             <Card key={booking._id} className="border-none shadow-sm bg-background rounded-2xl p-1 opacity-80">
                                 <CardContent className="p-6">
@@ -153,6 +156,7 @@ export default function DashboardPage() {
                             </Card>
                         ))}
                     </div>
+                    )}
                 </div>
             </main>
         </div>

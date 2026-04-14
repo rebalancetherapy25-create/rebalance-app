@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { FeaturedTherapistsSkeleton } from '@/components/loading/skeletons';
 import { Star, User } from 'lucide-react';
 import api from '@/lib/api';
 
@@ -42,15 +43,11 @@ export default function FeaturedTherapists() {
     }, []);
 
     if (error) return null; // Gracefully hide if error
+    if (loading) return <FeaturedTherapistsSkeleton />;
 
     return (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-8">
-            {loading ? (
-                // Loading Skeletons
-                [1, 2, 3].map((i) => (
-                    <div key={i} className="bg-neutral-100 animate-pulse rounded-[2rem] aspect-[4/5] overflow-hidden" />
-                ))
-            ) : therapists.length === 0 ? (
+            {therapists.length === 0 ? (
                 <div className="col-span-full py-12 text-center text-muted-foreground italic">
                     Our specialists are coming soon.
                 </div>

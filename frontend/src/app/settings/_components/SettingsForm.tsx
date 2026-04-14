@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { User, Lock, Loader2 } from 'lucide-react';
+import { SettingsFormSkeleton } from '@/components/loading/skeletons';
+import { User, Lock } from 'lucide-react';
 import api from '@/lib/api';
 
 export default function SettingsForm() {
@@ -63,12 +64,7 @@ export default function SettingsForm() {
     };
 
     if (loading) {
-        return (
-            <div className="flex flex-col items-center py-20 gap-4 text-muted-foreground">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                <p>Loading your settings...</p>
-            </div>
-        );
+        return <SettingsFormSkeleton />;
     }
 
     return (
@@ -93,8 +89,8 @@ export default function SettingsForm() {
                         <Input value={profileData.email} onChange={(e) => setProfileData((prev) => ({ ...prev, email: e.target.value }))} className="bg-accent/5" />
                     </div>
                     <div className="pt-4">
-                        <Button disabled={savingProfile} onClick={saveProfile} className="bg-primary text-text-inverse hover:bg-primary/90 rounded-xl">
-                            {savingProfile ? 'Saving...' : 'Save Changes'}
+                        <Button loading={savingProfile} loadingText="Saving changes..." disabled={savingProfile} onClick={saveProfile} className="bg-primary text-text-inverse hover:bg-primary/90 rounded-xl">
+                            Save Changes
                         </Button>
                     </div>
                 </CardContent>
@@ -126,8 +122,8 @@ export default function SettingsForm() {
                         />
                     </div>
                     <div className="pt-4">
-                        <Button disabled={savingPassword} onClick={savePassword} variant="outline" className="border-primary text-primary hover:bg-primary/10 rounded-xl">
-                            {savingPassword ? 'Updating...' : 'Update Password'}
+                        <Button loading={savingPassword} loadingText="Updating password..." disabled={savingPassword} onClick={savePassword} variant="outline" className="border-primary text-primary hover:bg-primary/10 rounded-xl">
+                            Update Password
                         </Button>
                     </div>
                 </CardContent>

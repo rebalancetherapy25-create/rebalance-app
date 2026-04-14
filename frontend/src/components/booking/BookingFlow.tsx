@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Video, Phone, MessageCircle, Lock, Globe, Clock } from 'lucide-react';
 
 const STEPS = ['Format', 'Date & Time', 'Details', 'Payment', 'Confirmed'];
@@ -497,7 +498,7 @@ export default function BookingFlow({
                             <div className="space-y-3 relative">
                                 <div className="flex items-center justify-between">
                                     <h4 className="font-heading font-black text-sm lg:text-base text-foreground tracking-tight">Available Times</h4>
-                                    {fetchingSlots && (
+                                    {fetchingSlots && liveSlots.length > 0 && (
                                         <div className="flex items-center gap-2 text-[10px] font-bold text-primary uppercase tracking-widest">
                                             <div className="w-3 h-3 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
                                             <span>Loading...</span>
@@ -505,7 +506,13 @@ export default function BookingFlow({
                                     )}
                                 </div>
 
-                                {liveSlots.length > 0 ? (
+                                {fetchingSlots ? (
+                                    <div className="grid grid-cols-3 gap-2 lg:gap-3 sm:grid-cols-4 lg:grid-cols-4">
+                                        {Array.from({ length: 8 }).map((_, index) => (
+                                            <Skeleton key={index} className="h-10 rounded-xl lg:h-11" />
+                                        ))}
+                                    </div>
+                                ) : liveSlots.length > 0 ? (
                                     <div className={`grid grid-cols-3 gap-2 lg:gap-3 transition-opacity duration-300 sm:grid-cols-4 lg:grid-cols-4 ${fetchingSlots ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
                                         {liveSlots.map((slot: string) => {
                                             const isSelected = time === slot;
@@ -688,9 +695,11 @@ export default function BookingFlow({
                         <Button
                             onClick={handleNextStep}
                             disabled={processing || (currentStep === 1 && (!date || !time))}
+                            loading={processing}
+                            loadingText="Locking slot..."
                             className="flex items-center justify-center w-auto h-9 lg:h-11 rounded-lg lg:rounded-xl px-5 text-[10px] lg:text-xs font-black uppercase tracking-tight shadow-md transition-all sm:px-8 lg:px-10 shrink-0 bg-primary text-primary-foreground hover:bg-primary/90 disabled:bg-muted-foreground/20 disabled:text-muted-foreground disabled:shadow-none"
                         >
-                            {processing ? '...' : (currentStep === 3 ? `Pay ₹${payableAmount}` : 'Next')}
+                            {currentStep === 3 ? `Pay ₹${payableAmount}` : 'Next'}
                         </Button>
                     </div>
                 )}
