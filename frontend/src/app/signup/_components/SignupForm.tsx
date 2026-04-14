@@ -64,8 +64,7 @@ export default function SignupForm() {
         setErrors({});
         try {
             await api.post('/auth/register', { name: name.trim(), email: email.trim(), password });
-            router.push('/dashboard');
-            router.refresh();
+            router.push(`/verify-email?email=${encodeURIComponent(email.trim())}`);
         } catch (err: unknown) {
             const message = getApiErrorMessage(err, 'Signup failed. Please try again.');
             toast({

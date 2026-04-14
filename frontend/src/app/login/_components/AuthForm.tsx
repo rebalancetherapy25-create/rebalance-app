@@ -59,6 +59,11 @@ export default function AuthForm() {
             router.push('/dashboard');
             router.refresh();
         } catch (err: unknown) {
+            const error = err as any;
+            if (error.response?.status === 403 && error.response?.data?.unverified) {
+                router.push(`/verify-email?email=${encodeURIComponent(email.trim())}`);
+                return;
+            }
             const message = getApiErrorMessage(err, 'Login failed. Please try again.');
             toast({
                 variant: 'error',

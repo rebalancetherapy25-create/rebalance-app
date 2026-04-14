@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 import { clearAuthCookies, generateTokens, setAuthCookies } from '../utils/jwt';
 import { AuthRequest } from '../middlewares/authMiddleware';
 import config from '../config/env';
+import { sendEmail } from '../services/emailService';
 
 const formatUser = (user: any) => ({
     _id: user._id,
@@ -35,16 +36,82 @@ export const registerUser = async (req: Request, res: Response) => {
         });
 
         if (user) {
-            const { accessToken, refreshToken } = generateTokens(user._id, user.role);
-
-            user.refreshToken = refreshToken;
+            const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+            user.otpCode = otpCode;
+            user.otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
             await user.save();
 
-            setAuthCookies(res, accessToken, refreshToken);
-            res.status(201).json(formatUser(user));
+            await sendEmail({
+                to: email,
+                subject: 'Verify your Rebalance account',
+                html: `<p>Your verification code is <strong>${otpCode}</strong>. It expires in 10 minutes.</p>`,
+            });
+
+            res.status(201).json({ message: 'User registered. Please verify OTP.', email: user.email });
         } else {
             res.status(400).json({ error: 'Invalid user data' });
         }
+    } catch (error) {
+        res.status(500).json({ error: 'Server error' });
+    }
+};
+
+export const verifyOtp = async (req: Request, res: Response) => {
+    try {
+        const { email, otp } = req.body;
+        if (!email || !otp) {
+            return res.status(400).json({ error: 'Email and OTP are required' });
+        }
+
+        const user = await User.findOne({ email });
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        if (user.isVerified) {
+            return res.status(400).json({ error: 'User is already verified' });
+        }
+
+        if (user.otpCode !== otp || !user.otpExpiry || user.otpExpiry.getTime() < Date.now()) {
+            return res.status(400).json({ error: 'Invalid or expired OTP' });
+        }
+
+        user.isVerified = true;
+        user.otpCode = undefined;
+        user.otpExpiry = undefined;
+
+        const { accessToken, refreshToken } = generateTokens(user._id, user.role);
+        user.refreshToken = refreshToken;
+        await user.save();
+
+        setAuthCookies(res, accessToken, refreshToken);
+        res.status(200).json(formatUser(user));
+    } catch (error) {
+        res.status(500).json({ error: 'Server error' });
+    }
+};
+
+export const resendOtp = async (req: Request, res: Response) => {
+    try {
+        const { email } = req.body;
+        if (!email) return res.status(400).json({ error: 'Email is required' });
+
+        const user = await User.findOne({ email });
+        if (!user) return res.status(404).json({ error: 'User not found' });
+        if (user.isVerified) return res.status(400).json({ error: 'User already verified' });
+
+        const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+        user.otpCode = otpCode;
+        user.otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+        await user.save();
+
+        await sendEmail({
+            to: email,
+            subject: 'Your new verification code',
+            html: `<p>Your verification code is <strong>${otpCode}</strong>. It expires in 10 minutes.</p>`,
+        });
+
+        res.status(200).json({ message: 'OTP resent successfully' });
     } catch (error) {
         res.status(500).json({ error: 'Server error' });
     }
@@ -60,6 +127,9 @@ export const loginUser = async (req: Request, res: Response) => {
         const user = await User.findOne({ email });
 
         if (user && user.password && (await bcrypt.compare(password, user.password))) {
+            if (!user.isVerified) {
+                return res.status(403).json({ error: 'Please verify your email to log in', unverified: true, email: user.email });
+            }
             const { accessToken, refreshToken } = generateTokens(user._id, user.role);
 
             user.refreshToken = refreshToken;
