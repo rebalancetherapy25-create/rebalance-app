@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from 'react';
+import { isAxiosError } from 'axios';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -13,6 +14,10 @@ import { useToast } from '@/components/ui/toaster';
 
 const fieldClassName =
     'h-11 rounded-[1rem] border border-border/70 bg-background text-foreground shadow-none placeholder:text-muted-foreground/70 focus-visible:border-primary/35 focus-visible:ring-2 focus-visible:ring-primary/15 transition-all duration-200';
+
+type LoginErrorResponse = {
+    unverified?: boolean;
+};
 
 export default function AuthForm() {
     const router = useRouter();
@@ -59,8 +64,7 @@ export default function AuthForm() {
             router.push('/dashboard');
             router.refresh();
         } catch (err: unknown) {
-            const error = err as any;
-            if (error.response?.status === 403 && error.response?.data?.unverified) {
+            if (isAxiosError<LoginErrorResponse>(err) && err.response?.status === 403 && err.response.data?.unverified) {
                 router.push(`/verify-email?email=${encodeURIComponent(email.trim())}`);
                 return;
             }
