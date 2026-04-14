@@ -61,7 +61,7 @@ export default function AuthForm() {
         setErrors({});
         try {
             await api.post('/auth/login', { email: email.trim(), password });
-            router.push('/dashboard');
+            router.push('/');
             router.refresh();
         } catch (err: unknown) {
             if (isAxiosError<LoginErrorResponse>(err) && err.response?.status === 403 && err.response.data?.unverified) {

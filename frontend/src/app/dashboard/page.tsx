@@ -3,10 +3,9 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Logo } from '@/components/ui/logo';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Calendar, Settings, LogOut, Video, Clock } from 'lucide-react';
+import { Calendar, Settings, Video, Clock, ArrowRight } from 'lucide-react';
 import api from '@/lib/api';
 
 interface Booking {
@@ -30,7 +29,6 @@ export default function DashboardPage() {
     const [bookings, setBookings] = useState<Booking[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-    const [loggingOut, setLoggingOut] = useState(false);
 
     useEffect(() => {
         const fetchBookings = async () => {
@@ -61,29 +59,25 @@ export default function DashboardPage() {
         };
     }, [bookings]);
 
-    const logout = async () => {
-        setLoggingOut(true);
-        try {
-            await api.post('/auth/logout');
-        } finally {
-            router.push('/login');
-            router.refresh();
-        }
-    };
-
     return (
-        <div className="min-h-screen flex flex-col font-sans bg-accent/5">
-            <header className="bg-background border-b sticky top-0 z-40 shadow-sm">
-                <div className="container mx-auto px-6 h-16 flex items-center justify-between">
-                    <Logo />
-                    <div className="flex items-center gap-4 text-sm font-medium">
-                        <Link href="/therapists" className="text-muted-foreground hover:text-primary transition-colors">Find Therapist</Link>
+        <div className="min-h-screen bg-accent/5 font-sans">
+            <main className="container mx-auto max-w-5xl px-4 pb-12 pt-28 sm:px-6 sm:pb-16 sm:pt-32">
+                <div className="mb-8 flex flex-col gap-5 rounded-[2rem] border border-white/70 bg-background/85 p-6 shadow-[0_22px_50px_-42px_rgba(74,35,52,0.45)] backdrop-blur sm:mb-10 sm:flex-row sm:items-end sm:justify-between sm:p-8">
+                    <div className="max-w-2xl">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">Account Overview</p>
+                        <h1 className="mt-3 text-3xl font-heading font-bold text-foreground sm:text-4xl">My Sessions</h1>
+                        <p className="mt-3 text-sm leading-6 text-muted-foreground sm:text-base">
+                            Keep upcoming appointments, session links, and account details in one calm place.
+                        </p>
                     </div>
-                </div>
-            </header>
 
-            <main className="flex-1 container mx-auto max-w-5xl px-6 py-12">
-                <h1 className="text-3xl font-heading font-bold text-foreground mb-8">My Dashboard</h1>
+                    <Button asChild className="h-11 rounded-full px-6 font-semibold shadow-lg shadow-primary/20">
+                        <Link href="/therapists">
+                            Book a Session
+                            <ArrowRight className="h-4 w-4" />
+                        </Link>
+                    </Button>
+                </div>
 
                 <div className="flex flex-col md:flex-row gap-8 items-start">
                     <aside className="w-full md:w-64 space-y-2 shrink-0">
@@ -96,14 +90,6 @@ export default function DashboardPage() {
                                     <Settings className="w-5 h-5 mr-3" /> Settings
                                 </Button>
                             </Link>
-                            <Button
-                                variant="ghost"
-                                onClick={logout}
-                                disabled={loggingOut}
-                                className="w-full justify-start text-destructive hover:text-destructive-dark hover:bg-destructive-light rounded-xl h-12"
-                            >
-                                <LogOut className="w-5 h-5 mr-3" /> {loggingOut ? 'Logging out...' : 'Log out'}
-                            </Button>
                         </div>
                     </aside>
 

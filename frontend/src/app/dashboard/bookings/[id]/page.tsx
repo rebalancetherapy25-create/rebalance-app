@@ -1,22 +1,21 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Logo } from '@/components/ui/logo';
-import { Calendar, Clock, Video } from 'lucide-react';
+import { Calendar, Clock, Video, ArrowLeft } from 'lucide-react';
 
 export default function BookingDetailsPage() {
     return (
-        <div className="min-h-screen flex flex-col font-sans bg-accent/5">
-            <header className="bg-background border-b sticky top-0 z-40 shadow-sm">
-                <div className="container mx-auto px-6 h-16 flex items-center justify-between">
-                    <Logo />
-                    <nav className="hidden md:flex gap-6 text-sm font-medium text-muted-foreground">
-                        <Link href="/dashboard" className="hover:text-primary transition-colors">← Back to Dashboard</Link>
-                    </nav>
+        <div className="min-h-screen font-sans bg-accent/5">
+            <main className="container mx-auto max-w-4xl px-4 pb-12 pt-28 sm:px-6 sm:pb-16 sm:pt-32">
+                <div className="mb-6">
+                    <Button asChild variant="ghost" className="rounded-full px-0 text-sm font-semibold text-muted-foreground hover:bg-transparent hover:text-primary">
+                        <Link href="/dashboard">
+                            <ArrowLeft className="h-4 w-4" />
+                            Back to Dashboard
+                        </Link>
+                    </Button>
                 </div>
-            </header>
 
-            <main className="flex-1 container mx-auto max-w-4xl px-6 py-12">
                 <div className="flex items-center justify-between mb-8">
                     <h1 className="text-3xl font-heading font-bold text-foreground">Booking Details</h1>
                     <span className="px-4 py-1.5 rounded-full bg-green-100 text-green-700 text-sm font-semibold tracking-wide border border-green-200">

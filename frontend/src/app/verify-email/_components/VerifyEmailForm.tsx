@@ -51,7 +51,7 @@ export default function VerifyEmailForm() {
                 title: 'Email Verified',
                 description: 'Your account is now secure and ready to use.',
             });
-            router.push('/dashboard');
+            router.push('/');
             router.refresh();
         } catch (err: unknown) {
             const message = getApiErrorMessage(err, 'Verification failed. Please try again.');

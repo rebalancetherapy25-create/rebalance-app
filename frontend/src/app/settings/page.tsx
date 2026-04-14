@@ -1,6 +1,5 @@
-import { Logo } from '@/components/ui/logo';
 import { Button } from '@/components/ui/button';
-import { Calendar, Settings } from 'lucide-react';
+import { Calendar, Settings, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import SettingsForm from './_components/SettingsForm';
 
@@ -11,18 +10,24 @@ export const metadata = {
 
 export default function SettingsPage() {
     return (
-        <div className="min-h-[100dvh] flex flex-col font-sans bg-accent/5">
-            <header className="bg-background border-b sticky top-0 z-40 shadow-sm">
-                <div className="container mx-auto h-16 flex items-center justify-between px-4 sm:px-6">
-                    <Logo />
-                    <div className="flex items-center gap-4 text-sm font-medium">
-                        <Link href="/therapists" className="text-muted-foreground hover:text-primary transition-colors">Find Therapist</Link>
+        <div className="min-h-[100dvh] font-sans bg-accent/5">
+            <main className="container mx-auto max-w-5xl px-4 pb-12 pt-28 sm:px-6 sm:pb-16 sm:pt-32">
+                <div className="mb-8 flex flex-col gap-5 rounded-[2rem] border border-white/70 bg-background/85 p-6 shadow-[0_22px_50px_-42px_rgba(74,35,52,0.45)] backdrop-blur sm:mb-10 sm:flex-row sm:items-end sm:justify-between sm:p-8">
+                    <div className="max-w-2xl">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">Account Settings</p>
+                        <h1 className="mt-3 text-3xl font-heading font-bold text-foreground sm:text-4xl">Profile and Security</h1>
+                        <p className="mt-3 text-sm leading-6 text-muted-foreground sm:text-base">
+                            Update your details, keep your email current, and change your password without leaving your account workspace.
+                        </p>
                     </div>
-                </div>
-            </header>
 
-            <main className="flex-1 container mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-12">
-                <h1 className="text-2xl sm:text-3xl font-heading font-bold text-foreground mb-6 sm:mb-8">Settings</h1>
+                    <Button asChild variant="outline" className="h-11 rounded-full px-6 font-semibold">
+                        <Link href="/dashboard">
+                            <ArrowLeft className="h-4 w-4" />
+                            Back to Sessions
+                        </Link>
+                    </Button>
+                </div>
 
                 <div className="flex flex-col md:flex-row gap-6 sm:gap-8 items-start">
                     <aside className="w-full md:w-64 space-y-2 shrink-0">
