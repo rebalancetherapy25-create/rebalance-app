@@ -84,11 +84,27 @@ const config = {
     isProduction: env === 'production',
 };
 
+const getCookieDomain = (): string | undefined => {
+    if (!config.isProduction || !config.backendUrl) return undefined;
+    try {
+        const hostname = new URL(config.backendUrl).hostname;
+        // e.g. api.rebalancetherapy.co.in → .rebalancetherapy.co.in
+        const parts = hostname.split('.');
+        if (parts.length >= 3) {
+            return '.' + parts.slice(-3).join('.');
+        }
+        return '.' + hostname;
+    } catch {
+        return undefined;
+    }
+};
+
 export const cookiePolicy = {
     isCrossSite: isCrossOrigin(config.frontendUrl, config.backendUrl)
         || isCrossOrigin(config.adminUrl, config.backendUrl)
         || isCrossOrigin(config.therapistUrl, config.backendUrl),
     secure: config.isProduction,
+    domain: getCookieDomain(),
     sameSite: (() => {
         if (!config.isProduction) return 'lax' as const;
         if (!config.backendUrl) return 'none' as const;

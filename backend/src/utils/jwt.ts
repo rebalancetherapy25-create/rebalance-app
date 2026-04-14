@@ -24,6 +24,7 @@ export const setAuthCookies = (res: Response, accessToken: string, refreshToken:
         httpOnly: true,
         secure: cookiePolicy.secure,
         sameSite: cookiePolicy.sameSite,
+        ...(cookiePolicy.domain ? { domain: cookiePolicy.domain } : {}),
         maxAge: 15 * 60 * 1000, // 15 minutes
     });
 
@@ -31,6 +32,7 @@ export const setAuthCookies = (res: Response, accessToken: string, refreshToken:
         httpOnly: true,
         secure: cookiePolicy.secure,
         sameSite: cookiePolicy.sameSite,
+        ...(cookiePolicy.domain ? { domain: cookiePolicy.domain } : {}),
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 };
@@ -40,12 +42,14 @@ export const clearAuthCookies = (res: Response) => {
         httpOnly: true,
         secure: cookiePolicy.secure,
         sameSite: cookiePolicy.sameSite,
+        ...(cookiePolicy.domain ? { domain: cookiePolicy.domain } : {}),
         expires: new Date(0),
     });
     res.cookie('refreshToken', '', {
         httpOnly: true,
         secure: cookiePolicy.secure,
         sameSite: cookiePolicy.sameSite,
+        ...(cookiePolicy.domain ? { domain: cookiePolicy.domain } : {}),
         expires: new Date(0),
     });
 };
