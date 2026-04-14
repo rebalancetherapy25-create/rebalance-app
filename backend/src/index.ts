@@ -30,6 +30,8 @@ app.use(cors({
         const allowedOrigins = new Set([config.frontendUrl, config.adminUrl, config.therapistUrl].filter(Boolean));
         const localDevPattern = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
         const localLanPattern = /^https?:\/\/192\.168\.\d{1,3}\.\d{1,3}(:\d+)?$/;
+        const vercelPattern = /^https?:\/\/.*\.vercel\.app$/;
+        const rebalancePattern = /^https?:\/\/(.*\.)?rebalancetherapy\.co\.in$/;
 
         if (!origin) {
             callback(null, true);
@@ -37,6 +39,11 @@ app.use(cors({
         }
 
         if (allowedOrigins.has(origin)) {
+            callback(null, true);
+            return;
+        }
+
+        if (vercelPattern.test(origin) || rebalancePattern.test(origin)) {
             callback(null, true);
             return;
         }
