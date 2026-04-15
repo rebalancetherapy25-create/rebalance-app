@@ -94,3 +94,15 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* 
+ * Fix for Shadcn / Radix UI Dialog blocking Razorpay. 
+ * Radix automatically sets `pointer-events: none` on the body when a modal is open.
+ * Razorpay attaches to the body, inheriting this property and becoming unclickable.
+ * This explicitly restores pointer events to the Razorpay container.
+ */
+.razorpay-container,
+body[style*="pointer-events: none"] .razorpay-container {
+  pointer-events: auto !important;
+  z-index: 999999 !important;
+}
