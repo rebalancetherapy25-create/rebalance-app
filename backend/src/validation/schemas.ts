@@ -70,7 +70,7 @@ export const bookingSchemas = {
         therapistId: objectId,
         date: isoDate,
         time: timeLike,
-        sessionType: z.enum(['video', 'phone', 'chat', 'audio']),
+        sessionType: z.preprocess((val) => typeof val === 'string' ? val.toLowerCase() : val, z.enum(['video', 'phone', 'chat', 'audio'])),
         name: z.string().trim().min(2, 'Full name must be at least 2 characters long.').optional(),
         email: email.optional(),
     }),
@@ -122,7 +122,7 @@ export const adminSchemas = {
         therapistId: objectId,
         date: isoDate,
         time: timeLike,
-        sessionType: z.enum(['video', 'phone', 'chat', 'audio']),
+        sessionType: z.preprocess((val) => typeof val === 'string' ? val.toLowerCase() : val, z.enum(['video', 'phone', 'chat', 'audio'])),
         status: z.enum(['pending', 'confirmed', 'completed', 'cancelled']).optional(),
     }),
     updateBooking: z.object({

@@ -293,7 +293,14 @@ export default function BookingFlow({
 
                 if (!createRes.ok) {
                     const errData = await createRes.json();
-                    setErrors({ ...errors, general: errData.error || "Something didn't go through - let's try again." });
+                    let errorMsg = errData.error || "Something didn't go through - let's try again.";
+                    if (errData.fields) {
+                        const firstFieldMsg = Object.values(errData.fields)[0];
+                        if (firstFieldMsg) {
+                            errorMsg = `${errorMsg}: ${firstFieldMsg}`;
+                        }
+                    }
+                    setErrors({ ...errors, general: errorMsg });
                     setProcessing(false);
                     return;
                 }
