@@ -300,13 +300,12 @@ export default async function TherapistProfilePage({ params }: { params: { id: s
                                             {day.slots.length > 0 ? (
                                                 <div className="grid grid-cols-2 gap-3">
                                                     {day.slots.map((slot) => (
-                                                        <Button
+                                                        <span
                                                             key={slot}
-                                                            variant="outline"
-                                                            className="h-12 rounded-xl border-border/60 font-bold hover:border-accent hover:bg-accent/5 transition-colors"
+                                                            className="h-12 flex items-center justify-center rounded-xl border border-border/60 bg-background text-sm font-bold text-foreground"
                                                         >
                                                             {slot}
-                                                        </Button>
+                                                        </span>
                                                     ))}
                                                 </div>
                                             ) : (
@@ -340,31 +339,17 @@ export default async function TherapistProfilePage({ params }: { params: { id: s
                         )}
                         
                         {/* REVIEWS GRID */}
-                        <section className="space-y-10 border-t-2 border-primary/20 pt-16">
-                            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+                        {t.ratingCount > 0 && (
+                            <section className="space-y-10 border-t-2 border-primary/20 pt-16">
                                 <div>
                                     <h2 className="text-4xl lg:text-5xl font-display text-foreground">Patient Stories.</h2>
                                     <p className="mt-4 text-lg text-muted-foreground font-medium">Reflections from verified sessions.</p>
                                 </div>
-                            </div>
-
-                            <div className="grid md:grid-cols-2 gap-8">
-                                {[1, 2].map((i) => (
-                                    <div key={i} className="space-y-6">
-                                        <div className="flex gap-1">
-                                            {[1, 2, 3, 4, 5].map(star => <Star key={star} className="h-4 w-4 fill-accent text-accent" />)}
-                                        </div>
-                                        <p className="text-lg italic text-foreground leading-relaxed font-medium">
-                                            &quot;Extremely patient and creates a really safe space. The techniques taught have been life-changing. Highly recommend for anyone starting therapy.&quot;
-                                        </p>
-                                        <div className="pt-4 border-t border-border/40">
-                                            <p className="font-bold text-foreground">Anonymous Patient</p>
-                                            <p className="text-sm font-medium text-muted-foreground mt-1">Verified session • 2 weeks ago</p>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </section>
+                                <div className="py-12 text-center text-lg font-medium text-muted-foreground bg-accent/5 rounded-[2rem] border border-dashed border-border/60">
+                                    Reviews are visible after your first session.
+                                </div>
+                            </section>
+                        )}
                     </div>
 
                     {/* RIGHT COLUMN: STICKY BOOKING CONCIERGE */}

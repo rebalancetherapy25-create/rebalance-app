@@ -150,7 +150,7 @@ export default async function LandingPage() {
         <section className="bg-background px-4 py-32 sm:px-6 sm:py-48 lg:py-64">
           <div className="container mx-auto max-w-7xl">
             <div className="grid lg:grid-cols-12 gap-16 lg:gap-24 items-start">
-              <div className="lg:col-span-5 space-y-8 sticky top-32">
+              <div className="lg:col-span-5 space-y-8 sticky top-24">
                 <h2 className="text-5xl sm:text-6xl md:text-7xl font-display text-foreground leading-[0.9]">
                   Our clinical <br /><span className="text-accent italic">quality moat</span>.
                 </h2>

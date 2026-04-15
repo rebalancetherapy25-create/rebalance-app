@@ -152,7 +152,9 @@ export default function BookingDetailsPage() {
                                 <div className="grid sm:grid-cols-2 gap-4">
                                     <div className="p-4 bg-accent/5 rounded-xl border border-border/50">
                                         <p className="text-sm text-muted-foreground mb-1 flex items-center gap-2"><Calendar className="w-4 h-4" /> Date</p>
-                                        <p className="font-semibold text-foreground">{booking.date}</p>
+                                        <p className="font-semibold text-foreground">
+                                            {new Date(booking.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                        </p>
                                     </div>
                                     <div className="p-4 bg-accent/5 rounded-xl border border-border/50">
                                         <p className="text-sm text-muted-foreground mb-1 flex items-center gap-2"><Clock className="w-4 h-4" /> Time</p>

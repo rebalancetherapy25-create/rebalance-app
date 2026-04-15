@@ -25,6 +25,13 @@ interface Booking {
 
 const bookingDateTime = (booking: Booking) => new Date(`${booking.date}T${booking.time}:00`);
 
+const formatBookingDate = (date: string, time: string) => {
+    const formatted = new Date(`${date}T${time}:00`).toLocaleDateString('en-IN', {
+        day: 'numeric', month: 'short', year: 'numeric',
+    });
+    return `${formatted} at ${time}`;
+};
+
 export default function DashboardPage() {
     const router = useRouter();
     const [bookings, setBookings] = useState<Booking[]>([]);
@@ -117,7 +124,7 @@ export default function DashboardPage() {
                                                 <p className="text-sm text-muted-foreground flex items-center gap-2">
                                                     <span className="flex items-center gap-1.5"><Video className="w-4 h-4 text-muted-foreground" /> {booking.sessionType}</span>
                                                     <span className="w-1 h-1 bg-border rounded-full hidden sm:block"></span>
-                                                    <span className="text-primary font-medium">{booking.date} at {booking.time}</span>
+                                                    <span className="text-primary font-medium">{formatBookingDate(booking.date, booking.time)}</span>
                                                 </p>
                                             </div>
                                         </div>
@@ -147,7 +154,7 @@ export default function DashboardPage() {
                                         <div>
                                             <h3 className="font-semibold text-foreground mb-0.5">{booking.therapistId?.name || 'Therapist'}</h3>
                                             <p className="text-sm text-muted-foreground flex items-center gap-1.5">
-                                                <Clock className="w-4 h-4" /> {booking.date} • {booking.sessionType}
+                                                <Clock className="w-4 h-4" /> {new Date(booking.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} • {booking.sessionType}
                                             </p>
                                         </div>
                                         <span className="text-xs px-2 py-1 rounded-full bg-accent/20 text-muted-foreground uppercase">{booking.status}</span>
