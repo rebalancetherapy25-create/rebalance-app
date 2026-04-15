@@ -15,6 +15,7 @@ export interface IBooking extends Document {
     razorpayOrderId?: string;
     razorpayPaymentId?: string;
     meetingLink?: string | undefined;
+    reminderSent?: boolean;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -35,6 +36,7 @@ const bookingSchema = new Schema<IBooking>(
         razorpayOrderId: { type: String },
         razorpayPaymentId: { type: String },
         meetingLink: { type: String },
+        reminderSent: { type: Boolean, default: false },
     },
     { timestamps: true }
 );

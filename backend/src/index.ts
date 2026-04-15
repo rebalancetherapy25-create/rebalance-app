@@ -1,10 +1,12 @@
 import { app } from './app';
 import { connectDB } from './config/db';
 import config from './config/env';
+import { startScheduler } from './services/schedulerService';
 
 const startServer = async () => {
     try {
         await connectDB();
+        startScheduler();
         app.listen(config.port, () => {
             console.log(`[api:start] listening on port ${config.port}`);
         });

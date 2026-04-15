@@ -7,7 +7,8 @@ import { clearAuthCookies, generateTokens, setAuthCookies } from '../utils/jwt';
 import { type AuthRequest } from '../middlewares/authMiddleware';
 import config from '../config/env';
 import { sendEmail } from '../services/emailService';
-import { emailLayout, esc } from '../emails/templates/layout';
+import { otpVerificationEmail } from '../emails/templates/otpVerification';
+import { userPasswordResetEmail } from '../emails/templates/userPasswordReset';
 import { sendData, sendError } from '../lib/http';
 import { hashToken, tokenMatchesHash } from '../lib/security';
 
@@ -43,23 +44,9 @@ const clearSession = async (res: Response, userId?: string) => {
     clearAuthCookies(res);
 };
 
-const sendOtpEmail = async (email: string, otpCode: string, subject: string) => {
-    const safeCode = esc(otpCode);
-
-    return sendEmail({
-        to: email,
-        subject,
-        html: emailLayout({
-            title: 'Verify your email',
-            preheader: `Your Rebalance verification code is ${otpCode}`,
-            body: `
-              <h1 class="h1">Confirm your email</h1>
-              <p class="p">Use the 6-digit code below to finish setting up your Rebalance account.</p>
-              <div class="code" style="font-size:28px;letter-spacing:0.35em;text-align:center">${safeCode}</div>
-              <p class="p muted" style="margin-top:12px">This code expires in 10 minutes.</p>
-            `,
-        }),
-    });
+const sendOtpEmail = async (email: string, otpCode: string) => {
+    const tpl = otpVerificationEmail({ otpCode });
+    return sendEmail({ to: email, subject: tpl.subject, html: tpl.html });
 };
 
 const buildPasswordResetUrl = (token: string) => {
@@ -89,7 +76,7 @@ export const registerUser = async (req: Request, res: Response) => {
             userExists.otpExpiry = new Date(Date.now() + OTP_EXPIRY_MS);
             await userExists.save();
 
-            const emailSent = await sendOtpEmail(userExists.email, userExists.otpCode, 'Verify your Rebalance account');
+            const emailSent = await sendOtpEmail(userExists.email, userExists.otpCode);
             if (!emailSent) {
                 return sendError(res, 502, 'Unable to send the verification code right now. Please try again shortly.', {
                     code: 'EMAIL_SEND_FAILED',
@@ -110,7 +97,7 @@ export const registerUser = async (req: Request, res: Response) => {
             otpExpiry: new Date(Date.now() + OTP_EXPIRY_MS),
         });
 
-        const emailSent = await sendOtpEmail(user.email, user.otpCode ?? '', 'Verify your Rebalance account');
+        const emailSent = await sendOtpEmail(user.email, user.otpCode ?? '');
         if (!emailSent) {
             return sendError(res, 502, 'Unable to send the verification code right now. Please try again shortly.', {
                 code: 'EMAIL_SEND_FAILED',
@@ -166,7 +153,7 @@ export const resendOtp = async (req: Request, res: Response) => {
         user.otpExpiry = new Date(Date.now() + OTP_EXPIRY_MS);
         await user.save();
 
-        const emailSent = await sendOtpEmail(user.email, otpCode, 'Your new verification code');
+        const emailSent = await sendOtpEmail(user.email, otpCode);
         if (!emailSent) {
             return sendError(res, 502, 'Unable to resend the verification code right now. Please try again shortly.', {
                 code: 'EMAIL_SEND_FAILED',
@@ -223,22 +210,8 @@ export const forgotPassword = async (req: Request, res: Response) => {
         );
 
         const resetUrl = buildPasswordResetUrl(token);
-        const emailSent = await sendEmail({
-            to: user.email,
-            subject: 'Reset your Rebalance password',
-            html: emailLayout({
-                title: 'Reset your password',
-                preheader: 'Use this secure link to set a new Rebalance password',
-                body: `
-                  <h1 class="h1">Reset your password</h1>
-                  <p class="p">We received a request to reset your Rebalance password.</p>
-                  <p class="p"><a class="btn" href="${esc(resetUrl)}">Create a new password</a></p>
-                  <p class="p muted">This secure link expires in 1 hour.</p>
-                  <p class="p muted">If the button doesn't work, copy this URL into your browser:</p>
-                  <p class="p"><a href="${esc(resetUrl)}">${esc(resetUrl)}</a></p>
-                `,
-            }),
-        });
+        const resetTpl = userPasswordResetEmail({ resetUrl });
+        const emailSent = await sendEmail({ to: user.email, subject: resetTpl.subject, html: resetTpl.html });
 
         if (!emailSent) {
             return sendError(res, 502, 'Unable to send the reset email right now. Please try again shortly.', {
