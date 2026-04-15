@@ -4,6 +4,8 @@
 
 @layer base {
   :root {
+    --font-inter: "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --font-poppins: "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
     --background: 330 25% 97%;
     --foreground: 332 22% 15%;
     --card: 0 0% 100%;
@@ -26,4 +28,3 @@
     --radius: 0.875rem;
   }
 }
-

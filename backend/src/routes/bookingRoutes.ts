@@ -3,6 +3,9 @@ import { createBooking, verifyPayment, getUserBookings } from '../controllers/bo
 import { protect } from '../middlewares/authMiddleware';
 import jwt from 'jsonwebtoken';
 import config from '../config/env';
+import { bookingLimiter } from '../middlewares/rateLimit';
+import { validate } from '../lib/http';
+import { bookingSchemas } from '../validation/schemas';
 
 const router = express.Router();
 
@@ -24,8 +27,8 @@ const optionalProtect = async (req: Request, res: Response, next: NextFunction) 
     next();
 };
 
-router.post('/create', optionalProtect, createBooking);
-router.post('/verify', optionalProtect, verifyPayment);
+router.post('/create', bookingLimiter, optionalProtect, validate(bookingSchemas.create), createBooking);
+router.post('/verify', bookingLimiter, optionalProtect, validate(bookingSchemas.verifyPayment), verifyPayment);
 router.get('/my-bookings', protect, getUserBookings);
 
 export default router;

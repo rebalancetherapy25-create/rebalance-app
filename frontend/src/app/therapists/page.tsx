@@ -1,5 +1,6 @@
 import dynamic from 'next/dynamic';
 import { TherapistFiltersSkeleton } from '@/components/loading/skeletons';
+import { getApiBaseUrl, isLocalApiBaseUrl, unwrapApiData } from '@/lib/runtime';
 
 const TherapistFilters = dynamic(() => import('./_components/TherapistFilters'), {
     loading: () => <TherapistFiltersSkeleton />,
@@ -17,19 +18,25 @@ export default async function TherapistListingPage() {
     let initialTotalItems = 0;
 
     try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
-        const response = await fetch(`${apiUrl}/therapists?page=1&limit=10`, {
-            next: { revalidate: 30 } // Cache base list for 30 seconds
-        });
+        const apiUrl = getApiBaseUrl();
+        const shouldSkipOptionalFetch = process.env.NODE_ENV === 'production' && isLocalApiBaseUrl(apiUrl);
+
+        if (!shouldSkipOptionalFetch) {
+            const response = await fetch(`${apiUrl}/therapists?page=1&limit=10`, {
+                next: { revalidate: 30 } // Cache base list for 30 seconds
+            });
         
-        if (response.ok) {
-            const data = await response.json();
-            initialTherapists = data.therapists || [];
-            initialTotalPages = data.totalPages || 1;
-            initialTotalItems = data.total || 0;
+            if (response.ok) {
+                const data = unwrapApiData(await response.json());
+                initialTherapists = data.therapists || [];
+                initialTotalPages = data.totalPages || 1;
+                initialTotalItems = data.total || 0;
+            }
         }
     } catch (err) {
-        console.error('Failed to prefetch therapists:', err);
+        if (process.env.NODE_ENV !== 'production') {
+            console.error('Failed to prefetch therapists:', err);
+        }
     }
 
     return (

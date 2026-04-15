@@ -5,9 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Video, Phone, MessageCircle, Lock, Globe, Clock } from 'lucide-react';
+import { getApiBaseUrl, unwrapApiData } from '@/lib/runtime';
 
 const STEPS = ['Format', 'Date & Time', 'Details', 'Payment', 'Confirmed'];
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API_BASE = getApiBaseUrl();
 
 const DAY_NAME_TO_INDEX: Record<string, number> = {
     sunday: 0,
@@ -181,7 +182,7 @@ export default function BookingFlow({
                     return;
                 }
 
-                const me = await response.json();
+                const me = unwrapApiData(await response.json());
                 setIsAuthenticated(true);
                 setBookingDetails((prev) => ({
                     ...prev,

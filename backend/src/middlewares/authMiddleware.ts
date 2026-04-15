@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import config from '../config/env';
+import { User } from '../models';
+import { sendError } from '../lib/http';
 
 export interface AuthRequest extends Request {
     user?: {
@@ -19,22 +21,24 @@ export const protect = async (req: AuthRequest, res: Response, next: NextFunctio
     if (token) {
         try {
             const decoded = jwt.verify(token, config.jwtSecret) as { userId: string, role: string };
+            const user = await User.findById(decoded.userId).select('_id role');
+            if (!user) {
+                return sendError(res, 401, 'Not authorized', { code: 'AUTH_UNAUTHORIZED' });
+            }
             req.user = decoded;
             return next();
         } catch (error) {
-            console.error('Auth check failed: access token verification failed', (error as Error).message);
-            return res.status(401).json({ error: 'Not authorized' });
+            return sendError(res, 401, 'Not authorized', { code: 'AUTH_UNAUTHORIZED' });
         }
     }
 
-    console.warn('Auth check failed: access token missing. Origin:', req.headers.origin);
-    return res.status(401).json({ error: 'Not authorized' });
+    return sendError(res, 401, 'Not authorized', { code: 'AUTH_UNAUTHORIZED' });
 };
 
 export const adminOnly = (req: AuthRequest, res: Response, next: NextFunction) => {
     if (req.user && req.user.role === 'admin') {
         next();
     } else {
-        res.status(403).json({ error: 'Not authorized as admin' });
+        sendError(res, 403, 'Not authorized as admin', { code: 'AUTH_ADMIN_REQUIRED' });
     }
 };

@@ -1,16 +1,8 @@
 import axios from 'axios';
-
-const getBaseUrl = () => {
-    if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
-    if (typeof window !== 'undefined') {
-        const hostname = window.location.hostname;
-        return `http://${hostname}:5000/api`;
-    }
-    return 'http://localhost:5000/api';
-};
+import { getApiBaseUrl, unwrapApiData } from './runtime';
 
 const api = axios.create({
-    baseURL: getBaseUrl(),
+    baseURL: getApiBaseUrl(),
     withCredentials: true, // Important for cookies/JWT
     headers: {
         'Content-Type': 'application/json',
@@ -18,7 +10,10 @@ const api = axios.create({
 });
 
 api.interceptors.response.use(
-    (response) => response,
+    (response) => {
+        response.data = unwrapApiData(response.data);
+        return response;
+    },
     async (error) => {
         const originalRequest = error.config as (typeof error.config & { _retry?: boolean });
         const requestUrl = String(originalRequest?.url || '');

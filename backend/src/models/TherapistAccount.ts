@@ -15,7 +15,7 @@ export interface ITherapistAccount extends Document {
 const therapistAccountSchema = new Schema<ITherapistAccount>(
     {
         therapistId: { type: Schema.Types.ObjectId, ref: 'Therapist', required: true },
-        email: { type: String, required: true, unique: true, index: true },
+        email: { type: String, required: true, unique: true, index: true, lowercase: true, trim: true },
         passwordHash: { type: String, required: true },
         refreshToken: { type: String },
         status: { type: String, enum: ['active', 'suspended'], default: 'active' },

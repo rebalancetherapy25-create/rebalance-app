@@ -29,6 +29,8 @@ import {
     generateAdminAvailabilityRange,
     adminReleaseHoldsNow,
 } from '../controllers/adminAvailabilityController';
+import { validate } from '../lib/http';
+import { adminSchemas } from '../validation/schemas';
 
 const router = express.Router();
 
@@ -40,9 +42,9 @@ router.get('/stats', getDashboardStats);
 
 router.route('/users')
     .get(getUsers)
-    .post(createUser);
+    .post(validate(adminSchemas.createUser), createUser);
 router.route('/users/:id')
-    .put(updateUser)
+    .put(validate(adminSchemas.updateUser), updateUser)
     .delete(deleteUser);
 
 router.route('/therapists')
@@ -55,9 +57,9 @@ router.route('/therapists/:id')
 
 router.route('/bookings')
     .get(getBookings)
-    .post(createBooking);
+    .post(validate(adminSchemas.createBooking), createBooking);
 router.route('/bookings/:id')
-    .put(updateBookingStatus)
+    .put(validate(adminSchemas.updateBooking), updateBookingStatus)
     .delete(deleteBooking);
 
 router.put('/settings/profile', updateAdminProfile);
@@ -65,8 +67,8 @@ router.put('/settings/password', updateAdminPassword);
 
 router.route('/therapist-accounts')
     .get(listTherapistAccounts)
-    .post(createTherapistAccount);
-router.put('/therapist-accounts/:id', updateTherapistAccount);
+    .post(validate(adminSchemas.createTherapistAccount), createTherapistAccount);
+router.put('/therapist-accounts/:id', validate(adminSchemas.updateTherapistAccount), updateTherapistAccount);
 
 router.get('/availability/:therapistId', getAdminAvailabilityRange);
 router.put('/availability/:therapistId/:date', putAdminAvailabilityForDate);

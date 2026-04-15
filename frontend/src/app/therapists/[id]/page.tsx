@@ -1,8 +1,10 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Video, Star, ShieldCheck, ChevronRight, Sparkles, MessageCircle, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import BookingModal from '@/components/booking/BookingModal';
+import { getApiBaseUrl, unwrapApiData } from '@/lib/runtime';
 
 interface FAQ {
     question: string;
@@ -35,17 +37,63 @@ interface TherapistDetail {
     joinedDate: string;
 }
 
+const fetchTherapist = async (id: string) => {
+    try {
+        const res = await fetch(`${getApiBaseUrl()}/therapists/${id}`, { next: { revalidate: 0 } });
+        if (!res.ok) return null;
+        return unwrapApiData(await res.json());
+    } catch (error) {
+        if (process.env.NODE_ENV !== 'production') {
+            console.error('Failed to fetch therapist details', error);
+        }
+        return null;
+    }
+};
+
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+    try {
+        const data = await fetchTherapist(params.id);
+        if (!data) {
+            return {
+                title: 'Therapist Not Found | Rebalance',
+                description: 'Browse verified therapists on Rebalance.',
+            };
+        }
+
+        const title = `${data.name} | ${data.specialties?.[0] || 'Therapist'} | Rebalance`;
+        const description = `${data.name} helps with ${(data.specialties || []).slice(0, 3).join(', ') || 'mental wellbeing'}. View credentials, availability, session formats, and book securely on Rebalance.`;
+
+        return {
+            title,
+            description,
+            openGraph: {
+                title,
+                description,
+                type: 'profile',
+                images: data.profileImage ? [{ url: data.profileImage }] : undefined,
+            },
+            twitter: {
+                card: 'summary_large_image',
+                title,
+                description,
+                images: data.profileImage ? [data.profileImage] : undefined,
+            },
+        };
+    } catch {
+        return {
+            title: 'Therapist Profile | Rebalance',
+            description: 'View therapist credentials, availability, and secure booking details on Rebalance.',
+        };
+    }
+}
+
 export default async function TherapistProfilePage({ params }: { params: { id: string } }) {
     let t: TherapistDetail | null = null;
 
     // Fetch main therapist
     try {
-        const res = await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/therapists/${params.id}`,
-            { next: { revalidate: 0 } }
-        );
-        if (res.ok) {
-            const data = await res.json();
+        const data = await fetchTherapist(params.id);
+        if (data) {
             t = {
                 id: data._id,
                 name: data.name,
@@ -66,14 +114,14 @@ export default async function TherapistProfilePage({ params }: { params: { id: s
                     : [],
                 faq: data.faq || [],
                 availability: data.availability || [],
-                joinedDate: new Date(data.createdAt).toLocaleDateString('en-US', {
+                joinedDate: new Intl.DateTimeFormat('en-US', {
                     month: 'long',
                     year: 'numeric',
-                }),
+                    timeZone: 'UTC',
+                }).format(new Date(data.createdAt)),
             };
         }
-    } catch (e) {
-        console.error('Failed to fetch therapist details', e);
+    } catch {
     }
 
     if (!t) {

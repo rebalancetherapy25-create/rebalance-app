@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-
-const getApiBase = () => process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+import { getApiBaseUrl } from './src/lib/runtime';
 
 const hasTherapistCookies = (request: NextRequest) => {
   const accessToken = request.cookies.get('therapistAccessToken')?.value;
@@ -17,7 +16,7 @@ const resolveTherapistAuth = async (
   const cookieHeader = request.headers.get('cookie') || '';
 
   try {
-    const meRes = await fetch(`${getApiBase()}/therapist-auth/me`, {
+    const meRes = await fetch(`${getApiBaseUrl()}/therapist-auth/me`, {
       headers: { cookie: cookieHeader },
       cache: 'no-store',
     });
@@ -28,7 +27,7 @@ const resolveTherapistAuth = async (
     if (meRes.status !== 401) return { isValid: false };
 
     // Access token expired — try the refresh endpoint.
-    const refreshRes = await fetch(`${getApiBase()}/therapist-auth/refresh`, {
+    const refreshRes = await fetch(`${getApiBaseUrl()}/therapist-auth/refresh`, {
       method: 'POST',
       headers: { cookie: cookieHeader },
       cache: 'no-store',

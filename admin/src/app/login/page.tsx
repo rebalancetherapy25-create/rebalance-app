@@ -1,18 +1,20 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import api from '@/lib/axios';
 import { Mail, Lock, Loader2, ShieldCheck } from 'lucide-react';
 import { useToast } from '@/components/ui/toaster';
 import { emailPattern, getApiErrorMessage, getErrorMessages } from '@/lib/form-validation';
 
-export default function LoginPage() {
+function AdminLoginContent() {
     const router = useRouter();
+    const params = useSearchParams();
     const { toast } = useToast();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
+    const reason = params.get('reason');
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -80,6 +82,12 @@ export default function LoginPage() {
                     <p className="text-neutral-500 text-sm">Sign in to manage Rebalance</p>
                 </div>
 
+                {reason === 'unauthorized' && (
+                    <div className="mb-5 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+                        Your admin session expired or no longer has access. Sign in again to continue securely.
+                    </div>
+                )}
+
                 <form onSubmit={handleLogin} noValidate className="space-y-6">
                     <div className="space-y-2">
                         <label className="text-sm font-medium text-neutral-400 pl-1">Email Address</label>
@@ -129,5 +137,17 @@ export default function LoginPage() {
                 &copy; {new Date().getFullYear()} Rebalance. All rights reserved.
             </p>
         </div>
+    );
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-emerald-400" />
+            </div>
+        }>
+            <AdminLoginContent />
+        </Suspense>
     );
 }

@@ -277,7 +277,7 @@ export const verifyPayment = async (req: AuthRequest, res: Response) => {
                 therapistName: therapistFromRef?.name || 'your therapist',
                 date: booking.date,
                 time: booking.time,
-                meetingLink: booking.meetingLink,
+                ...(booking.meetingLink ? { meetingLink: booking.meetingLink } : {}),
             });
             await sendEmail({ to: recipientEmail, subject: tpl.subject, html: tpl.html });
         }

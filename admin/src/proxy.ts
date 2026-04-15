@@ -1,9 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-
-export const runtime = 'nodejs';
-
-const getApiBase = () => process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+import { getApiBaseUrl, unwrapApiData } from '@/lib/runtime';
 
 const hasAuthCookies = (request: NextRequest) => {
     const accessToken = request.cookies.get('accessToken')?.value;
@@ -21,13 +18,13 @@ const resolveAdminRole = async (
     const cookieHeader = request.headers.get('cookie') || '';
 
     try {
-        const meRes = await fetch(`${getApiBase()}/auth/me`, {
+        const meRes = await fetch(`${getApiBaseUrl()}/auth/me`, {
             headers: { cookie: cookieHeader },
             cache: 'no-store',
         });
 
         if (meRes.ok) {
-            const me = await meRes.json();
+            const me = unwrapApiData(await meRes.json());
             return { isAdmin: me?.role === 'admin' };
         }
 
@@ -35,7 +32,7 @@ const resolveAdminRole = async (
         if (meRes.status !== 401) return { isAdmin: false };
 
         // Access token expired — try the refresh endpoint.
-        const refreshRes = await fetch(`${getApiBase()}/auth/refresh`, {
+        const refreshRes = await fetch(`${getApiBaseUrl()}/auth/refresh`, {
             method: 'POST',
             headers: { cookie: cookieHeader },
             cache: 'no-store',
@@ -44,7 +41,7 @@ const resolveAdminRole = async (
         if (!refreshRes.ok) return { isAdmin: false };
 
         // The refresh response body contains the formatted user (including role).
-        const refreshData = await refreshRes.json();
+        const refreshData = unwrapApiData(await refreshRes.json());
         const setCookieHeader = refreshRes.headers.get('set-cookie') ?? undefined;
 
         return {
@@ -56,7 +53,7 @@ const resolveAdminRole = async (
     }
 };
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl;
     const isAuthenticated = hasAuthCookies(request);
 

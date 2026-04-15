@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Leaf, ArrowRight, Star, ShieldCheck, Heart, Sparkles } from 'lucide-react';
 import { FeaturedTherapistsSkeleton } from '@/components/loading/skeletons';
+import { getApiBaseUrl, isLocalApiBaseUrl } from '@/lib/runtime';
 
 const FeaturedTherapists = dynamic(() => import('@/components/FeaturedTherapists'), {
   loading: () => <FeaturedTherapistsSkeleton />,
@@ -14,16 +15,22 @@ export default async function LandingPage() {
   let bannerImage = "https://images.unsplash.com/photo-1573497620053-ea5300f94f21?q=80&w=2000&auto=format&fit=crop";
 
   try {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
-    const res = await fetch(`${apiUrl}/banners`, { next: { revalidate: 0 } });
-    if (res.ok) {
-      const banners = await res.json();
-      if (Array.isArray(banners) && banners.length > 0) {
-        bannerImage = banners[0].imageUrl;
+    const apiUrl = getApiBaseUrl();
+    const shouldSkipOptionalFetch = process.env.NODE_ENV === 'production' && isLocalApiBaseUrl(apiUrl);
+
+    if (!shouldSkipOptionalFetch) {
+      const res = await fetch(`${apiUrl}/banners`, { next: { revalidate: 0 } });
+      if (res.ok) {
+        const banners = await res.json();
+        if (Array.isArray(banners) && banners.length > 0) {
+          bannerImage = banners[0].imageUrl;
+        }
       }
     }
   } catch (error) {
-    console.error('Failed to fetch banners', error);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('Failed to fetch banners', error);
+    }
   }
 
   return (

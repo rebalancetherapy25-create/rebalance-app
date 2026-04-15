@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { BookingFlowSkeleton } from '@/components/loading/skeletons';
+import { getApiBaseUrl, unwrapApiData } from '@/lib/runtime';
 
 const BookingFlow = dynamic(() => import('@/components/booking/BookingFlow'), {
     loading: () => <BookingFlowSkeleton />,
@@ -27,10 +28,10 @@ export default function BookingFlowPage({ params }: { params: { therapistId: str
         const fetchTherapist = async () => {
             try {
                 const res = await fetch(
-                    `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/therapists/${params.therapistId}`
+                    `${getApiBaseUrl()}/therapists/${params.therapistId}`
                 );
                 if (res.ok) {
-                    const data = await res.json();
+                    const data = unwrapApiData(await res.json());
                     setTherapist({
                         id: data._id,
                         name: data.name,

@@ -16,7 +16,7 @@ export interface IUser extends Document {
 const userSchema = new Schema<IUser>(
     {
         name: { type: String, required: true },
-        email: { type: String, required: true, unique: true },
+        email: { type: String, required: true, unique: true, lowercase: true, trim: true, index: true },
         password: { type: String }, // Optional for cases where OAuth might be added later
         role: { type: String, enum: ['user', 'admin'], default: 'user' },
         isVerified: { type: Boolean, default: false },
@@ -26,5 +26,7 @@ const userSchema = new Schema<IUser>(
     },
     { timestamps: true }
 );
+
+userSchema.index({ role: 1, createdAt: -1 });
 
 export const User = mongoose.model<IUser>('User', userSchema);

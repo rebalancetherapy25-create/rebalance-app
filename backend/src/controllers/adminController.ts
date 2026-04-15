@@ -7,18 +7,15 @@ import { createTherapistAccountAndInvite } from '../services/therapistInviteServ
 import { sendEmail } from '../services/emailService';
 import { bookingRescheduledEmail } from '../emails/templates/bookingRescheduled';
 import { bookingCancelledEmail } from '../emails/templates/bookingCancelled';
-import { rescheduleBooking, syncAvailabilityForStatus } from '../services/bookingStateService';
-
-const VALID_BOOKING_STATUSES = new Set(['pending', 'confirmed', 'completed', 'cancelled']);
+import {
+    ACTIVE_BOOKING_STATUSES,
+    type BookingStatus,
+    rescheduleBooking,
+    STATUS_TRANSITIONS,
+    syncAvailabilityForStatus,
+    VALID_BOOKING_STATUSES,
+} from '../services/bookingStateService';
 const VALID_SESSION_TYPES = new Set(['video', 'phone', 'chat', 'audio']);
-const ACTIVE_BOOKING_STATUSES = ['pending', 'confirmed', 'completed'];
-
-const STATUS_TRANSITIONS: Record<string, string[]> = {
-    pending: ['confirmed', 'cancelled'],
-    confirmed: ['completed', 'cancelled'],
-    completed: [],
-    cancelled: [],
-};
 
 const normalizeSessionType = (value: string): 'video' | 'phone' | 'chat' | 'audio' | null => {
     const normalized = String(value || '').trim().toLowerCase();
@@ -296,7 +293,7 @@ export const createBooking = async (req: Request, res: Response) => {
         const normalizedDate = normalizeDate(String(date));
         const normalizedTime = normalizeTime(String(time));
         const normalizedSessionType = normalizeSessionType(String(sessionType));
-        const normalizedStatus = String(status || 'confirmed').toLowerCase();
+        const normalizedStatus = String(status || 'confirmed').toLowerCase() as BookingStatus;
 
         if (!userId || !therapistId || !normalizedDate || !normalizedTime || !normalizedSessionType) {
             return res.status(400).json({ error: 'userId, therapistId, date, time and valid sessionType are required' });
@@ -459,7 +456,7 @@ export const updateBookingStatus = async (req: Request, res: Response) => {
 
         // Status transition update (legacy route name)
         if (req.body?.status !== undefined) {
-            const status = String(req.body.status || '').toLowerCase();
+            const status = String(req.body.status || '').toLowerCase() as BookingStatus;
             if (!VALID_BOOKING_STATUSES.has(status)) {
                 return res.status(400).json({ error: 'Invalid booking status' });
             }
@@ -486,7 +483,7 @@ export const updateBookingStatus = async (req: Request, res: Response) => {
                 }
 
                 const previousStatus = booking.status;
-                booking.status = status as 'pending' | 'confirmed' | 'completed' | 'cancelled';
+                booking.status = status;
                 await booking.save();
                 const syncResult = await syncAvailabilityForStatus(booking, status, previousStatus);
                 if (!syncResult.ok) {

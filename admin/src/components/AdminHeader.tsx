@@ -1,25 +1,41 @@
 'use client';
 
-import { Bell } from 'lucide-react';
+import { Menu, ShieldCheck } from 'lucide-react';
 
-export default function AdminHeader() {
+export default function AdminHeader({
+    currentUser,
+    title,
+    subtitle,
+    onMenuToggle,
+}: {
+    currentUser: { name?: string; email?: string } | null;
+    title: string;
+    subtitle: string;
+    onMenuToggle: () => void;
+}) {
     return (
-        <header className="h-16 bg-neutral-950 border-b border-neutral-800 flex items-center justify-between px-6 sticky top-0 z-10">
-            <div className="flex-1"></div>
-
-            <div className="flex items-center gap-4">
-                <button className="text-neutral-400 hover:text-white transition-colors relative">
-                    <Bell className="w-5 h-5" />
-                    <span className="absolute top-0 right-0 w-2 h-2 bg-emerald-500 rounded-full"></span>
-                </button>
-
-                <div className="flex items-center gap-3 border-l border-neutral-800 pl-4 ml-2">
-                    <div className="h-8 w-8 rounded-full bg-emerald-500/20 text-emerald-500 flex items-center justify-center font-semibold text-sm border border-emerald-500/30">
-                        SA
+        <header className="sticky top-0 z-30 border-b border-white/10 bg-neutral-950/70 backdrop-blur-xl">
+            <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
+                <div className="flex min-w-0 items-center gap-3">
+                    <button
+                        type="button"
+                        className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 text-neutral-200 lg:hidden"
+                        onClick={onMenuToggle}
+                    >
+                        <Menu className="h-5 w-5" />
+                    </button>
+                    <div className="min-w-0">
+                        <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-emerald-300/70">Operations workspace</p>
+                        <h2 className="truncate text-xl font-semibold tracking-tight text-white sm:text-2xl">{title}</h2>
+                        <p className="mt-1 hidden max-w-2xl text-sm text-neutral-400 sm:block">{subtitle}</p>
                     </div>
-                    <div className="text-sm">
-                        <p className="text-white font-medium leading-none">Super Admin</p>
-                        <p className="text-neutral-500 text-xs mt-1">admin@admin.com</p>
+                </div>
+
+                <div className="hidden shrink-0 items-center gap-3 rounded-2xl border border-emerald-500/15 bg-emerald-500/8 px-4 py-3 sm:flex">
+                    <ShieldCheck className="h-4 w-4 text-emerald-300" />
+                    <div className="text-right">
+                        <p className="text-xs font-semibold text-white">{currentUser?.name || 'Admin session'}</p>
+                        <p className="text-[11px] text-neutral-400">{currentUser?.email || 'Privilege checks active'}</p>
                     </div>
                 </div>
             </div>

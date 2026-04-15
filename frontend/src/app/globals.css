@@ -29,6 +29,8 @@
   }
 
   :root {
+    --font-sans: "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --font-display: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
     --background: 330 25% 97%;
     --foreground: 332 22% 15%;
     --card: 0 0% 100%;

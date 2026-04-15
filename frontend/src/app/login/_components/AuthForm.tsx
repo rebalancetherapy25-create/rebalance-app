@@ -17,6 +17,9 @@ const fieldClassName =
 
 type LoginErrorResponse = {
     unverified?: boolean;
+    data?: {
+        unverified?: boolean;
+    };
 };
 
 export default function AuthForm() {
@@ -64,7 +67,11 @@ export default function AuthForm() {
             router.push('/');
             router.refresh();
         } catch (err: unknown) {
-            if (isAxiosError<LoginErrorResponse>(err) && err.response?.status === 403 && err.response.data?.unverified) {
+            if (
+                isAxiosError<LoginErrorResponse>(err)
+                && err.response?.status === 403
+                && (err.response.data?.unverified || err.response.data?.data?.unverified)
+            ) {
                 router.push(`/verify-email?email=${encodeURIComponent(email.trim())}`);
                 return;
             }

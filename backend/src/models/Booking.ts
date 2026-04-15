@@ -39,4 +39,8 @@ const bookingSchema = new Schema<IBooking>(
     { timestamps: true }
 );
 
+bookingSchema.index({ therapistId: 1, date: 1, time: 1, status: 1 });
+bookingSchema.index({ userId: 1, createdAt: -1 });
+bookingSchema.index({ date: 1, status: 1, createdAt: -1 });
+
 export const Booking = mongoose.model<IBooking>('Booking', bookingSchema);

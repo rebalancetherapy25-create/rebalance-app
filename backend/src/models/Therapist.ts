@@ -27,7 +27,7 @@ export interface ITherapist extends Document {
 const therapistSchema = new Schema<ITherapist>(
     {
         name: { type: String, required: true },
-        email: { type: String, unique: true, sparse: true },
+        email: { type: String, unique: true, sparse: true, lowercase: true, trim: true },
         bio: { type: String, required: true },
         credentials: { type: String, required: true },
         specialties: [String],
@@ -46,5 +46,8 @@ const therapistSchema = new Schema<ITherapist>(
     },
     { timestamps: true }
 );
+
+therapistSchema.index({ specialties: 1, ratingAverage: -1 });
+therapistSchema.index({ name: 'text', specialties: 'text', bio: 'text' });
 
 export const Therapist = mongoose.model<ITherapist>('Therapist', therapistSchema);

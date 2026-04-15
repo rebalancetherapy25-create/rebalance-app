@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import config from '../config/env';
 import { THERAPIST_ACCESS_COOKIE } from '../utils/therapistJwt';
 import { TherapistAccount } from '../models';
+import { sendError } from '../lib/http';
 
 export interface TherapistAuthRequest extends Request {
     therapist?: {
@@ -19,7 +20,7 @@ export const protectTherapist = async (req: TherapistAuthRequest, res: Response,
     }
 
     if (!token) {
-        return res.status(401).json({ error: 'Not authorized' });
+        return sendError(res, 401, 'Not authorized', { code: 'THERAPIST_UNAUTHORIZED' });
     }
 
     try {
@@ -29,10 +30,10 @@ export const protectTherapist = async (req: TherapistAuthRequest, res: Response,
         // This prevents suspended/deleted accounts from continuing to call portal APIs with an old token.
         const account = await TherapistAccount.findById(decoded.therapistAccountId).select('therapistId status');
         if (!account) {
-            return res.status(401).json({ error: 'Not authorized' });
+            return sendError(res, 401, 'Not authorized', { code: 'THERAPIST_UNAUTHORIZED' });
         }
         if (account.status !== 'active') {
-            return res.status(403).json({ error: 'Account is suspended' });
+            return sendError(res, 403, 'Account is suspended', { code: 'THERAPIST_ACCOUNT_SUSPENDED' });
         }
 
         req.therapist = {
@@ -41,7 +42,6 @@ export const protectTherapist = async (req: TherapistAuthRequest, res: Response,
         };
         return next();
     } catch (error) {
-        console.error('Therapist auth failed:', (error as Error).message);
-        return res.status(401).json({ error: 'Not authorized' });
+        return sendError(res, 401, 'Not authorized', { code: 'THERAPIST_UNAUTHORIZED' });
     }
 };
