@@ -44,7 +44,7 @@ export const getTherapists = async (req: Request, res: Response) => {
             query._id = { $in: therapistIds };
         }
 
-        const sortMap: Record<string, object> = {
+        const sortMap: Record<string, Record<string, 1 | -1>> = {
             price_asc: { price: 1 },
             price_desc: { price: -1 },
             rating_desc: { ratingAverage: -1 },
