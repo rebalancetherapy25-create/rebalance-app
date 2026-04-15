@@ -54,8 +54,8 @@ export default function AboutPage() {
                             </div>
                             <div className="flex flex-col items-start space-y-2 pt-16">
                                 <MessageCircle className="w-8 h-8 text-accent mb-4 opacity-80" />
-                                <div className="text-6xl sm:text-[5rem] font-display text-background leading-none tracking-tight">50<span className="text-accent">k+</span></div>
-                                <div className="text-xs font-bold text-background/60 uppercase tracking-[0.2em] mt-2">Sessions Held</div>
+                                <div className="text-6xl sm:text-[5rem] font-display text-background leading-none tracking-tight">10<span className="text-accent">k+</span></div>
+                                <div className="text-xs font-bold text-background/60 uppercase tracking-[0.2em] mt-2">Sessions Completed</div>
                             </div>
                             <div className="flex flex-col items-start space-y-2">
                                 <ShieldCheck className="w-8 h-8 text-accent mb-4 opacity-80" />

@@ -18,8 +18,11 @@ const config: Config = {
 		},
 		extend: {
 			colors: {
-				background: { DEFAULT: '#FAFAF9', subtle: '#F5F5F4' }, // Alabaster/Stone tint
-				foreground: '#1C1917', // Stone 900
+				background: {
+					DEFAULT: 'hsl(var(--background))',
+					subtle: 'hsl(var(--muted))',
+				},
+				foreground: 'hsl(var(--foreground))',
 				card: {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))'
@@ -28,18 +31,44 @@ const config: Config = {
 					DEFAULT: 'hsl(var(--popover))',
 					foreground: 'hsl(var(--popover-foreground))'
 				},
-				primary: { DEFAULT: '#1A362D', foreground: '#FFFFFF', 50: '#F0F4F2', dark: '#0F1F1A' }, // Midnight Forest
+				primary: {
+					DEFAULT: 'hsl(var(--primary))',
+					foreground: 'hsl(var(--primary-foreground))',
+					50: 'hsl(334 42% 96%)',
+					dark: 'hsl(334 42% 20%)',
+				},
 				secondary: {
 					DEFAULT: 'hsl(var(--secondary))',
 					foreground: 'hsl(var(--secondary-foreground))'
 				},
-				muted: { DEFAULT: '#E7E5E4', foreground: '#78716C' }, // Stone 200 / Stone 500
-				accent: { DEFAULT: '#B45309', foreground: '#FFFFFF', 50: '#FEF3C7' }, // Deep Terracotta / Amber 700
-				destructive: { DEFAULT: '#C0514F', foreground: '#FFFFFF', light: '#F9ECEC', border: '#DFA3A3' },
-				border: { DEFAULT: '#D6D3D0', strong: '#A8A29E' }, // Stone 300 / Stone 400
+				muted: {
+					DEFAULT: 'hsl(var(--muted))',
+					foreground: 'hsl(var(--muted-foreground))',
+				},
+				accent: {
+					DEFAULT: 'hsl(var(--accent))',
+					foreground: 'hsl(var(--accent-foreground))',
+					50: 'hsl(341 48% 96%)',
+				},
+				destructive: {
+					DEFAULT: 'hsl(var(--destructive))',
+					foreground: 'hsl(var(--destructive-foreground))',
+					light: 'hsl(0 84% 96%)',
+					border: 'hsl(0 84% 82%)',
+				},
+				border: {
+					DEFAULT: 'hsl(var(--border))',
+					strong: 'hsl(330 25% 75%)',
+				},
 				input: 'hsl(var(--input))',
 				ring: 'hsl(var(--ring))',
-				text: { primary: '#1C1917', secondary: '#44403C', muted: '#78716C', disabled: '#A8A29E', inverse: '#FFFFFF' },
+				text: {
+					primary: 'hsl(var(--foreground))',
+					secondary: 'hsl(332 22% 30%)',
+					muted: 'hsl(var(--muted-foreground))',
+					disabled: 'hsl(339 11% 70%)',
+					inverse: '#FFFFFF',
+				},
 				chart: {
 					'1': 'hsl(var(--chart-1))',
 					'2': 'hsl(var(--chart-2))',
@@ -67,7 +96,7 @@ const config: Config = {
 				sans:    ['var(--font-sans)', 'system-ui', 'sans-serif'],
 			},
 			boxShadow: {
-				'card': '0 4px 20px rgba(26, 54, 45, 0.08)',
+				'card': '0 4px 20px rgba(107, 41, 72, 0.08)',
 			}
 		}
 	},

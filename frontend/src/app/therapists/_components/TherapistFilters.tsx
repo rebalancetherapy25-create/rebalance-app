@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { User, Sparkles, Heart, Search, SlidersHorizontal, ChevronDown } from 'lucide-react';
+import { User, Sparkles, Heart, Search, ChevronDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Pagination } from '@/components/ui/pagination';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -42,8 +42,20 @@ export default function TherapistFilters({
     const [totalPages, setTotalPages] = useState(initialTotalPages);
     const [totalItems, setTotalItems] = useState(initialTotalItems);
     const [availabilityFilter, setAvailabilityFilter] = useState('Any time');
+    const [sortBy, setSortBy] = useState('Recommended');
 
     const [isInitialMount, setIsInitialMount] = useState(true);
+
+    const handlePageChange = (page: number) => {
+        setCurrentPage(page);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    // Reset to page 1 when filters change
+    useEffect(() => {
+        if (!isInitialMount) setCurrentPage(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [availabilityFilter, sortBy]);
 
     // Debounce search query
     useEffect(() => {
@@ -62,6 +74,16 @@ export default function TherapistFilters({
             return;
         }
 
+        const sortMap: Record<string, string> = {
+            'Price: Low to High': 'price_asc',
+            'Price: High to Low': 'price_desc',
+            'Rating: Highest': 'rating_desc',
+        };
+        const availabilityMap: Record<string, string> = {
+            'Today': 'today',
+            'This Week': 'this_week',
+        };
+
         const fetchTherapists = async () => {
             try {
                 setLoading(true);
@@ -69,7 +91,9 @@ export default function TherapistFilters({
                     params: {
                         page: currentPage,
                         limit: 10,
-                        ...(debouncedSearch && { search: debouncedSearch })
+                        ...(debouncedSearch && { search: debouncedSearch }),
+                        ...(availabilityMap[availabilityFilter] && { availability: availabilityMap[availabilityFilter] }),
+                        ...(sortMap[sortBy] && { sort: sortMap[sortBy] }),
                     }
                 });
                 setTherapists(response.data.therapists || []);
@@ -85,7 +109,7 @@ export default function TherapistFilters({
         };
 
         fetchTherapists();
-    }, [currentPage, debouncedSearch, isInitialMount]);
+    }, [currentPage, debouncedSearch, availabilityFilter, sortBy, isInitialMount]);
 
     return (
         <div className="space-y-12 md:space-y-16">
@@ -104,9 +128,9 @@ export default function TherapistFilters({
             </div>
 
             {/* SLEEK STICKY FILTER BAR */}
-            <div className="sticky top-20 z-30 -mx-4 px-4 py-4 md:-mx-8 md:px-8 bg-background/80 backdrop-blur-2xl border-y border-border/40 shadow-sm transition-all duration-300">
+            <div className="sticky top-16 z-30 -mx-4 px-4 py-4 md:-mx-8 md:px-8 bg-background/80 backdrop-blur-2xl border-y border-border/40 shadow-sm transition-all duration-300">
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between w-full">
-                    {/* Search & Main Filter */}
+                    {/* Search */}
                     <div className="flex flex-1 items-center gap-3">
                         <div className="relative flex-1 max-w-md">
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
@@ -117,10 +141,6 @@ export default function TherapistFilters({
                                 onChange={(e) => setSearchQuery(e.target.value)}
                             />
                         </div>
-                        <Button variant="outline" className="h-14 rounded-full border-border/60 px-6 font-semibold shadow-sm hover:border-accent hover:bg-accent/5 hidden sm:flex shrink-0">
-                            <SlidersHorizontal className="w-4 h-4 mr-2" />
-                            More Filters
-                        </Button>
                     </div>
 
                     {/* Quick Toggles & Sort */}
@@ -143,11 +163,15 @@ export default function TherapistFilters({
                             })}
                         </div>
                         <div className="relative shrink-0">
-                            <select className="appearance-none h-12 pl-5 pr-10 rounded-full border border-border/40 bg-background text-sm font-bold text-foreground outline-none transition-colors hover:border-accent shadow-sm cursor-pointer">
-                                <option>Sort by: Recommended</option>
-                                <option>Price: Low to High</option>
-                                <option>Price: High to Low</option>
-                                <option>Rating: Highest</option>
+                            <select
+                                value={sortBy}
+                                onChange={(e) => setSortBy(e.target.value)}
+                                className="appearance-none h-12 pl-5 pr-10 rounded-full border border-border/40 bg-background text-sm font-bold text-foreground outline-none transition-colors hover:border-accent shadow-sm cursor-pointer"
+                            >
+                                <option value="Recommended">Sort by: Recommended</option>
+                                <option value="Price: Low to High">Price: Low to High</option>
+                                <option value="Price: High to Low">Price: High to Low</option>
+                                <option value="Rating: Highest">Rating: Highest</option>
                             </select>
                             <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                         </div>
@@ -288,7 +312,7 @@ export default function TherapistFilters({
                             <Pagination
                                 currentPage={currentPage}
                                 totalPages={totalPages}
-                                onPageChange={setCurrentPage}
+                                onPageChange={handlePageChange}
                             />
                         </div>
                     </>

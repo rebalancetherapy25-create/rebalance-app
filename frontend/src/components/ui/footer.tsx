@@ -54,7 +54,6 @@ export function Footer() {
                         <ul className="space-y-4">
                             <li><Link href="/therapists" className="text-lg font-medium text-primary-foreground/80 hover:text-accent transition-colors">Find a Therapist</Link></li>
                             <li><Link href="/about" className="text-lg font-medium text-primary-foreground/80 hover:text-accent transition-colors">How it Works</Link></li>
-                            <li><Link href="/pricing" className="text-lg font-medium text-primary-foreground/80 hover:text-accent transition-colors">Pricing</Link></li>
                             <li><Link href="/login" className="text-lg font-medium text-primary-foreground/80 hover:text-accent transition-colors">Sign In</Link></li>
                         </ul>
                     </div>

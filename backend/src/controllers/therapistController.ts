@@ -1,10 +1,12 @@
 import { Request, Response } from 'express';
-import { Therapist } from '../models';
+import { Therapist, Availability } from '../models';
 import { extractWeeklyTemplate } from '../utils/schedule';
+
+const toDateString = (d: Date) => d.toISOString().slice(0, 10);
 
 export const getTherapists = async (req: Request, res: Response) => {
     try {
-        const { specialty, minPrice, maxPrice, rating, search, limit = 10, page = 1 } = req.query;
+        const { specialty, minPrice, maxPrice, rating, search, availability, sort, limit = 10, page = 1 } = req.query;
 
         const query: any = {};
 
@@ -29,12 +31,32 @@ export const getTherapists = async (req: Request, res: Response) => {
             query.ratingAverage = { $gte: Number(rating) };
         }
 
+        if (availability === 'today' || availability === 'this_week') {
+            const today = toDateString(new Date());
+            const dateQuery = availability === 'today'
+                ? { date: today }
+                : { date: { $gte: today, $lte: toDateString(new Date(Date.now() + 6 * 24 * 60 * 60 * 1000)) } };
+
+            const therapistIds = await Availability.distinct('therapistId', {
+                ...dateQuery,
+                'slots': { $elemMatch: { isBooked: false, $or: [{ reservedUntil: { $exists: false } }, { reservedUntil: { $lte: new Date() } }] } },
+            });
+            query._id = { $in: therapistIds };
+        }
+
+        const sortMap: Record<string, object> = {
+            price_asc: { price: 1 },
+            price_desc: { price: -1 },
+            rating_desc: { ratingAverage: -1 },
+        };
+        const sortObj = sortMap[sort as string] ?? { ratingAverage: -1 };
+
         const skip = (Number(page) - 1) * Number(limit);
 
         const therapists = await Therapist.find(query)
             .skip(skip)
             .limit(Number(limit))
-            .sort({ ratingAverage: -1 })
+            .sort(sortObj)
             .lean();
 
         const normalizedTherapists = therapists.map((therapist: any) => ({
