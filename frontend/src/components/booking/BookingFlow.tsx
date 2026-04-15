@@ -133,6 +133,7 @@ export default function BookingFlow({
     const [liveSlots, setLiveSlots] = useState<string[]>([]);
     const [fetchingSlots, setFetchingSlots] = useState(false);
     const [orderData, setOrderData] = useState<OrderData | null>(null);
+    const [timeLeft, setTimeLeft] = useState<number | null>(null);
     const [dateOptions, setDateOptions] = useState<DateOption[]>([]);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
 
@@ -222,6 +223,14 @@ export default function BookingFlow({
         };
     }, [sessionTypes, availability]);
 
+    useEffect(() => {
+        let timer: NodeJS.Timeout;
+        if (currentStep === 3 && timeLeft !== null && timeLeft > 0) {
+            timer = setTimeout(() => setTimeLeft((prev) => (prev ? prev - 1 : 0)), 1000);
+        }
+        return () => clearTimeout(timer);
+    }, [currentStep, timeLeft]);
+
     const [errors, setErrors] = useState<BookingErrors>({});
 
     const validateForm = () => {
@@ -306,6 +315,7 @@ export default function BookingFlow({
                 }
                 const data = await createRes.json();
                 setOrderData(data as OrderData);
+                setTimeLeft(300); // 5 minutes
                 setProcessing(false);
                 // SUCCESS: Proceed to next step
                 setCurrentStep(3);
@@ -635,9 +645,17 @@ export default function BookingFlow({
                                 </div>
                             )}
 
-                            <div className="flex items-center gap-2.5 p-2.5 bg-accent-50 text-accent-foreground rounded-lg lg:rounded-xl border border-accent-100 text-[10px] lg:text-xs font-bold">
-                                <Clock className="w-3 lg:w-3.5 h-3 lg:h-3.5 text-accent" />
-                                <span>Slot locked for <strong className="text-accent italic">05:00</strong> mins</span>
+                            <div className={`flex items-center gap-2.5 p-3 rounded-lg lg:rounded-xl border text-[10px] lg:text-xs font-bold shadow-sm ${timeLeft === 0 ? 'bg-destructive/10 text-destructive border-destructive/20' : 'bg-primary/5 text-foreground border-primary/20'}`}>
+                                <Clock className={`w-3.5 lg:w-4 h-3.5 lg:h-4 ${timeLeft === 0 ? 'text-destructive' : 'text-primary'}`} />
+                                <span>
+                                    {timeLeft === 0 ? (
+                                        <strong className="text-destructive italic">Slot expired!</strong>
+                                    ) : (
+                                        <>Slot locked for <strong className="text-primary italic animate-pulse">
+                                            {String(Math.floor((timeLeft || 0) / 60)).padStart(2, '0')}:{String((timeLeft || 0) % 60).padStart(2, '0')}
+                                        </strong> mins</>
+                                    )}
+                                </span>
                             </div>
 
                             <div className="bg-background p-4 lg:p-6 rounded-xl lg:rounded-2xl border border-border/10 space-y-3 shadow-sm">
@@ -703,7 +721,7 @@ export default function BookingFlow({
 
                         <Button
                             onClick={handleNextStep}
-                            disabled={processing || (currentStep === 1 && (!date || !time))}
+                            disabled={processing || (currentStep === 1 && (!date || !time)) || (currentStep === 3 && timeLeft === 0)}
                             loading={processing}
                             loadingText="Locking slot..."
                             className="flex items-center justify-center w-auto h-9 lg:h-11 rounded-lg lg:rounded-xl px-5 text-[10px] lg:text-xs font-black uppercase tracking-tight shadow-md transition-all sm:px-8 lg:px-10 shrink-0 bg-primary text-primary-foreground hover:bg-primary/90 disabled:bg-muted-foreground/20 disabled:text-muted-foreground disabled:shadow-none"
