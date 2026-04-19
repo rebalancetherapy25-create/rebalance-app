@@ -60,10 +60,10 @@ export default function DashboardPage() {
 
     const { upcoming, past } = useMemo(() => {
         const now = new Date();
-        const active = bookings.filter((booking) => booking.status !== 'cancelled');
+        const valid = bookings.filter((booking) => booking.status === 'confirmed' || booking.status === 'completed');
         return {
-            upcoming: active.filter((booking) => bookingDateTime(booking) >= now && booking.status !== 'completed'),
-            past: active.filter((booking) => bookingDateTime(booking) < now || booking.status === 'completed'),
+            upcoming: valid.filter((booking) => bookingDateTime(booking) >= now && booking.status !== 'completed'),
+            past: valid.filter((booking) => bookingDateTime(booking) < now || booking.status === 'completed'),
         };
     }, [bookings]);
 
