@@ -48,7 +48,7 @@ export const ensureAvailabilityForSlot = async (therapistId: string, date: strin
     return { ok: true as const, therapist, runtimeAvailability };
 };
 
-export const bookSlotIfAvailable = async (therapistId: string, date: string, time: string) => {
+export const bookSlotIfAvailable = async (therapistId: string, date: string, time: string, bookingId?: string) => {
     const now = new Date();
     const lockResult = await Availability.updateOne(
         {
@@ -61,11 +61,12 @@ export const bookSlotIfAvailable = async (therapistId: string, date: string, tim
                     $or: [
                         { reservedUntil: { $exists: false } },
                         { reservedUntil: { $lt: now } },
+                        ...(bookingId ? [{ reservedBookingId: bookingId }] : []),
                     ],
                 },
             },
         },
-        { $set: { 'slots.$.isBooked': true }, $unset: { 'slots.$.reservedUntil': 1 } }
+        { $set: { 'slots.$.isBooked': true }, $unset: { 'slots.$.reservedUntil': 1, 'slots.$.reservedBookingId': 1 } }
     );
     return lockResult.modifiedCount > 0;
 };
@@ -73,7 +74,7 @@ export const bookSlotIfAvailable = async (therapistId: string, date: string, tim
 export const releaseSlot = async (therapistId: string, date: string, time: string) => {
     const result = await Availability.updateOne(
         { therapistId, date, 'slots.time': time },
-        { $set: { 'slots.$.isBooked': false }, $unset: { 'slots.$.reservedUntil': 1 } }
+        { $set: { 'slots.$.isBooked': false }, $unset: { 'slots.$.reservedUntil': 1, 'slots.$.reservedBookingId': 1 } }
     );
     return result.matchedCount > 0;
 };
@@ -88,7 +89,7 @@ export const syncAvailabilityForStatus = async (booking: any, nextStatus: Bookin
     if (!ensure.ok) return { ok: false as const, error: ensure.error };
 
     if (shouldBeBooked) {
-        const booked = await bookSlotIfAvailable(therapistId, booking.date, booking.time);
+        const booked = await bookSlotIfAvailable(therapistId, booking.date, booking.time, booking._id);
         if (!booked) return { ok: false as const, error: 'Selected slot is already booked or currently held' };
         return { ok: true as const };
     }
@@ -120,7 +121,7 @@ export const rescheduleBooking = async (bookingId: string, therapistId: string, 
         return { ok: false as const, status: 409 as const, error: 'Another active booking already exists for this slot' };
     }
 
-    const bookedNew = await bookSlotIfAvailable(therapistId, nextDate, nextTime);
+    const bookedNew = await bookSlotIfAvailable(therapistId, nextDate, nextTime, bookingId);
     if (!bookedNew) {
         return { ok: false as const, status: 409 as const, error: 'Selected slot is not available' };
     }

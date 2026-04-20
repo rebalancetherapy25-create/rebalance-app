@@ -6,6 +6,7 @@ import { ACTIVE_BOOKING_STATUSES, BookingStatus, STATUS_TRANSITIONS, syncAvailab
 import { sendEmail } from '../services/emailService';
 import { bookingRescheduledEmail } from '../emails/templates/bookingRescheduled';
 import { bookingCancelledEmail } from '../emails/templates/bookingCancelled';
+import { sendData, sendError } from '../lib/http';
 
 const listDatesInclusive = (from: Date, to: Date) => {
     const dates: string[] = [];
@@ -34,15 +35,15 @@ const parseRange = (fromRaw?: string, toRaw?: string) => {
 export const getTherapistAvailabilityRange = async (req: TherapistAuthRequest, res: Response) => {
     try {
         const therapistId = req.therapist?.therapistId;
-        if (!therapistId) return res.status(401).json({ error: 'Unauthorized' });
+        if (!therapistId) return sendError(res, 401, 'Unauthorized', { code: 'THERAPIST_UNAUTHORIZED' });
 
         const fromQ = typeof req.query.from === 'string' ? req.query.from : undefined;
         const toQ = typeof req.query.to === 'string' ? req.query.to : undefined;
         const range = parseRange(fromQ, toQ);
-        if (!range) return res.status(400).json({ error: 'Invalid from/to' });
+        if (!range) return sendError(res, 400, 'Invalid from/to', { code: 'AVAILABILITY_RANGE_INVALID' });
 
         const therapist = await Therapist.findById(therapistId).lean();
-        if (!therapist) return res.status(404).json({ error: 'Therapist not found' });
+        if (!therapist) return sendError(res, 404, 'Therapist not found', { code: 'THERAPIST_NOT_FOUND' });
 
         const normalizedFrom = range.from.toISOString().slice(0, 10);
         const normalizedTo = range.to.toISOString().slice(0, 10);
@@ -65,20 +66,20 @@ export const getTherapistAvailabilityRange = async (req: TherapistAuthRequest, r
             return { date, slots, source: 'template' as const };
         });
 
-        return res.status(200).json(results);
+        return sendData(res, results);
     } catch (error) {
         console.error('Therapist availability range error:', error);
-        return res.status(500).json({ error: 'Server error' });
+        return sendError(res, 500, 'Server error', { code: 'THERAPIST_AVAILABILITY_RANGE_FAILED' });
     }
 };
 
 export const putTherapistAvailabilityForDate = async (req: TherapistAuthRequest, res: Response) => {
     try {
         const therapistId = req.therapist?.therapistId;
-        if (!therapistId) return res.status(401).json({ error: 'Unauthorized' });
+        if (!therapistId) return sendError(res, 401, 'Unauthorized', { code: 'THERAPIST_UNAUTHORIZED' });
 
         const date = normalizeDate(String(req.params.date));
-        if (!date) return res.status(400).json({ error: 'Invalid date. Use YYYY-MM-DD.' });
+        if (!date) return sendError(res, 400, 'Invalid date. Use YYYY-MM-DD.', { code: 'AVAILABILITY_DATE_INVALID' });
 
         const rawSlots: any[] = Array.isArray(req.body?.slots) ? req.body.slots : [];
         const normalizedTimes = rawSlots
@@ -89,11 +90,15 @@ export const putTherapistAvailabilityForDate = async (req: TherapistAuthRequest,
         const existing = await Availability.findOne({ therapistId, date }).lean();
         const existingSlots = new Map((existing?.slots || []).map((s: any) => [String(s.time), s]));
         const bookedTimes = new Set((existing?.slots || []).filter((s: any) => s.isBooked).map((s: any) => String(s.time)));
+        const now = new Date();
+        const lockedTimes = new Set((existing?.slots || []).filter((s: any) => !s.isBooked && s.reservedUntil && new Date(s.reservedUntil) > now).map((s: any) => String(s.time)));
+        
+        const protectedTimes = new Set([...bookedTimes, ...lockedTimes]);
 
-        if (bookedTimes.size > 0) {
-            const missingBooked = Array.from(bookedTimes).filter((t) => !normalizedSlots.includes(t));
-            if (missingBooked.length > 0) {
-                return res.status(409).json({ error: 'Cannot remove booked slots', bookedSlots: missingBooked });
+        if (protectedTimes.size > 0) {
+            const missingProtected = Array.from(protectedTimes).filter((t) => !normalizedSlots.includes(t));
+            if (missingProtected.length > 0) {
+                return sendError(res, 409, 'Cannot remove slots that are booked or currently being checked out by a customer', { code: 'AVAILABILITY_BOOKED_SLOT_PROTECTED', fields: { bookedSlots: missingProtected.join(', ') } });
             }
         } else {
             // Safety: if for some reason availability record is missing but bookings exist, prevent destructive edits.
@@ -105,14 +110,14 @@ export const putTherapistAvailabilityForDate = async (req: TherapistAuthRequest,
             const bookingTimes = new Set(activeBookings.map((b) => String(b.time)));
             const missing = Array.from(bookingTimes).filter((t) => !normalizedSlots.includes(t));
             if (missing.length > 0) {
-                return res.status(409).json({ error: 'Cannot remove slots with active bookings', bookedSlots: missing });
+                return sendError(res, 409, 'Cannot remove slots with active bookings', { code: 'AVAILABILITY_BOOKED_SLOT_PROTECTED', fields: { bookedSlots: missing.join(', ') } });
             }
         }
 
         const nextSlots = normalizedSlots.map((time) => {
             const prev = existingSlots.get(time);
             if (prev) {
-                return { time, isBooked: Boolean(prev.isBooked), reservedUntil: prev.reservedUntil };
+                return { time, isBooked: Boolean(prev.isBooked), reservedUntil: prev.reservedUntil, reservedBookingId: prev.reservedBookingId };
             }
             return { time, isBooked: false };
         });
@@ -123,17 +128,17 @@ export const putTherapistAvailabilityForDate = async (req: TherapistAuthRequest,
             { upsert: true, new: true }
         );
 
-        return res.status(200).json(updated);
+        return sendData(res, updated);
     } catch (error) {
         console.error('Therapist availability put error:', error);
-        return res.status(500).json({ error: 'Server error' });
+        return sendError(res, 500, 'Server error', { code: 'THERAPIST_AVAILABILITY_UPDATE_FAILED' });
     }
 };
 
 export const getTherapistBookings = async (req: TherapistAuthRequest, res: Response) => {
     try {
         const therapistId = req.therapist?.therapistId;
-        if (!therapistId) return res.status(401).json({ error: 'Unauthorized' });
+        if (!therapistId) return sendError(res, 401, 'Unauthorized', { code: 'THERAPIST_UNAUTHORIZED' });
 
         const from = req.query.from ? normalizeDate(String(req.query.from)) : null;
         const to = req.query.to ? normalizeDate(String(req.query.to)) : null;
@@ -147,7 +152,7 @@ export const getTherapistBookings = async (req: TherapistAuthRequest, res: Respo
         }
         if (status) {
             if (!VALID_BOOKING_STATUSES.has(status as BookingStatus)) {
-                return res.status(400).json({ error: 'Invalid status filter' });
+                return sendError(res, 400, 'Invalid status filter', { code: 'BOOKING_STATUS_INVALID' });
             }
             query.status = status;
         }
@@ -156,36 +161,36 @@ export const getTherapistBookings = async (req: TherapistAuthRequest, res: Respo
             .populate('userId', 'name email')
             .sort({ createdAt: -1 });
 
-        return res.status(200).json(bookings);
+        return sendData(res, bookings);
     } catch (error) {
         console.error('Therapist bookings error:', error);
-        return res.status(500).json({ error: 'Server error' });
+        return sendError(res, 500, 'Server error', { code: 'THERAPIST_BOOKINGS_LIST_FAILED' });
     }
 };
 
 export const getTherapistBookingById = async (req: TherapistAuthRequest, res: Response) => {
     try {
         const therapistId = req.therapist?.therapistId;
-        if (!therapistId) return res.status(401).json({ error: 'Unauthorized' });
+        if (!therapistId) return sendError(res, 401, 'Unauthorized', { code: 'THERAPIST_UNAUTHORIZED' });
 
         const booking = await Booking.findById(req.params.id).populate('userId', 'name email');
-        if (!booking) return res.status(404).json({ error: 'Booking not found' });
-        if (String(booking.therapistId) !== String(therapistId)) return res.status(403).json({ error: 'Forbidden' });
-        return res.status(200).json(booking);
+        if (!booking) return sendError(res, 404, 'Booking not found', { code: 'BOOKING_NOT_FOUND' });
+        if (String(booking.therapistId) !== String(therapistId)) return sendError(res, 403, 'Forbidden', { code: 'THERAPIST_FORBIDDEN' });
+        return sendData(res, booking);
     } catch (error) {
         console.error('Therapist booking get error:', error);
-        return res.status(500).json({ error: 'Server error' });
+        return sendError(res, 500, 'Server error', { code: 'THERAPIST_BOOKING_GET_FAILED' });
     }
 };
 
 export const updateTherapistBooking = async (req: TherapistAuthRequest, res: Response) => {
     try {
         const therapistId = req.therapist?.therapistId;
-        if (!therapistId) return res.status(401).json({ error: 'Unauthorized' });
+        if (!therapistId) return sendError(res, 401, 'Unauthorized', { code: 'THERAPIST_UNAUTHORIZED' });
 
         const booking = await Booking.findById(req.params.id).populate('userId', 'name email').populate('therapistId', 'name');
-        if (!booking) return res.status(404).json({ error: 'Booking not found' });
-        if (String(booking.therapistId) !== String(therapistId)) return res.status(403).json({ error: 'Forbidden' });
+        if (!booking) return sendError(res, 404, 'Booking not found', { code: 'BOOKING_NOT_FOUND' });
+        if (String(booking.therapistId) !== String(therapistId)) return sendError(res, 403, 'Forbidden', { code: 'THERAPIST_FORBIDDEN' });
 
         const recipientEmail = (booking.userId as any)?.email || booking.guestContact?.email;
         const recipientName = (booking.userId as any)?.name || booking.guestContact?.name || 'there';
@@ -196,7 +201,7 @@ export const updateTherapistBooking = async (req: TherapistAuthRequest, res: Res
         // Reject combined reschedule+status — reschedule saves to DB first; if status sync
         // then fails the booking ends up with new date/time but old status (inconsistent state).
         if ((req.body?.reschedule?.date || req.body?.reschedule?.time) && req.body?.status !== undefined) {
-            return res.status(400).json({ error: 'Cannot reschedule and change status in the same request. Apply each change separately.' });
+            return sendError(res, 400, 'Cannot reschedule and change status in the same request. Apply each change separately.', { code: 'BOOKING_UPDATE_CONFLICT' });
         }
 
         let didReschedule = false;
@@ -206,10 +211,10 @@ export const updateTherapistBooking = async (req: TherapistAuthRequest, res: Res
         if (req.body?.reschedule?.date || req.body?.reschedule?.time) {
             const nextDate = normalizeDate(String(req.body.reschedule.date));
             const nextTime = normalizeTime(String(req.body.reschedule.time));
-            if (!nextDate || !nextTime) return res.status(400).json({ error: 'Invalid reschedule date/time' });
+            if (!nextDate || !nextTime) return sendError(res, 400, 'Invalid reschedule date/time', { code: 'BOOKING_RESCHEDULE_INVALID' });
 
             const result = await rescheduleBooking(String(booking._id), String(therapistId), nextDate, nextTime);
-            if (!result.ok) return res.status(result.status).json({ error: result.error });
+            if (!result.ok) return sendError(res, result.status, result.error, { code: 'BOOKING_RESCHEDULE_FAILED' });
 
             didReschedule = true;
             booking.date = nextDate;
@@ -219,12 +224,12 @@ export const updateTherapistBooking = async (req: TherapistAuthRequest, res: Res
         // Status transition
         if (req.body?.status !== undefined) {
             const nextStatus = String(req.body.status).toLowerCase() as BookingStatus;
-            if (!VALID_BOOKING_STATUSES.has(nextStatus)) return res.status(400).json({ error: 'Invalid booking status' });
+            if (!VALID_BOOKING_STATUSES.has(nextStatus)) return sendError(res, 400, 'Invalid booking status', { code: 'BOOKING_STATUS_INVALID' });
 
             const current = booking.status as BookingStatus;
             if (current !== nextStatus) {
                 if (!STATUS_TRANSITIONS[current]?.includes(nextStatus)) {
-                    return res.status(400).json({ error: `Cannot transition booking from ${current} to ${nextStatus}` });
+                    return sendError(res, 400, `Cannot transition booking from ${current} to ${nextStatus}`, { code: 'BOOKING_STATUS_TRANSITION_INVALID' });
                 }
 
                 if (nextStatus === 'confirmed') {
@@ -235,7 +240,7 @@ export const updateTherapistBooking = async (req: TherapistAuthRequest, res: Res
                         time: booking.time,
                         status: { $in: ACTIVE_BOOKING_STATUSES },
                     }).select('_id');
-                    if (conflict) return res.status(409).json({ error: 'Another active booking already exists for this slot' });
+                    if (conflict) return sendError(res, 409, 'Another active booking already exists for this slot', { code: 'BOOKING_SLOT_CONFLICT' });
                 }
 
                 booking.status = nextStatus;
@@ -244,7 +249,7 @@ export const updateTherapistBooking = async (req: TherapistAuthRequest, res: Res
                 if (!sync.ok) {
                     booking.status = current;
                     await booking.save();
-                    return res.status(409).json({ error: sync.error || 'Failed to sync availability' });
+                    return sendError(res, 409, sync.error || 'Failed to sync availability', { code: 'BOOKING_AVAILABILITY_SYNC_FAILED' });
                 }
                 if (nextStatus === 'cancelled') {
                     didCancel = true;
@@ -282,9 +287,9 @@ export const updateTherapistBooking = async (req: TherapistAuthRequest, res: Res
         }
 
         const populated = await Booking.findById(booking._id).populate('userId', 'name email').populate('therapistId', 'name');
-        return res.status(200).json({ success: true, booking: populated });
+        return sendData(res, { success: true, booking: populated });
     } catch (error) {
         console.error('Therapist booking update error:', error);
-        return res.status(500).json({ error: 'Server error' });
+        return sendError(res, 500, 'Server error', { code: 'THERAPIST_BOOKING_UPDATE_FAILED' });
     }
 };

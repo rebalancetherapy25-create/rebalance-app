@@ -9,6 +9,7 @@ import { FieldError } from '@/components/ui/field-error';
 import { Input } from '@/components/ui/input';
 import api from '@/lib/api';
 import { emailPattern, getApiErrorMessage, getErrorMessages } from '@/lib/form-validation';
+import { toastApiError, toastValidationErrors } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/components/ui/toaster';
 
@@ -52,11 +53,7 @@ export default function AuthForm() {
 
         if (getErrorMessages(nextErrors).length) {
             setErrors(nextErrors);
-            toast({
-                variant: 'error',
-                title: 'Please fix these login errors',
-                items: getErrorMessages(nextErrors),
-            });
+            toastValidationErrors(toast, getErrorMessages(nextErrors), 'Please fix these login errors');
             return;
         }
 
@@ -76,11 +73,7 @@ export default function AuthForm() {
                 return;
             }
             const message = getApiErrorMessage(err, 'Login failed. Please try again.');
-            toast({
-                variant: 'error',
-                title: 'Unable to log in',
-                items: [message],
-            });
+            toastApiError(toast, message, 'Unable to log in');
         } finally {
             setSubmitting(false);
         }

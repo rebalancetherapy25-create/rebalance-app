@@ -13,9 +13,11 @@ import bannerRoutes from './routes/bannerRoutes';
 import therapistAuthRoutes from './routes/therapistAuthRoutes';
 import therapistPortalRoutes from './routes/therapistPortalRoutes';
 import adminRoutes from './routes/adminRoutes';
+import paymentRoutes from './routes/paymentRoutes';
 import config from './config/env';
 import { apiLimiter } from './middlewares/rateLimit';
 import { ApiError, errorHandler, notFoundHandler, requestContext, requestLogger, sendData } from './lib/http';
+import { csrfProtection, ensureCsrfCookie } from './lib/csrf';
 
 dotenv.config();
 
@@ -46,12 +48,14 @@ export const createApp = (): Express => {
     app.disable('x-powered-by');
     app.use(requestContext);
     app.use(requestLogger);
+    app.use('/api/payments', paymentRoutes);
     app.use(helmet({
         crossOriginResourcePolicy: { policy: 'cross-origin' },
     }));
     app.use(express.json({ limit: '1mb' }));
     app.use(express.urlencoded({ extended: true, limit: '1mb' }));
     app.use(cookieParser());
+    app.use(ensureCsrfCookie);
     app.use(apiLimiter);
     app.use(cors({
         credentials: true,
@@ -96,6 +100,7 @@ export const createApp = (): Express => {
         });
     });
 
+    app.use(csrfProtection);
     app.use('/api/auth', authRoutes);
     app.use('/api/therapists', therapistRoutes);
     app.use('/api/availability', availabilityRoutes);

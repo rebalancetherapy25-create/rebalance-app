@@ -6,30 +6,12 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Video, Phone, MessageCircle, Lock, Globe, Clock } from 'lucide-react';
 import { getApiBaseUrl, unwrapApiData } from '@/lib/runtime';
+import { CSRF_HEADER_NAME, ensureCsrfToken } from '@/lib/auth';
+import { buildDateOptions, type DateOption, type LegacyAvailability } from '@/lib/booking';
+import { emailPattern } from '@/lib/form-validation';
 
 const STEPS = ['Format', 'Date & Time', 'Details', 'Payment', 'Confirmed'];
 const API_BASE = getApiBaseUrl();
-
-const DAY_NAME_TO_INDEX: Record<string, number> = {
-    sunday: 0,
-    monday: 1,
-    tuesday: 2,
-    wednesday: 3,
-    thursday: 4,
-    friday: 5,
-    saturday: 6,
-};
-
-interface LegacyAvailability {
-    day: string;
-    slots: string[];
-}
-
-interface DateOption {
-    date: string;
-    label: string;
-    slots: string[];
-}
 
 interface OrderData {
     orderId: string;
@@ -50,53 +32,6 @@ interface BookingErrors {
     general?: string;
     payment?: string;
 }
-
-const normalizeTime = (slot: string): string | null => {
-    const value = slot.trim();
-    if (/^\d{1,2}:\d{2}$/.test(value)) {
-        const [hour, minute] = value.split(':').map(Number);
-        if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
-            return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-        }
-        return null;
-    }
-
-    const match = value.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-    if (!match) return null;
-    let hour = Number(match[1]);
-    const minute = Number(match[2]);
-    const meridiem = match[3].toUpperCase();
-    if (hour < 1 || hour > 12 || minute < 0 || minute > 59) return null;
-    if (hour === 12) hour = 0;
-    if (meridiem === 'PM') hour += 12;
-    return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-};
-
-const buildDateOptions = (availability: LegacyAvailability[]): DateOption[] => {
-    const now = new Date();
-    const options: DateOption[] = [];
-
-    for (let i = 0; i < 14; i += 1) {
-        const date = new Date(now);
-        date.setDate(now.getDate() + i);
-        const dayOfWeek = date.getDay();
-        const template = availability.find((item) => DAY_NAME_TO_INDEX[item.day.toLowerCase()] === dayOfWeek);
-        if (!template) continue;
-
-        const isoDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-        const slots = Array.from(
-            new Set(template.slots.map((slot) => normalizeTime(slot)).filter((slot): slot is string => Boolean(slot)))
-        ).sort();
-
-        options.push({
-            date: isoDate,
-            label: `${template.day.slice(0, 3)} ${date.getDate()}`,
-            slots,
-        });
-    }
-
-    return options;
-};
 
 interface BookingFlowProps {
     therapistId: string;
@@ -146,7 +81,7 @@ export default function BookingFlow({
                 const res = await fetch(`${API_BASE}/availability/${therapistId}?date=${date}`);
                 if (res.ok) {
                     const hasRecord = res.headers.get('X-Availability-Record') === '1';
-                    const data = await res.json();
+                    const data = unwrapApiData(await res.json()) as { time: string }[];
                     if (data && data.length > 0) {
                         setLiveSlots(data.map((s: { time: string }) => s.time).sort());
                     } else {
@@ -246,10 +181,9 @@ export default function BookingFlow({
             newErrors.name = 'Name must be at least 2 characters';
         }
 
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!bookingDetails.email.trim()) {
             newErrors.email = 'Email address is required';
-        } else if (!emailRegex.test(bookingDetails.email)) {
+        } else if (!emailPattern.test(bookingDetails.email)) {
             newErrors.email = 'Please enter a valid email address';
         }
 
@@ -284,9 +218,13 @@ export default function BookingFlow({
 
             setProcessing(true);
             try {
+                const csrfToken = await ensureCsrfToken(API_BASE);
                 const createRes = await fetch(`${API_BASE}/bookings/create`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(csrfToken ? { [CSRF_HEADER_NAME]: csrfToken } : {}),
+                    },
                     credentials: 'include',
                     body: JSON.stringify({
                         therapistId,
@@ -313,7 +251,7 @@ export default function BookingFlow({
                     setProcessing(false);
                     return;
                 }
-                const data = await createRes.json();
+                const data = unwrapApiData(await createRes.json());
                 setOrderData(data as OrderData);
                 setTimeLeft(300); // 5 minutes
                 setProcessing(false);
@@ -341,9 +279,13 @@ export default function BookingFlow({
                 order_id: orderData.orderId,
                 handler: async function (response: RazorpayResponse) {
                     try {
+                        const csrfToken = await ensureCsrfToken(API_BASE);
                         const verifyRes = await fetch(`${API_BASE}/bookings/verify`, {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
+                            headers: {
+                                'Content-Type': 'application/json',
+                                ...(csrfToken ? { [CSRF_HEADER_NAME]: csrfToken } : {}),
+                            },
                             credentials: 'include',
                             body: JSON.stringify({
                                 razorpay_order_id: response.razorpay_order_id,

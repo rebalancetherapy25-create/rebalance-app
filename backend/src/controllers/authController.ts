@@ -177,11 +177,9 @@ export const loginUser = async (req: Request, res: Response) => {
         }
 
         if (!user.isVerified) {
-            return res.status(403).json({
-                error: 'Please verify your email to log in',
+            return sendError(res, 403, 'Please verify your email to log in', {
                 code: 'AUTH_EMAIL_UNVERIFIED',
                 data: { unverified: true, email: user.email },
-                requestId: res.locals.requestId,
             });
         }
 

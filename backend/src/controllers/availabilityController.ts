@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { Availability } from '../models';
 import { normalizeDate, normalizeTime } from '../utils/schedule';
 import { releaseExpiredSlotHolds } from '../services/bookingMaintenanceService';
+import { sendData, sendError } from '../lib/http';
 
 // Client route to get available slots
 export const getTherapistAvailability = async (req: Request, res: Response) => {
@@ -10,12 +11,12 @@ export const getTherapistAvailability = async (req: Request, res: Response) => {
         const { date } = req.query;
 
         if (!date) {
-            return res.status(400).json({ error: 'Date is required' });
+            return sendError(res, 400, 'Date is required', { code: 'AVAILABILITY_DATE_REQUIRED' });
         }
 
         const normalizedDate = normalizeDate(String(date));
         if (!normalizedDate) {
-            return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD.' });
+            return sendError(res, 400, 'Invalid date format. Use YYYY-MM-DD.', { code: 'AVAILABILITY_DATE_INVALID' });
         }
 
         await releaseExpiredSlotHolds();
@@ -29,7 +30,7 @@ export const getTherapistAvailability = async (req: Request, res: Response) => {
             // No record means no slots have been booked or held yet for this date.
             // Return empty so frontend can fallback to its template.
             res.setHeader('X-Availability-Record', '0');
-            return res.status(200).json([]);
+            return sendData(res, []);
         }
 
         res.setHeader('X-Availability-Record', '1');
@@ -43,10 +44,10 @@ export const getTherapistAvailability = async (req: Request, res: Response) => {
             return true;
         });
 
-        res.status(200).json(availableSlots);
+        return sendData(res, availableSlots);
     } catch (error) {
         console.error('Fetch availability error:', error);
-        res.status(500).json({ error: 'Server error fetching availability' });
+        return sendError(res, 500, 'Server error fetching availability', { code: 'AVAILABILITY_FETCH_FAILED' });
     }
 };
 
@@ -59,7 +60,7 @@ export const lockSlot = async (req: Request, res: Response) => {
         const normalizedTime = normalizeTime(String(time));
 
         if (!normalizedDate || !normalizedTime) {
-            return res.status(400).json({ error: 'Invalid date/time format. Expected YYYY-MM-DD and HH:mm.' });
+            return sendError(res, 400, 'Invalid date/time format. Expected YYYY-MM-DD and HH:mm.', { code: 'AVAILABILITY_LOCK_INVALID' });
         }
 
         const now = new Date();
@@ -86,12 +87,12 @@ export const lockSlot = async (req: Request, res: Response) => {
         );
 
         if (result.modifiedCount === 0) {
-            return res.status(409).json({ error: 'Slot is no longer available' });
+            return sendError(res, 409, 'Slot is no longer available', { code: 'AVAILABILITY_SLOT_UNAVAILABLE' });
         }
 
-        res.status(200).json({ message: 'Slot locked successfully', lockExpiry });
+        return sendData(res, { message: 'Slot locked successfully', lockExpiry });
     } catch (error) {
-        res.status(500).json({ error: 'Server error locking slot' });
+        return sendError(res, 500, 'Server error locking slot', { code: 'AVAILABILITY_LOCK_FAILED' });
     }
 };
 
@@ -101,23 +102,28 @@ export const setAvailability = async (req: Request, res: Response) => {
         const { therapistId, date, slots } = req.body;
 
         if (!therapistId || !date || !slots) {
-            return res.status(400).json({ error: 'Missing required fields' });
+            return sendError(res, 400, 'Missing required fields', { code: 'AVAILABILITY_SET_MISSING_FIELDS' });
         }
 
         const normalizedDate = normalizeDate(String(date));
         if (!normalizedDate) {
-            return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD.' });
+            return sendError(res, 400, 'Invalid date format. Use YYYY-MM-DD.', { code: 'AVAILABILITY_DATE_INVALID' });
         }
+
+        const existing = await Availability.findOne({ therapistId: therapistId as string, date: normalizedDate }).lean();
+        const existingSlots = new Map((existing?.slots || []).map((s: any) => [String(s.time), s]));
 
         // Data Normalization: If slots come as strings, convert to ISlot objects
         const normalizedSlots = slots.map((s: any) => {
-            if (typeof s === 'string') {
-                const normalizedTime = normalizeTime(s);
-                return normalizedTime ? { time: normalizedTime, isBooked: false } : null;
-            }
-            const normalizedTime = normalizeTime(s.time);
+            const timeRaw = typeof s === 'string' ? s : s.time;
+            const normalizedTime = normalizeTime(timeRaw);
             if (!normalizedTime) return null;
-            return { ...s, time: normalizedTime };
+            
+            const prev = existingSlots.get(normalizedTime);
+            if (prev) {
+                return { time: normalizedTime, isBooked: Boolean(prev.isBooked), reservedUntil: prev.reservedUntil, reservedBookingId: prev.reservedBookingId };
+            }
+            return { time: normalizedTime, isBooked: false };
         }).filter(Boolean);
 
         // Upsert the availability for that date
@@ -127,9 +133,9 @@ export const setAvailability = async (req: Request, res: Response) => {
             { upsert: true, new: true }
         );
 
-        res.status(200).json(availability);
+        return sendData(res, availability);
     } catch (error) {
         console.error('Set availability error:', error);
-        res.status(500).json({ error: 'Server error setting availability' });
+        return sendError(res, 500, 'Server error setting availability', { code: 'AVAILABILITY_SET_FAILED' });
     }
 };

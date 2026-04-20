@@ -15,10 +15,12 @@ import {
 import { protect } from '../middlewares/authMiddleware';
 import { authLimiter, otpLimiter } from '../middlewares/rateLimit';
 import { validate } from '../lib/http';
+import { getCsrfToken } from '../lib/csrf';
 import { authSchemas } from '../validation/schemas';
 
 const router = express.Router();
 
+router.get('/csrf', getCsrfToken);
 router.post('/register', authLimiter, validate(authSchemas.register), registerUser);
 router.post('/verify-otp', otpLimiter, validate(authSchemas.verifyOtp), verifyOtp);
 router.post('/resend-otp', otpLimiter, validate(authSchemas.resendOtp), resendOtp);

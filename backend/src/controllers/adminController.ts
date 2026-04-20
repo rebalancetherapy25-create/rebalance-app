@@ -7,6 +7,7 @@ import { createTherapistAccountAndInvite } from '../services/therapistInviteServ
 import { sendEmail } from '../services/emailService';
 import { bookingRescheduledEmail } from '../emails/templates/bookingRescheduled';
 import { bookingCancelledEmail } from '../emails/templates/bookingCancelled';
+import { sendData, sendError } from '../lib/http';
 import {
     ACTIVE_BOOKING_STATUSES,
     type BookingStatus,
@@ -38,14 +39,14 @@ export const getDashboardStats = async (req: Request, res: Response) => {
         ]);
         const revenue = revenueAgg[0]?.revenue || 0;
 
-        res.status(200).json({
+        return sendData(res, {
             users: totalUsers,
             therapists: totalTherapists,
             bookings: totalBookings,
             revenue: revenue
         });
     } catch (error) {
-        res.status(500).json({ error: 'Server error fetching dashboard stats' });
+        return sendError(res, 500, 'Server error fetching dashboard stats', { code: 'ADMIN_STATS_FAILED' });
     }
 };
 
@@ -54,9 +55,9 @@ export const getDashboardStats = async (req: Request, res: Response) => {
 export const getUsers = async (req: Request, res: Response) => {
     try {
         const users = await User.find().select('-password').sort({ createdAt: -1 });
-        res.status(200).json(users);
+        return sendData(res, users);
     } catch (error) {
-        res.status(500).json({ error: 'Server error fetching users' });
+        return sendError(res, 500, 'Server error fetching users', { code: 'ADMIN_USERS_LIST_FAILED' });
     }
 };
 
@@ -66,7 +67,7 @@ export const createUser = async (req: Request, res: Response) => {
 
         const userExists = await User.findOne({ email });
         if (userExists) {
-            return res.status(400).json({ error: 'User already exists' });
+            return sendError(res, 400, 'User already exists', { code: 'ADMIN_USER_EXISTS' });
         }
 
         const salt = await bcrypt.genSalt(10);
@@ -80,14 +81,14 @@ export const createUser = async (req: Request, res: Response) => {
             isVerified: true,
         });
 
-        res.status(201).json({
+        return sendData(res, {
             _id: user._id,
             name: user.name,
             email: user.email,
             role: user.role,
-        });
+        }, 201);
     } catch (error) {
-        res.status(500).json({ error: 'Server error creating user' });
+        return sendError(res, 500, 'Server error creating user', { code: 'ADMIN_USER_CREATE_FAILED' });
     }
 };
 
@@ -97,13 +98,13 @@ export const updateUser = async (req: Request, res: Response) => {
         const user = await User.findById(req.params.id);
 
         if (!user) {
-            return res.status(404).json({ error: 'User not found' });
+            return sendError(res, 404, 'User not found', { code: 'AUTH_USER_NOT_FOUND' });
         }
 
         if (email && String(email).trim().toLowerCase() !== user.email) {
             const existing = await User.findOne({ email: String(email).trim().toLowerCase(), _id: { $ne: user._id } }).select('_id');
             if (existing) {
-                return res.status(400).json({ error: 'Email is already in use' });
+                return sendError(res, 400, 'Email is already in use', { code: 'AUTH_EMAIL_IN_USE' });
             }
         }
 
@@ -112,9 +113,9 @@ export const updateUser = async (req: Request, res: Response) => {
         user.role = role || user.role;
 
         await user.save();
-        res.status(200).json({ success: true, user });
+        return sendData(res, { success: true, user });
     } catch (error) {
-        res.status(500).json({ error: 'Server error updating user' });
+        return sendError(res, 500, 'Server error updating user', { code: 'ADMIN_USER_UPDATE_FAILED' });
     }
 };
 
@@ -122,11 +123,11 @@ export const deleteUser = async (req: Request, res: Response) => {
     try {
         const user = await User.findByIdAndDelete(req.params.id);
         if (!user) {
-            return res.status(404).json({ error: 'User not found' });
+            return sendError(res, 404, 'User not found', { code: 'AUTH_USER_NOT_FOUND' });
         }
-        res.status(200).json({ success: true, message: 'User deleted' });
+        return sendData(res, { success: true, message: 'User deleted' });
     } catch (error) {
-        res.status(500).json({ error: 'Server error deleting user' });
+        return sendError(res, 500, 'Server error deleting user', { code: 'ADMIN_USER_DELETE_FAILED' });
     }
 };
 
@@ -145,9 +146,9 @@ export const getTherapists = async (req: Request, res: Response) => {
                     : extractWeeklyTemplate(obj),
             };
         });
-        res.status(200).json(mappedTherapists);
+        return sendData(res, mappedTherapists);
     } catch (error) {
-        res.status(500).json({ error: 'Server error fetching therapists' });
+        return sendError(res, 500, 'Server error fetching therapists', { code: 'ADMIN_THERAPIST_LIST_FAILED' });
     }
 };
 
@@ -155,10 +156,10 @@ export const getTherapistById = async (req: Request, res: Response) => {
     try {
         const therapist = await Therapist.findById(req.params.id);
         if (!therapist) {
-            return res.status(404).json({ error: 'Therapist not found' });
+            return sendError(res, 404, 'Therapist not found', { code: 'THERAPIST_NOT_FOUND' });
         }
         const obj = therapist.toObject();
-        res.status(200).json({
+        return sendData(res, {
             ...obj,
             about: therapist.bio,
             weeklyAvailability: obj.weeklyAvailability?.length
@@ -166,7 +167,7 @@ export const getTherapistById = async (req: Request, res: Response) => {
                 : extractWeeklyTemplate(obj),
         });
     } catch (error) {
-        res.status(500).json({ error: 'Server error fetching therapist details' });
+        return sendError(res, 500, 'Server error fetching therapist details', { code: 'ADMIN_THERAPIST_GET_FAILED' });
     }
 };
 
@@ -177,7 +178,7 @@ export const createTherapist = async (req: Request, res: Response) => {
         delete payload.portalAccess;
 
         if (portalAccess?.create && !payload.email) {
-            return res.status(400).json({ error: 'Email is required to send therapist portal invite' });
+            return sendError(res, 400, 'Email is required to send therapist portal invite', { code: 'THERAPIST_EMAIL_REQUIRED' });
         }
 
         if (payload.email !== undefined) {
@@ -207,9 +208,9 @@ export const createTherapist = async (req: Request, res: Response) => {
         if (portalAccessResult) {
             (response as any).portalAccess = portalAccessResult;
         }
-        res.status(201).json(response);
+        return sendData(res, response, 201);
     } catch (error) {
-        res.status(400).json({ error: 'Invalid data for creating therapist' });
+        return sendError(res, 400, 'Invalid data for creating therapist', { code: 'ADMIN_THERAPIST_CREATE_INVALID' });
     }
 };
 
@@ -219,7 +220,7 @@ export const updateTherapist = async (req: Request, res: Response) => {
         const therapist = await Therapist.findById(req.params.id);
 
         if (!therapist) {
-            return res.status(404).json({ error: 'Therapist not found' });
+            return sendError(res, 404, 'Therapist not found', { code: 'THERAPIST_NOT_FOUND' });
         }
 
         therapist.name = name || therapist.name;
@@ -246,9 +247,9 @@ export const updateTherapist = async (req: Request, res: Response) => {
         }
 
         await therapist.save();
-        res.status(200).json({ success: true, therapist });
+        return sendData(res, { success: true, therapist });
     } catch (error) {
-        res.status(500).json({ error: 'Server error updating therapist' });
+        return sendError(res, 500, 'Server error updating therapist', { code: 'ADMIN_THERAPIST_UPDATE_FAILED' });
     }
 };
 
@@ -256,11 +257,11 @@ export const deleteTherapist = async (req: Request, res: Response) => {
     try {
         const therapist = await Therapist.findByIdAndDelete(req.params.id);
         if (!therapist) {
-            return res.status(404).json({ error: 'Therapist not found' });
+            return sendError(res, 404, 'Therapist not found', { code: 'THERAPIST_NOT_FOUND' });
         }
-        res.status(200).json({ success: true, message: 'Therapist deleted' });
+        return sendData(res, { success: true, message: 'Therapist deleted' });
     } catch (error) {
-        res.status(500).json({ error: 'Server error deleting therapist' });
+        return sendError(res, 500, 'Server error deleting therapist', { code: 'ADMIN_THERAPIST_DELETE_FAILED' });
     }
 };
 
@@ -281,9 +282,9 @@ export const getBookings = async (req: Request, res: Response) => {
             .populate('therapistId', 'name')
             .sort({ createdAt: -1 });
 
-        res.status(200).json(bookings);
+        return sendData(res, bookings);
     } catch (error) {
-        res.status(500).json({ error: 'Server error fetching bookings' });
+        return sendError(res, 500, 'Server error fetching bookings', { code: 'ADMIN_BOOKINGS_LIST_FAILED' });
     }
 };
 
@@ -296,20 +297,22 @@ export const createBooking = async (req: Request, res: Response) => {
         const normalizedStatus = String(status || 'confirmed').toLowerCase() as BookingStatus;
 
         if (!userId || !therapistId || !normalizedDate || !normalizedTime || !normalizedSessionType) {
-            return res.status(400).json({ error: 'userId, therapistId, date, time and valid sessionType are required' });
+            return sendError(res, 400, 'userId, therapistId, date, time and valid sessionType are required', {
+                code: 'ADMIN_BOOKING_FIELDS_REQUIRED',
+            });
         }
         if (!VALID_BOOKING_STATUSES.has(normalizedStatus)) {
-            return res.status(400).json({ error: 'Invalid booking status' });
+            return sendError(res, 400, 'Invalid booking status', { code: 'BOOKING_STATUS_INVALID' });
         }
 
         const user = await User.findById(userId).select('_id');
         if (!user) {
-            return res.status(404).json({ error: 'User not found' });
+            return sendError(res, 404, 'User not found', { code: 'AUTH_USER_NOT_FOUND' });
         }
 
         const therapist = await Therapist.findById(therapistId);
         if (!therapist) {
-            return res.status(404).json({ error: 'Therapist not found' });
+            return sendError(res, 404, 'Therapist not found', { code: 'THERAPIST_NOT_FOUND' });
         }
 
         if (normalizedStatus !== 'cancelled') {
@@ -320,7 +323,7 @@ export const createBooking = async (req: Request, res: Response) => {
                 status: { $in: ACTIVE_BOOKING_STATUSES },
             }).select('_id');
             if (existing) {
-                return res.status(409).json({ error: 'Slot already has an active booking' });
+                return sendError(res, 409, 'Slot already has an active booking', { code: 'BOOKING_SLOT_CONFLICT' });
             }
         }
 
@@ -338,13 +341,15 @@ export const createBooking = async (req: Request, res: Response) => {
             const syncResult = await syncAvailabilityForStatus(booking, normalizedStatus, 'pending');
             if (!syncResult.ok) {
                 await booking.deleteOne();
-                return res.status(409).json({ error: syncResult.error || 'Failed to sync availability' });
+                return sendError(res, 409, syncResult.error || 'Failed to sync availability', {
+                    code: 'BOOKING_AVAILABILITY_SYNC_FAILED',
+                });
             }
         }
 
-        res.status(201).json(booking);
+        return sendData(res, booking, 201);
     } catch (error) {
-        res.status(500).json({ error: 'Server error creating booking' });
+        return sendError(res, 500, 'Server error creating booking', { code: 'ADMIN_BOOKING_CREATE_FAILED' });
     }
 };
 export const updateAdminProfile = async (req: Request, res: Response) => {
@@ -354,13 +359,13 @@ export const updateAdminProfile = async (req: Request, res: Response) => {
 
         const user = await User.findById(userId);
         if (!user) {
-            return res.status(404).json({ error: 'User not found' });
+            return sendError(res, 404, 'User not found', { code: 'AUTH_USER_NOT_FOUND' });
         }
 
         if (email && String(email).trim().toLowerCase() !== user.email) {
             const existing = await User.findOne({ email: String(email).trim().toLowerCase(), _id: { $ne: userId } }).select('_id');
             if (existing) {
-                return res.status(400).json({ error: 'Email is already in use' });
+                return sendError(res, 400, 'Email is already in use', { code: 'AUTH_EMAIL_IN_USE' });
             }
         }
 
@@ -369,14 +374,14 @@ export const updateAdminProfile = async (req: Request, res: Response) => {
 
         await user.save();
 
-        res.status(200).json({
+        return sendData(res, {
             _id: user._id,
             name: user.name,
             email: user.email,
             role: user.role,
         });
     } catch (error) {
-        res.status(500).json({ error: 'Server error updating admin profile' });
+        return sendError(res, 500, 'Server error updating admin profile', { code: 'ADMIN_PROFILE_UPDATE_FAILED' });
     }
 };
 
@@ -386,29 +391,33 @@ export const updateAdminPassword = async (req: Request, res: Response) => {
         const { currentPassword, newPassword } = req.body;
 
         if (!currentPassword || !newPassword) {
-            return res.status(400).json({ error: 'Current password and new password are required' });
+            return sendError(res, 400, 'Current password and new password are required', {
+                code: 'AUTH_PASSWORD_FIELDS_REQUIRED',
+            });
         }
         if (String(newPassword).length < 8) {
-            return res.status(400).json({ error: 'New password must be at least 8 characters long' });
+            return sendError(res, 400, 'New password must be at least 8 characters long', {
+                code: 'AUTH_PASSWORD_TOO_SHORT',
+            });
         }
 
         const user = await User.findById(userId);
         if (!user || !user.password) {
-            return res.status(404).json({ error: 'User not found' });
+            return sendError(res, 404, 'User not found', { code: 'AUTH_USER_NOT_FOUND' });
         }
 
         const isMatch = await bcrypt.compare(currentPassword, user.password);
         if (!isMatch) {
-            return res.status(400).json({ error: 'Incorrect current password' });
+            return sendError(res, 400, 'Incorrect current password', { code: 'AUTH_PASSWORD_INCORRECT' });
         }
 
         const salt = await bcrypt.genSalt(10);
         user.password = await bcrypt.hash(newPassword, salt);
 
         await user.save();
-        res.status(200).json({ success: true, message: 'Password updated successfully' });
+        return sendData(res, { success: true, message: 'Password updated successfully' });
     } catch (error) {
-        res.status(500).json({ error: 'Server error updating password' });
+        return sendError(res, 500, 'Server error updating password', { code: 'ADMIN_PASSWORD_UPDATE_FAILED' });
     }
 };
 export const updateBookingStatus = async (req: Request, res: Response) => {
@@ -416,7 +425,7 @@ export const updateBookingStatus = async (req: Request, res: Response) => {
         const booking = await Booking.findById(req.params.id).populate('userId', 'name email').populate('therapistId', 'name');
 
         if (!booking) {
-            return res.status(404).json({ error: 'Booking not found' });
+            return sendError(res, 404, 'Booking not found', { code: 'BOOKING_NOT_FOUND' });
         }
 
         const recipientEmail = (booking.userId as any)?.email || booking.guestContact?.email;
@@ -430,7 +439,9 @@ export const updateBookingStatus = async (req: Request, res: Response) => {
         // Reject combined reschedule+status — reschedule saves to DB first; if status sync
         // then fails the booking ends up with new date/time but old status (inconsistent state).
         if ((req.body?.reschedule?.date || req.body?.reschedule?.time) && req.body?.status !== undefined) {
-            return res.status(400).json({ error: 'Cannot reschedule and change status in the same request. Apply each change separately.' });
+            return sendError(res, 400, 'Cannot reschedule and change status in the same request. Apply each change separately.', {
+                code: 'BOOKING_UPDATE_CONFLICT',
+            });
         }
 
         // Reschedule (admin)
@@ -438,11 +449,13 @@ export const updateBookingStatus = async (req: Request, res: Response) => {
             const nextDate = normalizeDate(String(req.body.reschedule.date));
             const nextTime = normalizeTime(String(req.body.reschedule.time));
             if (!nextDate || !nextTime) {
-                return res.status(400).json({ error: 'Invalid reschedule date/time' });
+                return sendError(res, 400, 'Invalid reschedule date/time', { code: 'BOOKING_RESCHEDULE_INVALID' });
             }
             const therapistId = String((booking.therapistId as any)?._id || booking.therapistId);
             const result = await rescheduleBooking(String(booking._id), therapistId, nextDate, nextTime);
-            if (!result.ok) return res.status(result.status).json({ error: result.error });
+            if (!result.ok) {
+                return sendError(res, result.status, result.error, { code: 'BOOKING_RESCHEDULE_FAILED' });
+            }
             didReschedule = true;
             booking.date = nextDate;
             booking.time = nextTime;
@@ -458,12 +471,14 @@ export const updateBookingStatus = async (req: Request, res: Response) => {
         if (req.body?.status !== undefined) {
             const status = String(req.body.status || '').toLowerCase() as BookingStatus;
             if (!VALID_BOOKING_STATUSES.has(status)) {
-                return res.status(400).json({ error: 'Invalid booking status' });
+                return sendError(res, 400, 'Invalid booking status', { code: 'BOOKING_STATUS_INVALID' });
             }
 
             if (booking.status !== status) {
                 if (!STATUS_TRANSITIONS[booking.status]?.includes(status)) {
-                    return res.status(400).json({ error: `Cannot transition booking from ${booking.status} to ${status}` });
+                    return sendError(res, 400, `Cannot transition booking from ${booking.status} to ${status}`, {
+                        code: 'BOOKING_STATUS_TRANSITION_INVALID',
+                    });
                 }
 
                 const wasBooked = booking.status === 'confirmed' || booking.status === 'completed';
@@ -478,7 +493,9 @@ export const updateBookingStatus = async (req: Request, res: Response) => {
                         status: { $in: ACTIVE_BOOKING_STATUSES },
                     }).select('_id');
                     if (conflictingBooking) {
-                        return res.status(409).json({ error: 'Another active booking already exists for this slot' });
+                        return sendError(res, 409, 'Another active booking already exists for this slot', {
+                            code: 'BOOKING_SLOT_CONFLICT',
+                        });
                     }
                 }
 
@@ -489,7 +506,9 @@ export const updateBookingStatus = async (req: Request, res: Response) => {
                 if (!syncResult.ok) {
                     booking.status = previousStatus;
                     await booking.save();
-                    return res.status(409).json({ error: syncResult.error || 'Failed to sync availability' });
+                    return sendError(res, 409, syncResult.error || 'Failed to sync availability', {
+                        code: 'BOOKING_AVAILABILITY_SYNC_FAILED',
+                    });
                 }
                 if (status === 'cancelled') {
                     didCancel = true;
@@ -521,9 +540,9 @@ export const updateBookingStatus = async (req: Request, res: Response) => {
         }
 
         const populated = await Booking.findById(booking._id).populate('userId', 'name email').populate('therapistId', 'name');
-        res.status(200).json({ success: true, booking: populated });
+        return sendData(res, { success: true, booking: populated });
     } catch (error) {
-        res.status(500).json({ error: 'Server error updating booking' });
+        return sendError(res, 500, 'Server error updating booking', { code: 'ADMIN_BOOKING_UPDATE_FAILED' });
     }
 };
 
@@ -532,19 +551,21 @@ export const deleteBooking = async (req: Request, res: Response) => {
         const booking = await Booking.findById(req.params.id);
 
         if (!booking) {
-            return res.status(404).json({ error: 'Booking not found' });
+            return sendError(res, 404, 'Booking not found', { code: 'BOOKING_NOT_FOUND' });
         }
 
         if (booking.status !== 'cancelled') {
             const syncResult = await syncAvailabilityForStatus(booking, 'cancelled', booking.status);
             if (!syncResult.ok) {
-                return res.status(409).json({ error: syncResult.error || 'Failed to release availability for booking delete' });
+                return sendError(res, 409, syncResult.error || 'Failed to release availability for booking delete', {
+                    code: 'BOOKING_AVAILABILITY_RELEASE_FAILED',
+                });
             }
         }
         await booking.deleteOne();
 
-        res.status(200).json({ success: true, message: 'Booking deleted' });
+        return sendData(res, { success: true, message: 'Booking deleted' });
     } catch (error) {
-        res.status(500).json({ error: 'Server error deleting booking' });
+        return sendError(res, 500, 'Server error deleting booking', { code: 'ADMIN_BOOKING_DELETE_FAILED' });
     }
 };

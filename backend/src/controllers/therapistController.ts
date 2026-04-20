@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { Therapist, Availability } from '../models';
 import { extractWeeklyTemplate } from '../utils/schedule';
+import { sendData, sendError } from '../lib/http';
 
 const toDateString = (d: Date) => d.toISOString().slice(0, 10);
 
@@ -68,14 +69,14 @@ export const getTherapists = async (req: Request, res: Response) => {
 
         const total = await Therapist.countDocuments(query);
 
-        res.status(200).json({
+        return sendData(res, {
             therapists: normalizedTherapists,
             page: Number(page),
             totalPages: Math.ceil(total / Number(limit)),
             total,
         });
     } catch (error) {
-        res.status(500).json({ error: 'Server error fetching therapists' });
+        return sendError(res, 500, 'Server error fetching therapists', { code: 'THERAPIST_LIST_FAILED' });
     }
 };
 
@@ -88,12 +89,12 @@ export const getTherapistById = async (req: Request, res: Response) => {
             if (!obj.weeklyAvailability || obj.weeklyAvailability.length === 0) {
                 obj.weeklyAvailability = extractWeeklyTemplate(obj);
             }
-            res.status(200).json(obj);
+            return sendData(res, obj);
         } else {
-            res.status(404).json({ error: 'Therapist not found' });
+            return sendError(res, 404, 'Therapist not found', { code: 'THERAPIST_NOT_FOUND' });
         }
     } catch (error) {
-        res.status(500).json({ error: 'Server error fetching therapist details' });
+        return sendError(res, 500, 'Server error fetching therapist details', { code: 'THERAPIST_GET_FAILED' });
     }
 };
 
@@ -102,8 +103,8 @@ export const createTherapist = async (req: Request, res: Response) => {
     try {
         const payload = { ...req.body, weeklyAvailability: extractWeeklyTemplate(req.body) };
         const therapist = await Therapist.create(payload);
-        res.status(201).json(therapist);
+        return sendData(res, therapist, 201);
     } catch (error) {
-        res.status(400).json({ error: 'Invalid data' });
+        return sendError(res, 400, 'Invalid data', { code: 'THERAPIST_CREATE_INVALID' });
     }
 };

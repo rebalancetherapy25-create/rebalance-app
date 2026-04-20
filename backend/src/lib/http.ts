@@ -12,6 +12,7 @@ export type ApiFailure = {
     error: string;
     code?: string;
     fields?: Record<string, string>;
+    data?: unknown;
     requestId?: string;
 };
 
@@ -20,7 +21,7 @@ export class ApiError extends Error {
     code: string | undefined;
     fields: Record<string, string> | undefined;
 
-    constructor(statusCode: number, message: string, options?: { code?: string; fields?: Record<string, string> }) {
+    constructor(statusCode: number, message: string, options?: { code?: string; fields?: Record<string, string>; data?: unknown }) {
         super(message);
         this.statusCode = statusCode;
         this.code = options?.code;
@@ -62,11 +63,12 @@ export const sendError = (
     res: Response,
     statusCode: number,
     error: string,
-    options?: { code?: string; fields?: Record<string, string> },
+    options?: { code?: string; fields?: Record<string, string>; data?: unknown },
 ) => {
     const payload: ApiFailure = { error };
     if (options?.code) payload.code = options.code;
     if (options?.fields && Object.keys(options.fields).length > 0) payload.fields = options.fields;
+    if (options?.data !== undefined) payload.data = options.data;
     const requestId = getRequestId(res);
     if (requestId) {
         payload.requestId = requestId;
@@ -133,7 +135,7 @@ export const errorHandler = (error: unknown, req: Request, res: Response, _next:
     });
 
     if (error instanceof ApiError) {
-        const options: { code?: string; fields?: Record<string, string> } = {};
+        const options: { code?: string; fields?: Record<string, string>; data?: unknown } = {};
         if (error.code) options.code = error.code;
         if (error.fields) options.fields = error.fields;
         return sendError(res, error.statusCode, error.message, options);

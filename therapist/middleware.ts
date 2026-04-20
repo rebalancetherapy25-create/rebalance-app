@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getApiBaseUrl } from './src/lib/runtime';
+import { CSRF_HEADER_NAME } from '../shared/auth';
 
 const hasTherapistCookies = (request: NextRequest) => {
   const accessToken = request.cookies.get('therapistAccessToken')?.value;
@@ -14,6 +15,19 @@ const resolveTherapistAuth = async (
   request: NextRequest,
 ): Promise<{ isValid: boolean; setCookieHeader?: string }> => {
   const cookieHeader = request.headers.get('cookie') || '';
+  const resolveCsrfToken = async () => {
+    const cookieToken = request.cookies.get('csrfToken')?.value;
+    if (cookieToken) return cookieToken;
+
+    const csrfRes = await fetch(`${getApiBaseUrl()}/auth/csrf`, {
+      headers: { cookie: cookieHeader },
+      cache: 'no-store',
+    });
+
+    if (!csrfRes.ok) return null;
+    const payload = await csrfRes.json();
+    return payload?.data?.csrfToken || payload?.csrfToken || null;
+  };
 
   try {
     const meRes = await fetch(`${getApiBaseUrl()}/therapist-auth/me`, {
@@ -27,9 +41,13 @@ const resolveTherapistAuth = async (
     if (meRes.status !== 401) return { isValid: false };
 
     // Access token expired — try the refresh endpoint.
+    const csrfToken = await resolveCsrfToken();
     const refreshRes = await fetch(`${getApiBaseUrl()}/therapist-auth/refresh`, {
       method: 'POST',
-      headers: { cookie: cookieHeader },
+      headers: {
+        cookie: cookieHeader,
+        ...(csrfToken ? { [CSRF_HEADER_NAME]: csrfToken } : {}),
+      },
       cache: 'no-store',
     });
 

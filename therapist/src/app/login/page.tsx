@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/components/ui/toaster';
 import { emailPattern, getApiErrorMessage, getErrorMessages } from '@/lib/form-validation';
+import { toastApiError, toastValidationErrors } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 
 function TherapistLoginContent() {
@@ -50,11 +51,7 @@ function TherapistLoginContent() {
 
     if (getErrorMessages(nextErrors).length) {
       setErrors(nextErrors);
-      toast({
-        variant: 'error',
-        title: 'Please fix these login errors',
-        items: getErrorMessages(nextErrors),
-      });
+      toastValidationErrors(toast, getErrorMessages(nextErrors), 'Please fix these login errors');
       return;
     }
 
@@ -66,11 +63,7 @@ function TherapistLoginContent() {
       router.refresh();
     } catch (err: unknown) {
       const message = getApiErrorMessage(err, 'Login failed. Please try again.');
-      toast({
-        variant: 'error',
-        title: 'Unable to sign in',
-        items: [message],
-      });
+      toastApiError(toast, message, 'Unable to sign in');
     } finally {
       setSubmitting(false);
     }

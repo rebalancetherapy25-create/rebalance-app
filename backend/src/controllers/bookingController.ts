@@ -1,29 +1,24 @@
 import { Response } from 'express';
+import mongoose from 'mongoose';
 import { Availability, Booking, Therapist } from '../models';
 import Razorpay from 'razorpay';
-import crypto from 'crypto';
 import { sendEmail } from '../services/emailService';
 import { releaseExpiredSlotHolds, runBookingMaintenance } from '../services/bookingMaintenanceService';
-import config from '../config/env';
 import { AuthRequest } from '../middlewares/authMiddleware';
 import { getTemplateSlotsForDate, normalizeDate, normalizeTime } from '../utils/schedule';
 import { bookingConfirmedEmail } from '../emails/templates/bookingConfirmed';
+import { sendData, sendError } from '../lib/http';
+import { assertRazorpayConfig, confirmBookingPaymentByOrderId, verifyRazorpayPaymentSignature } from '../services/paymentService';
 
 const LOCK_DURATION_MS = 5 * 60 * 1000;
 const VALID_SESSION_TYPES = new Set(['video', 'phone', 'chat', 'audio']);
 type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
 
 let razorpayInstance: Razorpay | null = null;
-const getRazorpayConfig = () => {
-    if (!config.razorpayKeyId || !config.razorpayKeySecret) {
-        throw new Error('RAZORPAY_NOT_CONFIGURED');
-    }
-    return { keyId: config.razorpayKeyId, keySecret: config.razorpayKeySecret };
-};
 
 const getRazorpay = () => {
     if (!razorpayInstance) {
-        const razorpayConfig = getRazorpayConfig();
+        const razorpayConfig = assertRazorpayConfig();
         razorpayInstance = new Razorpay({
             key_id: razorpayConfig.keyId,
             key_secret: razorpayConfig.keySecret,
@@ -38,7 +33,7 @@ const normalizeSessionType = (value: string): 'video' | 'phone' | 'chat' | 'audi
     return normalized as 'video' | 'phone' | 'chat' | 'audio';
 };
 
-const tryLockSlot = async (therapistId: string, date: string, time: string, now: Date, lockExpiry: Date) => {
+const tryLockSlot = async (therapistId: string, date: string, time: string, now: Date, lockExpiry: Date, bookingId: mongoose.Types.ObjectId) => {
     const lockResult = await Availability.updateOne(
         {
             therapistId,
@@ -54,13 +49,13 @@ const tryLockSlot = async (therapistId: string, date: string, time: string, now:
                 },
             },
         },
-        { $set: { 'slots.$.reservedUntil': lockExpiry } }
+        { $set: { 'slots.$.reservedUntil': lockExpiry, 'slots.$.reservedBookingId': bookingId } }
     );
 
     return lockResult.modifiedCount > 0;
 };
 
-const ensureRuntimeAvailability = async (therapist: any, normalizedDate: string, normalizedTime: string, lockExpiry: Date) => {
+const ensureRuntimeAvailability = async (therapist: any, normalizedDate: string, normalizedTime: string, lockExpiry: Date, bookingId: mongoose.Types.ObjectId) => {
     const templateSlots = getTemplateSlotsForDate(therapist, normalizedDate);
     if (!templateSlots.includes(normalizedTime)) {
         return { ok: false, error: 'Requested slot is not available in therapist weekly schedule' };
@@ -74,6 +69,7 @@ const ensureRuntimeAvailability = async (therapist: any, normalizedDate: string,
                 time: slot,
                 isBooked: false,
                 reservedUntil: slot === normalizedTime ? lockExpiry : undefined,
+                reservedBookingId: slot === normalizedTime ? bookingId : undefined,
             })),
         });
         return { ok: true };
@@ -85,10 +81,10 @@ const ensureRuntimeAvailability = async (therapist: any, normalizedDate: string,
     }
 };
 
-const releaseHold = async (therapistId: any, date: string, time: string) => {
+const releaseHold = async (therapistId: any, date: string, time: string, bookingId: mongoose.Types.ObjectId) => {
     await Availability.updateOne(
-        { therapistId, date, 'slots.time': time, 'slots.isBooked': false },
-        { $unset: { 'slots.$.reservedUntil': 1 } }
+        { therapistId, date, 'slots.time': time, 'slots.isBooked': false, 'slots.reservedBookingId': bookingId },
+        { $unset: { 'slots.$.reservedUntil': 1, 'slots.$.reservedBookingId': 1 } }
     );
 };
 
@@ -98,63 +94,56 @@ export const createBooking = async (req: AuthRequest, res: Response) => {
 
         const { therapistId, date, time, sessionType, name, email } = req.body;
         if (!therapistId || !date || !time || !sessionType) {
-            return res.status(400).json({ error: 'therapistId, date, time, and sessionType are required' });
+            return sendError(res, 400, 'therapistId, date, time, and sessionType are required', { code: 'BOOKING_MISSING_FIELDS' });
         }
 
         const normalizedDate = normalizeDate(String(date));
         const normalizedTime = normalizeTime(String(time));
         const normalizedSessionType = normalizeSessionType(String(sessionType));
         if (!normalizedDate || !normalizedTime || !normalizedSessionType) {
-            return res.status(400).json({ error: 'Invalid date/time/sessionType format' });
+            return sendError(res, 400, 'Invalid date/time/sessionType format', { code: 'BOOKING_INVALID_SLOT' });
         }
 
         const therapist = await Therapist.findById(therapistId);
         if (!therapist) {
-            return res.status(404).json({ error: 'Therapist not found' });
+            return sendError(res, 404, 'Therapist not found', { code: 'THERAPIST_NOT_FOUND' });
         }
 
         const userId = req.user?.userId;
         const guestName = String(name || '').trim();
         const guestEmail = String(email || '').trim().toLowerCase();
         if (!userId && (!guestName || !guestEmail)) {
-            return res.status(400).json({ error: 'Guest bookings require name and email' });
+            return sendError(res, 400, 'Guest bookings require name and email', { code: 'BOOKING_GUEST_DETAILS_REQUIRED' });
         }
 
         const now = new Date();
         const lockExpiry = new Date(now.getTime() + LOCK_DURATION_MS);
+        const bookingId = new mongoose.Types.ObjectId();
 
-        let locked = await tryLockSlot(String(therapistId), normalizedDate, normalizedTime, now, lockExpiry);
+        let locked = await tryLockSlot(String(therapistId), normalizedDate, normalizedTime, now, lockExpiry, bookingId);
         if (!locked) {
             const existingRecord = await Availability.findOne({ therapistId, date: normalizedDate });
             if (!existingRecord) {
-                const created = await ensureRuntimeAvailability(therapist, normalizedDate, normalizedTime, lockExpiry);
+                const created = await ensureRuntimeAvailability(therapist, normalizedDate, normalizedTime, lockExpiry, bookingId);
                 if (!created.ok) {
                     if (created.conflict) {
-                        return res.status(409).json({ error: 'Slot was just taken by someone else' });
+                        return sendError(res, 409, 'Slot was just taken by someone else', { code: 'BOOKING_SLOT_TAKEN' });
                     }
-                    return res.status(400).json({ error: created.error });
+                    return sendError(res, 400, created.error || 'Selected slot is invalid', { code: 'BOOKING_SLOT_INVALID' });
                 }
                 locked = true;
             } else {
-                return res.status(409).json({ error: 'Slot is no longer available or currently held by someone else' });
+                return sendError(res, 409, 'Slot is no longer available or currently held by someone else', { code: 'BOOKING_SLOT_UNAVAILABLE' });
             }
         }
 
         if (!locked) {
-            return res.status(409).json({ error: 'Slot is no longer available' });
+            return sendError(res, 409, 'Slot is no longer available', { code: 'BOOKING_SLOT_UNAVAILABLE' });
         }
 
         const amount = Math.round(Number(therapist.price || 0));
-        const bookingPayload: {
-            userId?: string;
-            guestContact?: { name: string; email: string };
-            therapistId: string;
-            date: string;
-            time: string;
-            sessionType: 'video' | 'phone' | 'chat' | 'audio';
-            amount: number;
-            status: BookingStatus;
-        } = {
+        const bookingPayload: any = {
+            _id: bookingId,
             therapistId,
             date: normalizedDate,
             time: normalizedTime,
@@ -180,7 +169,7 @@ export const createBooking = async (req: AuthRequest, res: Response) => {
             booking.razorpayOrderId = order.id;
             await booking.save();
 
-            res.status(200).json({
+            return sendData(res, {
                 orderId: order.id,
                 amount: order.amount,
                 currency: order.currency,
@@ -188,15 +177,15 @@ export const createBooking = async (req: AuthRequest, res: Response) => {
             });
         } catch (orderError) {
             await Booking.findByIdAndDelete(booking._id);
-            await releaseHold(therapistId, normalizedDate, normalizedTime);
+            await releaseHold(therapistId, normalizedDate, normalizedTime, bookingId);
             throw orderError;
         }
     } catch (error) {
         console.error('Booking Error:', error);
         if ((error as Error).message === 'RAZORPAY_NOT_CONFIGURED') {
-            return res.status(503).json({ error: 'Payment gateway is not configured' });
+            return sendError(res, 503, 'Payment gateway is not configured', { code: 'PAYMENT_GATEWAY_NOT_CONFIGURED' });
         }
-        res.status(500).json({ error: 'Server error creating booking' });
+        return sendError(res, 500, 'Server error creating booking', { code: 'BOOKING_CREATE_FAILED' });
     }
 };
 
@@ -207,88 +196,67 @@ export const verifyPayment = async (req: AuthRequest, res: Response) => {
 
         const { razorpay_order_id, razorpay_payment_id, razorpay_signature, bookingId } = req.body;
         if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !bookingId) {
-            return res.status(400).json({ error: 'Missing payment verification details' });
+            return sendError(res, 400, 'Missing payment verification details', { code: 'PAYMENT_VERIFY_MISSING_FIELDS' });
         }
 
         const booking = await Booking.findById(bookingId).populate('userId', 'name email').populate('therapistId', 'name');
         if (!booking) {
-            return res.status(404).json({ error: 'Booking record not found' });
+            return sendError(res, 404, 'Booking record not found', { code: 'BOOKING_NOT_FOUND' });
         }
 
         if (booking.status === 'confirmed' && booking.razorpayPaymentId === razorpay_payment_id) {
-            return res.status(200).json({ success: true, booking, idempotent: true });
+            return sendData(res, { success: true, booking, idempotent: true });
         }
 
-        if (booking.status !== 'pending') {
-            return res.status(409).json({ error: `Booking is already ${booking.status}` });
+        if (booking.status !== 'pending' && booking.status !== 'cancelled') {
+            return sendError(res, 409, `Booking is already ${booking.status}`, { code: 'BOOKING_STATUS_INVALID' });
         }
 
         if (!booking.razorpayOrderId || booking.razorpayOrderId !== razorpay_order_id) {
-            return res.status(400).json({ error: 'Order does not match booking' });
+            return sendError(res, 400, 'Order does not match booking', { code: 'PAYMENT_ORDER_MISMATCH' });
         }
 
-        const razorpayConfig = getRazorpayConfig();
-        const body = `${razorpay_order_id}|${razorpay_payment_id}`;
-        const expectedSignature = crypto
-            .createHmac('sha256', razorpayConfig.keySecret)
-            .update(body)
-            .digest('hex');
-
-        if (expectedSignature !== razorpay_signature) {
-            return res.status(400).json({ error: 'Invalid payment signature' });
+        if (!verifyRazorpayPaymentSignature({
+            orderId: razorpay_order_id,
+            paymentId: razorpay_payment_id,
+            signature: razorpay_signature,
+        })) {
+            return sendError(res, 400, 'Invalid payment signature', { code: 'PAYMENT_SIGNATURE_INVALID' });
         }
 
-        const therapistFromRef = booking.therapistId as any;
-        const therapistId = String(therapistFromRef?._id || therapistFromRef);
-        const slotUpdate = await Availability.updateOne(
-            {
-                therapistId,
-                date: booking.date,
-                slots: { $elemMatch: { time: booking.time, isBooked: false } },
-            },
-            { $set: { 'slots.$.isBooked': true }, $unset: { 'slots.$.reservedUntil': 1 } }
-        );
+        const confirmationResult = await confirmBookingPaymentByOrderId({
+            orderId: razorpay_order_id,
+            paymentId: razorpay_payment_id,
+        });
 
-        if (slotUpdate.modifiedCount === 0) {
-            return res.status(409).json({
-                error: 'Selected slot is no longer available. Payment requires manual support.',
-            });
+        if (!confirmationResult.ok) {
+            return sendError(res, confirmationResult.status, confirmationResult.error, { code: 'PAYMENT_CONFIRM_FAILED' });
         }
 
-        booking.status = 'confirmed';
-        booking.razorpayPaymentId = razorpay_payment_id;
-        try {
-            await booking.save();
-        } catch (saveError) {
-            await Availability.updateOne(
-                { therapistId, date: booking.date, 'slots.time': booking.time, 'slots.isBooked': true },
-                { $set: { 'slots.$.isBooked': false } }
-            );
-            throw saveError;
-        }
-
-        const userFromRef = booking.userId as any;
-        const recipientEmail = userFromRef?.email || booking.guestContact?.email;
-        const recipientName = userFromRef?.name || booking.guestContact?.name || 'there';
+        const confirmedBooking = confirmationResult.booking;
+        const therapistFromRef = confirmedBooking.therapistId as any;
+        const userFromRef = confirmedBooking.userId as any;
+        const recipientEmail = userFromRef?.email || confirmedBooking.guestContact?.email;
+        const recipientName = userFromRef?.name || confirmedBooking.guestContact?.name || 'there';
 
         if (recipientEmail) {
             const tpl = bookingConfirmedEmail({
                 recipientName,
                 therapistName: therapistFromRef?.name || 'your therapist',
-                date: booking.date,
-                time: booking.time,
-                ...(booking.meetingLink ? { meetingLink: booking.meetingLink } : {}),
+                date: confirmedBooking.date,
+                time: confirmedBooking.time,
+                ...(confirmedBooking.meetingLink ? { meetingLink: confirmedBooking.meetingLink } : {}),
             });
             await sendEmail({ to: recipientEmail, subject: tpl.subject, html: tpl.html });
         }
 
-        res.status(200).json({ success: true, booking });
+        return sendData(res, { success: true, booking: confirmedBooking });
     } catch (error) {
         console.error('Payment verification error:', error);
         if ((error as Error).message === 'RAZORPAY_NOT_CONFIGURED') {
-            return res.status(503).json({ error: 'Payment gateway is not configured' });
+            return sendError(res, 503, 'Payment gateway is not configured', { code: 'PAYMENT_GATEWAY_NOT_CONFIGURED' });
         }
-        res.status(500).json({ error: 'Error verifying payment' });
+        return sendError(res, 500, 'Error verifying payment', { code: 'PAYMENT_VERIFY_FAILED' });
     }
 };
 
@@ -297,14 +265,14 @@ export const getUserBookings = async (req: AuthRequest, res: Response) => {
         await runBookingMaintenance();
 
         const userId = req.user?.userId;
-        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+        if (!userId) return sendError(res, 401, 'Unauthorized', { code: 'AUTH_UNAUTHORIZED' });
 
         const bookings = await Booking.find({ userId })
             .populate('therapistId', 'name profileImage specialties')
             .sort({ createdAt: -1 });
 
-        res.status(200).json(bookings);
+        return sendData(res, bookings);
     } catch (error) {
-        res.status(500).json({ error: 'Server error fetching user bookings' });
+        return sendError(res, 500, 'Server error fetching user bookings', { code: 'BOOKING_LIST_FAILED' });
     }
 };

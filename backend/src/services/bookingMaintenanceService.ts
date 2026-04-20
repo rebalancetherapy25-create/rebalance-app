@@ -7,7 +7,7 @@ export const releaseExpiredSlotHolds = async () => {
     await Availability.updateMany(
         { 'slots.reservedUntil': { $lt: now }, 'slots.isBooked': false },
         {
-            $unset: { 'slots.$[slot].reservedUntil': 1 },
+            $unset: { 'slots.$[slot].reservedUntil': 1, 'slots.$[slot].reservedBookingId': 1 },
         },
         {
             arrayFilters: [
@@ -35,7 +35,7 @@ export const cancelStalePendingBookings = async () => {
                 'slots.isBooked': false,
             },
             {
-                $unset: { 'slots.$.reservedUntil': 1 },
+                $unset: { 'slots.$.reservedUntil': 1, 'slots.$.reservedBookingId': 1 },
             }
         );
     }

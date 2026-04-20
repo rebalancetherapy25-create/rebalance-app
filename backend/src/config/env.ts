@@ -75,6 +75,7 @@ const config = {
     therapistJwtRefreshSecret: getRequired('THERAPIST_JWT_REFRESH_SECRET', { fallbackInDev: 'dev_therapist_jwt_refresh_secret' }),
     razorpayKeyId: optional('RAZORPAY_KEY_ID'),
     razorpayKeySecret: optional('RAZORPAY_KEY_SECRET'),
+    razorpayWebhookSecret: optional('RAZORPAY_WEBHOOK_SECRET'),
     frontendUrl: optional('FRONTEND_URL') || 'http://localhost:3000',
     adminUrl: optional('ADMIN_URL') || 'http://localhost:3001',
     therapistUrl: optional('THERAPIST_URL') || 'http://localhost:3002',

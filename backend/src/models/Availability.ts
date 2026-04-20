@@ -4,6 +4,7 @@ export interface ISlot {
     time: string; // e.g., "09:00", "09:30"
     isBooked: boolean;
     reservedUntil?: Date | undefined; // For atomic slot locking
+    reservedBookingId?: Types.ObjectId | undefined;
 }
 
 export interface IAvailability extends Document {
@@ -16,6 +17,7 @@ const slotSchema = new Schema<ISlot>({
     time: { type: String, required: true },
     isBooked: { type: Boolean, default: false },
     reservedUntil: { type: Date },
+    reservedBookingId: { type: Schema.Types.ObjectId, ref: 'Booking' },
 });
 
 const availabilitySchema = new Schema<IAvailability>(

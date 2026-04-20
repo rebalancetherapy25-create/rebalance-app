@@ -6,6 +6,7 @@ import api from '@/lib/axios';
 import { Mail, Lock, Loader2, ShieldCheck } from 'lucide-react';
 import { useToast } from '@/components/ui/toaster';
 import { emailPattern, getApiErrorMessage, getErrorMessages } from '@/lib/form-validation';
+import { toastApiError, toastValidationErrors } from '@/lib/toast';
 
 function AdminLoginContent() {
     const router = useRouter();
@@ -32,11 +33,7 @@ function AdminLoginContent() {
 
         const messages = getErrorMessages(errors);
         if (messages.length) {
-            toast({
-                variant: 'error',
-                title: 'Please fix these login errors',
-                items: messages,
-            });
+            toastValidationErrors(toast, messages, 'Please fix these login errors');
             return;
         }
 
@@ -46,11 +43,7 @@ function AdminLoginContent() {
             const response = await api.post('/auth/login', { email: email.trim(), password });
 
             if (response.data.role !== 'admin') {
-                toast({
-                    variant: 'error',
-                    title: 'Unable to sign in',
-                    items: ['Unauthorized access. Admin privileges required.'],
-                });
+                toastApiError(toast, 'Unauthorized access. Admin privileges required.', 'Unable to sign in');
                 setLoading(false);
                 return;
             }
@@ -59,11 +52,7 @@ function AdminLoginContent() {
             router.refresh();
         } catch (err: unknown) {
             const errorMessage = getApiErrorMessage(err, 'Failed to login. Please try again.');
-            toast({
-                variant: 'error',
-                title: 'Unable to sign in',
-                items: [errorMessage],
-            });
+            toastApiError(toast, errorMessage, 'Unable to sign in');
         } finally {
             setLoading(false);
         }

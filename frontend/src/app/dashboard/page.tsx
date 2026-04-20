@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { DashboardContentSkeleton } from '@/components/loading/skeletons';
 import { Calendar, Settings, Video, Clock, ArrowRight } from 'lucide-react';
 import api from '@/lib/api';
+import { bookingDateTime, formatBookingDate, formatCalendarDate } from '@/lib/date';
 
 interface Booking {
     _id: string;
@@ -22,15 +23,6 @@ interface Booking {
     status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
     meetingLink?: string;
 }
-
-const bookingDateTime = (booking: Booking) => new Date(`${booking.date}T${booking.time}:00`);
-
-const formatBookingDate = (date: string, time: string) => {
-    const formatted = new Date(`${date}T${time}:00`).toLocaleDateString('en-IN', {
-        day: 'numeric', month: 'short', year: 'numeric',
-    });
-    return `${formatted} at ${time}`;
-};
 
 export default function DashboardPage() {
     const router = useRouter();
@@ -62,8 +54,8 @@ export default function DashboardPage() {
         const now = new Date();
         const valid = bookings.filter((booking) => booking.status === 'confirmed' || booking.status === 'completed');
         return {
-            upcoming: valid.filter((booking) => bookingDateTime(booking) >= now && booking.status !== 'completed'),
-            past: valid.filter((booking) => bookingDateTime(booking) < now || booking.status === 'completed'),
+            upcoming: valid.filter((booking) => bookingDateTime(booking.date, booking.time) >= now && booking.status !== 'completed'),
+            past: valid.filter((booking) => bookingDateTime(booking.date, booking.time) < now || booking.status === 'completed'),
         };
     }, [bookings]);
 
@@ -154,7 +146,7 @@ export default function DashboardPage() {
                                         <div>
                                             <h3 className="font-semibold text-foreground mb-0.5">{booking.therapistId?.name || 'Therapist'}</h3>
                                             <p className="text-sm text-muted-foreground flex items-center gap-1.5">
-                                                <Clock className="w-4 h-4" /> {new Date(booking.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} • {booking.sessionType}
+                                                <Clock className="w-4 h-4" /> {formatCalendarDate(booking.date)} • {booking.sessionType}
                                             </p>
                                         </div>
                                         <span className="text-xs px-2 py-1 rounded-full bg-accent/20 text-muted-foreground uppercase">{booking.status}</span>

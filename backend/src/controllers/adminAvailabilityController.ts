@@ -3,6 +3,7 @@ import { Availability, Booking, Therapist } from '../models';
 import { extractWeeklyTemplate, normalizeDate, normalizeTime } from '../utils/schedule';
 import { ACTIVE_BOOKING_STATUSES } from '../services/bookingStateService';
 import { releaseExpiredSlotHolds } from '../services/bookingMaintenanceService';
+import { sendData, sendError } from '../lib/http';
 
 const listDatesInclusive = (from: Date, to: Date) => {
     const dates: string[] = [];
@@ -38,11 +39,11 @@ export const getAdminAvailabilityRange = async (req: Request, res: Response) => 
     try {
         const therapistId = String(req.params.therapistId || '');
         const range = parseRange(req.query.from ? String(req.query.from) : undefined, req.query.to ? String(req.query.to) : undefined);
-        if (!therapistId) return res.status(400).json({ error: 'therapistId is required' });
-        if (!range) return res.status(400).json({ error: 'Invalid from/to' });
+        if (!therapistId) return sendError(res, 400, 'therapistId is required', { code: 'AVAILABILITY_THERAPIST_REQUIRED' });
+        if (!range) return sendError(res, 400, 'Invalid from/to', { code: 'AVAILABILITY_RANGE_INVALID' });
 
         const therapist = await Therapist.findById(therapistId).lean();
-        if (!therapist) return res.status(404).json({ error: 'Therapist not found' });
+        if (!therapist) return sendError(res, 404, 'Therapist not found', { code: 'THERAPIST_NOT_FOUND' });
 
         const normalizedFrom = range.from.toISOString().slice(0, 10);
         const normalizedTo = range.to.toISOString().slice(0, 10);
@@ -63,10 +64,10 @@ export const getAdminAvailabilityRange = async (req: Request, res: Response) => 
             return { date, slots, source: 'template' as const };
         });
 
-        return res.status(200).json(results);
+        return sendData(res, results);
     } catch (error) {
         console.error('Admin availability range error:', error);
-        return res.status(500).json({ error: 'Server error' });
+        return sendError(res, 500, 'Server error', { code: 'ADMIN_AVAILABILITY_RANGE_FAILED' });
     }
 };
 
@@ -74,8 +75,8 @@ export const putAdminAvailabilityForDate = async (req: Request, res: Response) =
     try {
         const therapistId = String(req.params.therapistId || '');
         const date = normalizeDate(String(req.params.date));
-        if (!therapistId) return res.status(400).json({ error: 'therapistId is required' });
-        if (!date) return res.status(400).json({ error: 'Invalid date. Use YYYY-MM-DD.' });
+        if (!therapistId) return sendError(res, 400, 'therapistId is required', { code: 'AVAILABILITY_THERAPIST_REQUIRED' });
+        if (!date) return sendError(res, 400, 'Invalid date. Use YYYY-MM-DD.', { code: 'AVAILABILITY_DATE_INVALID' });
 
         const normalizedSlots = normalizeSlotsInput(Array.isArray(req.body?.slots) ? req.body.slots : []);
 
@@ -86,7 +87,7 @@ export const putAdminAvailabilityForDate = async (req: Request, res: Response) =
         if (bookedTimes.size > 0) {
             const missingBooked = Array.from(bookedTimes).filter((t) => !normalizedSlots.includes(t));
             if (missingBooked.length > 0) {
-                return res.status(409).json({ error: 'Cannot remove booked slots', bookedSlots: missingBooked });
+                return sendError(res, 409, 'Cannot remove booked slots', { code: 'AVAILABILITY_BOOKED_SLOT_PROTECTED', fields: { bookedSlots: missingBooked.join(', ') } });
             }
         } else {
             const activeBookings = await Booking.find({
@@ -97,7 +98,7 @@ export const putAdminAvailabilityForDate = async (req: Request, res: Response) =
             const bookingTimes = new Set(activeBookings.map((b) => String(b.time)));
             const missing = Array.from(bookingTimes).filter((t) => !normalizedSlots.includes(t));
             if (missing.length > 0) {
-                return res.status(409).json({ error: 'Cannot remove slots with active bookings', bookedSlots: missing });
+                return sendError(res, 409, 'Cannot remove slots with active bookings', { code: 'AVAILABILITY_BOOKED_SLOT_PROTECTED', fields: { bookedSlots: missing.join(', ') } });
             }
         }
 
@@ -113,24 +114,24 @@ export const putAdminAvailabilityForDate = async (req: Request, res: Response) =
             { upsert: true, new: true }
         );
 
-        return res.status(200).json(updated);
+        return sendData(res, updated);
     } catch (error) {
         console.error('Admin availability put error:', error);
-        return res.status(500).json({ error: 'Server error' });
+        return sendError(res, 500, 'Server error', { code: 'ADMIN_AVAILABILITY_UPDATE_FAILED' });
     }
 };
 
 export const generateAdminAvailabilityRange = async (req: Request, res: Response) => {
     try {
         const therapistId = String(req.params.therapistId || '');
-        if (!therapistId) return res.status(400).json({ error: 'therapistId is required' });
+        if (!therapistId) return sendError(res, 400, 'therapistId is required', { code: 'AVAILABILITY_THERAPIST_REQUIRED' });
 
         const range = parseRange(req.body?.from ? String(req.body.from) : undefined, req.body?.to ? String(req.body.to) : undefined);
-        if (!range) return res.status(400).json({ error: 'Invalid from/to' });
+        if (!range) return sendError(res, 400, 'Invalid from/to', { code: 'AVAILABILITY_RANGE_INVALID' });
 
         const overwrite = Boolean(req.body?.overwrite);
         const therapist = await Therapist.findById(therapistId).lean();
-        if (!therapist) return res.status(404).json({ error: 'Therapist not found' });
+        if (!therapist) return sendError(res, 404, 'Therapist not found', { code: 'THERAPIST_NOT_FOUND' });
 
         const template = extractWeeklyTemplate(therapist);
         const dates = listDatesInclusive(range.from, range.to);
@@ -176,10 +177,10 @@ export const generateAdminAvailabilityRange = async (req: Request, res: Response
             updated += 1;
         }
 
-        return res.status(200).json({ created, updated, skipped });
+        return sendData(res, { created, updated, skipped });
     } catch (error) {
         console.error('Admin availability generate error:', error);
-        return res.status(500).json({ error: 'Server error' });
+        return sendError(res, 500, 'Server error', { code: 'ADMIN_AVAILABILITY_GENERATE_FAILED' });
     }
 };
 
@@ -188,7 +189,7 @@ export const adminReleaseHoldsNow = async (req: Request, res: Response) => {
         const force = Boolean(req.body?.force);
         if (!force) {
             await releaseExpiredSlotHolds();
-            return res.status(200).json({ success: true, mode: 'expiredOnly' });
+            return sendData(res, { success: true, mode: 'expiredOnly' });
         }
 
         await Availability.updateMany(
@@ -197,10 +198,9 @@ export const adminReleaseHoldsNow = async (req: Request, res: Response) => {
             { arrayFilters: [{ 'slot.isBooked': false, 'slot.reservedUntil': { $exists: true } }] }
         );
 
-        return res.status(200).json({ success: true, mode: 'forceAll' });
+        return sendData(res, { success: true, mode: 'forceAll' });
     } catch (error) {
         console.error('Admin release holds error:', error);
-        return res.status(500).json({ error: 'Server error' });
+        return sendError(res, 500, 'Server error', { code: 'ADMIN_AVAILABILITY_RELEASE_FAILED' });
     }
 };
-

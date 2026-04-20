@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getApiBaseUrl, unwrapApiData } from '@/lib/runtime';
+import { CSRF_HEADER_NAME } from '../../shared/auth';
 
 const hasAuthCookies = (request: NextRequest) => {
     const accessToken = request.cookies.get('accessToken')?.value;
@@ -16,6 +17,19 @@ const resolveAdminRole = async (
     request: NextRequest,
 ): Promise<{ isAdmin: boolean; setCookieHeader?: string }> => {
     const cookieHeader = request.headers.get('cookie') || '';
+    const resolveCsrfToken = async () => {
+        const cookieToken = request.cookies.get('csrfToken')?.value;
+        if (cookieToken) return cookieToken;
+
+        const csrfRes = await fetch(`${getApiBaseUrl()}/auth/csrf`, {
+            headers: { cookie: cookieHeader },
+            cache: 'no-store',
+        });
+
+        if (!csrfRes.ok) return null;
+        const data = unwrapApiData(await csrfRes.json());
+        return data?.csrfToken || null;
+    };
 
     try {
         const meRes = await fetch(`${getApiBaseUrl()}/auth/me`, {
@@ -32,9 +46,13 @@ const resolveAdminRole = async (
         if (meRes.status !== 401) return { isAdmin: false };
 
         // Access token expired — try the refresh endpoint.
+        const csrfToken = await resolveCsrfToken();
         const refreshRes = await fetch(`${getApiBaseUrl()}/auth/refresh`, {
             method: 'POST',
-            headers: { cookie: cookieHeader },
+            headers: {
+                cookie: cookieHeader,
+                ...(csrfToken ? { [CSRF_HEADER_NAME]: csrfToken } : {}),
+            },
             cache: 'no-store',
         });
 
