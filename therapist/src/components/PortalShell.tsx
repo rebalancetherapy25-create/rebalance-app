@@ -74,8 +74,6 @@ export default function PortalShell({ children }: { children: React.ReactNode })
     };
   }, [pathname]);
 
-  if (pathname === '/login') return <>{children}</>;
-
   const initials = session?.therapist?.name?.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase() || 'RT';
   const activeView = useMemo(() => {
     const match = Object.entries(titles).find(([route]) => pathname === route || pathname.startsWith(`${route}/`));
@@ -84,6 +82,8 @@ export default function PortalShell({ children }: { children: React.ReactNode })
       subtitle: 'Stay calm, keep context visible, and manage sessions with confidence.',
     };
   }, [pathname]);
+
+  if (pathname === '/login') return <>{children}</>;
 
   const logout = async () => {
     try {
