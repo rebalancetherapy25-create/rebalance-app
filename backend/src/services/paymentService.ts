@@ -122,6 +122,10 @@ export const confirmBookingPaymentByOrderId = async (options: {
             { _id: booking._id },
             { $set: { status: 'confirmed', razorpayPaymentId: options.paymentId } }
         );
+        if (booking.couponCode) {
+            const mongoose = require('mongoose');
+            await mongoose.model('Coupon').updateOne({ code: booking.couponCode }, { $inc: { currentUsage: 1 } });
+        }
     } catch (saveError) {
         await Availability.updateOne(
             { therapistId, date: booking.date, 'slots.time': booking.time, 'slots.isBooked': true },

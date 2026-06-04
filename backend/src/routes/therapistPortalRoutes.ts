@@ -3,6 +3,8 @@ import { protectTherapist } from '../middlewares/therapistAuthMiddleware';
 import {
     getTherapistAvailabilityRange,
     putTherapistAvailabilityForDate,
+    getTherapistWeeklySchedule,
+    putTherapistWeeklySchedule,
     getTherapistBookings,
     getTherapistBookingById,
     updateTherapistBooking,
@@ -14,6 +16,8 @@ const router = express.Router();
 
 router.use(protectTherapist);
 
+router.get('/weekly-schedule', getTherapistWeeklySchedule);
+router.put('/weekly-schedule', putTherapistWeeklySchedule);
 router.get('/availability', getTherapistAvailabilityRange);
 router.put('/availability/:date', validate(therapistPortalSchemas.putAvailabilityForDate), putTherapistAvailabilityForDate);
 

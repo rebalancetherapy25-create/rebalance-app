@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Logo } from '@/components/ui/logo';
 import { usePathname } from 'next/navigation';
-import { Twitter, Instagram, Linkedin, ArrowRight } from 'lucide-react';
+import { Twitter, Instagram, Linkedin } from 'lucide-react';
 
 export function Footer() {
     const pathname = usePathname();
@@ -19,21 +19,8 @@ export function Footer() {
             <div className="absolute bottom-0 left-0 translate-y-1/3 -translate-x-1/4 w-[600px] h-[600px] bg-background/5 rounded-full blur-[100px] pointer-events-none"></div>
 
             <div className="container mx-auto max-w-[1400px] relative z-10">
-                {/* Top Section - Massive CTA */}
-                <div className="max-w-4xl mb-24 lg:mb-32">
-                    <h2 className="text-5xl sm:text-7xl lg:text-[7rem] font-display leading-[0.9] tracking-tight mb-8">
-                        Begin your <br/><span className="italic text-accent">journey.</span>
-                    </h2>
-                    <p className="text-xl md:text-2xl text-primary-foreground/70 font-medium max-w-2xl mb-10">
-                        A safe, emotionally supportive space to prioritize your mental wellbeing and find balance in life.
-                    </p>
-                    <Link href="/therapists" className="inline-flex items-center gap-3 bg-background text-primary px-8 py-4 rounded-full font-medium tracking-[0.1em] uppercase text-sm hover:bg-accent hover:text-accent-foreground transition-all duration-300">
-                        Find a Therapist <ArrowRight className="w-4 h-4" />
-                    </Link>
-                </div>
-
                 {/* Middle Section - Links & Info */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-12 lg:gap-8 pt-16 border-t border-primary-foreground/10">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-12 lg:gap-8 pt-4">
                     <div className="lg:col-span-5 space-y-8">
                         <Logo textColorClass="text-primary-foreground" />
                         <div className="flex gap-4">

@@ -10,6 +10,8 @@ import therapistRoutes from './routes/therapistRoutes';
 import availabilityRoutes from './routes/availabilityRoutes';
 import bookingRoutes from './routes/bookingRoutes';
 import bannerRoutes from './routes/bannerRoutes';
+import offerBannerRoutes from './routes/offerBannerRoutes';
+import couponRoutes from './routes/couponRoutes';
 import therapistAuthRoutes from './routes/therapistAuthRoutes';
 import therapistPortalRoutes from './routes/therapistPortalRoutes';
 import adminRoutes from './routes/adminRoutes';
@@ -106,6 +108,8 @@ export const createApp = (): Express => {
     app.use('/api/availability', availabilityRoutes);
     app.use('/api/bookings', bookingRoutes);
     app.use('/api/banners', bannerRoutes);
+    app.use('/api/offer-banners', offerBannerRoutes);
+    app.use('/api/coupons', couponRoutes);
     app.use('/api/admin', adminRoutes);
     app.use('/api/therapist-auth', therapistAuthRoutes);
     app.use('/api/therapist', therapistPortalRoutes);

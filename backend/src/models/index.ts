@@ -5,3 +5,5 @@ export * from './Booking';
 export * from './Review';
 export * from './Banner';
 export * from './TherapistAccount';
+export * from './OfferBanner';
+export * from './Coupon';

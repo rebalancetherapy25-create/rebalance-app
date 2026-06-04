@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { ShieldCheck, Zap, Users, MessageCircle } from 'lucide-react';
+import { ShieldCheck, Zap, Users, MessageCircle, Mail, Phone } from 'lucide-react';
 
 export default function AboutPage() {
     return (
@@ -20,9 +20,14 @@ export default function AboutPage() {
                             <span className="text-primary italic pr-2">should feel easy.</span>
                         </h1>
                         
-                        <p className="max-w-2xl text-lg font-medium leading-relaxed text-muted-foreground sm:text-2xl">
-                            Rebalance Therapy was born from a simple belief: mental health support should be as safe, elegant, and accessible as any other premium service in your life.
-                        </p>
+                        <div className="max-w-3xl text-sm sm:text-base md:text-lg font-medium leading-relaxed text-muted-foreground/90 space-y-6">
+                            <p>
+                                ReBalance Therapy was born from a simple but powerful realisation that seeking mental health support should never feel overwhelming, complicated, or intimidating. Our founders, two therapists who spent years working closely with individuals from different walks of life, noticed a recurring pattern where many people delayed or completely avoided therapy, not because they didn’t need help, but because the process of finding the right support felt emotionally exhausting. Endless directories, clinical terminology, complicated booking systems, and websites overloaded with information often created more anxiety instead of comfort.
+                            </p>
+                            <p>
+                                People who were already vulnerable were expected to navigate a confusing system at one of the most difficult moments in their lives. That observation became the foundation of ReBalance Therapy. We wanted to create a space where mental health support feels approachable, calming, and human from the very first interaction. Our vision was to design an experience that feels as seamless and elegant as booking any premium wellness service — simple navigation, clear communication, and an environment that immediately makes people feel safe and understood. We believe therapy should not feel clinical or transactional; it should feel welcoming, personal, and empowering. Every detail of our platform, from the design to the booking journey, is intentionally built to reduce stress and make reaching out for support feel like a positive first step rather than a daunting task.
+                            </p>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -32,15 +37,26 @@ export default function AboutPage() {
                 <div className="container mx-auto max-w-7xl relative z-10">
                     <div className="grid lg:grid-cols-12 gap-16 lg:gap-24 items-start">
                         <div className="lg:col-span-6 space-y-8">
-                            <h2 className="text-4xl sm:text-5xl md:text-6xl font-display leading-[1.05]">
-                                A modern sanctuary <br />for your <span className="text-accent italic">healing journey.</span>
-                            </h2>
-                            <div className="space-y-6 text-xl text-background/80 font-medium max-w-lg leading-relaxed">
+                            <div className="space-y-4">
+                                <div className="text-xs font-black uppercase tracking-widest text-accent/80">Our Purpose</div>
+                                <h2 className="text-4xl sm:text-5xl md:text-6xl font-display leading-[1.05] text-background">
+                                    The story behind the <span className="italic text-accent">NAME.</span>
+                                </h2>
+                                
+                                {/* Elegant premium representation of the ReBalance logo */}
+                                <div className="inline-flex items-center gap-2.5 px-6 py-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 text-background font-display font-medium text-lg my-4 shadow-sm select-none">
+                                    <svg viewBox="0 0 36 36" className="w-6 h-6 fill-accent animate-pulse shrink-0">
+                                        <path d="M18,0C8.06,0,0,8.06,0,18s8.06,18,18,18s18-8.06,18-18S27.94,0,18,0z M14.64,25.68c0,0-1.28,0-3.32,0c-2.48,0-4.88-0.96-6.64-2.72 c-1.76-1.76-2.72-4.16-2.72-6.64c0-2.48,0.96-4.88,2.72-6.64c1.76-1.76,4.16-2.72,6.64-2.72c2.48,0,4.88,0.96,6.64,2.72 c0.68,0.68,1.24,1.44,1.64,2.24c0.4-0.8,0.96-1.56,1.64-2.24c1.76-1.76,4.16-2.72,6.64-2.72c2.48,0,4.88,0.96,6.64,2.72 c1.76,1.76,2.72,4.16,2.72,6.64c0,2.48-0.96,4.88-2.72,6.64c-1.76,1.76-4.16,2.72-6.64,2.72c-2.04,0-3.32,0-3.32,0v-7.32h3.32v7.32 h-6.64v-7.32h-3.32V25.68z"/>
+                                    </svg>
+                                    <span className="tracking-tight text-white font-extrabold text-xl">Re<span className="text-accent italic font-serif">Balance</span> <span className="text-white/60 font-sans font-bold text-xs uppercase tracking-widest pl-2 border-l border-white/20">Therapy</span></span>
+                                </div>
+                            </div>
+                            <div className="space-y-6 text-base sm:text-lg text-background/80 font-medium max-w-xl leading-relaxed">
                                 <p>
-                                    We&apos;ve moved away from sterile, intimidating clinical environments to create an emotionally safe digital sanctuary. Every detail—from our aesthetic to our frictionless booking—is designed to lower the barrier to starting therapy.
+                                    The name &ldquo;ReBalance Therapy&rdquo; was inspired by the idea that life naturally moves through periods of imbalance. Stress, anxiety, burnout, grief, and personal struggles can slowly pull people away from themselves, leaving them disconnected emotionally, mentally, and even physically.
                                 </p>
                                 <p>
-                                    At Rebalance, we don&apos;t just connect you with therapists; we empower you to find the exact right match for your specific story.
+                                    Rather than focusing on &ldquo;fixing&rdquo; people, the founders wanted the brand to reflect the belief that healing is about gently finding your way back to balance, reconnecting with clarity, stability, and peace. The &ldquo;RE&rdquo; symbolises renewal, restoration, and rediscovery, the idea that no matter where someone is in their journey, they can always begin again. Combined with &ldquo;Balance,&rdquo; which represents a compassionate approach to therapy that supports individuals in rebuilding harmony within themselves and their lives.
                                 </p>
                             </div>
                         </div>
@@ -77,27 +93,26 @@ export default function AboutPage() {
                 <div className="container mx-auto max-w-7xl">
                     <div className="mb-24 md:mb-32">
                         <h2 className="text-5xl md:text-7xl font-display text-foreground leading-[0.9] tracking-tight">
-                            The values that <br/><span className="text-accent italic">balance us.</span>
+                            Who we <span className="text-accent italic">are.</span>
                         </h2>
-                        <p className="text-2xl text-muted-foreground font-medium mt-6">Foundation of trust and transparency.</p>
                     </div>
 
                     <div className="grid lg:grid-cols-12 gap-y-16 lg:gap-8">
                         {[
                             {
                                 step: '01',
-                                title: "Emotional Safety First",
-                                desc: "No judgment, no complexity. Just a calm interface designed to reduce anxiety at every click."
+                                title: "Our Mission",
+                                desc: "Our mission is to make mental health support feel approachable, safe, and deeply human. We are committed to removing the fear, confusion, and stigma often associated with therapy by creating a calm, modern, and accessible experience for everyone seeking support."
                             },
                             {
                                 step: '02',
-                                title: "Radical Transparency",
-                                desc: "Fixed pricing, verified reviews, and real credentials. You deserve to know exactly who you're speaking with."
+                                title: "Our Philosophy",
+                                desc: "We believe therapy is not only for moments of crisis it is a space for growth, self-awareness, healing, and balance. At ReBalance Therapy, we focus on creating meaningful therapeutic relationships where clients feel heard without judgment and supported at every step of their journey."
                             },
                             {
                                 step: '03',
-                                title: "Frictionless Access",
-                                desc: "The hardest step is the first one. We made sure it takes less than 3 clicks to find elite help."
+                                title: "Our Values",
+                                desc: "At ReBalance Therapy, we value authenticity, meaningful human connection, and creating experiences that feel calm, intentional, and deeply personal. We are committed to building a modern approach to therapy that prioritises trust, simplicity, and a sense of comfort from the very first interaction."
                             }
                         ].map((value, i) => (
                             <div key={i} className="lg:col-span-4 group flex flex-col items-start border-t-2 border-primary/20 pt-8 hover:border-accent transition-colors duration-500">
@@ -111,22 +126,61 @@ export default function AboutPage() {
             </section>
 
             {/* BOTTOM CTA */}
-            <section className="py-24 sm:py-40 md:py-48 px-6 bg-primary relative overflow-hidden">
-                <div className="container mx-auto max-w-5xl relative z-10">
-                    <div className="text-center text-background">
-                        <div className="relative z-10 space-y-8 md:space-y-10 max-w-4xl mx-auto">
-                            <h2 className="text-5xl sm:text-6xl md:text-7xl lg:text-[6rem] font-display leading-[1.05] tracking-tight">
-                                Your journey <br className="hidden sm:block" /><span className="italic text-accent pr-2">starts here.</span>
+            <section className="py-20 sm:py-28 md:py-36 px-6 bg-primary relative overflow-hidden">
+                <div aria-hidden="true" className="absolute top-0 left-0 w-[50vw] h-[50vw] bg-accent/10 rounded-full blur-[120px] -ml-[20vw] -mt-[20vw] pointer-events-none"></div>
+                <div className="container mx-auto max-w-4xl relative z-10">
+                    <div className="text-center text-background space-y-12">
+                        {/* Header & Subtitle */}
+                        <div className="space-y-4 max-w-2xl mx-auto">
+                            <h2 className="text-4xl sm:text-5xl md:text-6xl font-display leading-[1.1] tracking-tight">
+                                Your journey <span className="italic text-accent">starts here.</span>
                             </h2>
-                            <p className="text-lg sm:text-xl md:text-2xl text-background/80 font-medium max-w-2xl mx-auto leading-relaxed">
-                                Join thousands who have found their center. Explore our network of verified therapists and book your first session today.
+                            <p className="text-base sm:text-lg md:text-xl text-background/80 font-medium leading-relaxed">
+                                Be the next person to rediscover balance with one of our trusted therapists
                             </p>
-                            <div className="pt-8 md:pt-10 flex justify-center">
-                                <Link href="/therapists">
-                                    <Button className="h-14 sm:h-16 px-10 sm:px-14 rounded-full bg-accent text-white hover:bg-accent/90 text-lg sm:text-xl font-bold font-sans shadow-xl transition-transform hover:scale-[1.02] duration-500 ease-out w-full sm:w-auto">
-                                        Find My Therapist
-                                    </Button>
-                                </Link>
+                        </div>
+
+                        {/* Blur Card Wrapper containing the bubble contact console */}
+                        <div className="bg-white/10 backdrop-blur-lg rounded-[2rem] md:rounded-[2.5rem] p-8 md:p-12 border border-white/20 shadow-2xl text-left space-y-8 max-w-3xl mx-auto">
+                            <div className="space-y-3">
+                                <h3 className="text-xl sm:text-2xl font-display text-white leading-snug">
+                                    Not sure what you’re feeling or which therapist is the right fit for you?
+                                </h3>
+                                <p className="text-sm sm:text-base text-white/80 font-medium leading-relaxed">
+                                    You don’t have to navigate it alone, our team is here to make the process feel simpler, more comfortable, and less overwhelming.
+                                </p>
+                            </div>
+
+                            {/* Pill Bubbles */}
+                            <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
+                                <a 
+                                    href="tel:+919341210280" 
+                                    className="flex items-center justify-center gap-3 rounded-full bg-white px-6 py-3 border border-white/20 shadow-md font-bold text-primary hover:bg-white/95 transition-all duration-300 active:scale-95 text-sm sm:text-base shrink-0"
+                                >
+                                    <Phone className="w-4 h-4 text-accent shrink-0" />
+                                    <span>+91 9341210280</span>
+                                </a>
+                                <a 
+                                    href="mailto:rebalancetherapy25@gmail.com" 
+                                    className="flex items-center justify-center gap-3 rounded-full bg-white px-6 py-3 border border-white/20 shadow-md font-bold text-primary hover:bg-white/95 transition-all duration-300 active:scale-95 text-sm sm:text-base shrink-0"
+                                >
+                                    <Mail className="w-4 h-4 text-accent shrink-0" />
+                                    <span>rebalancetherapy25@gmail.com</span>
+                                </a>
+                            </div>
+
+                            <div className="space-y-6">
+                                <p className="text-sm sm:text-base text-white/85 font-medium italic">
+                                    And we’ll help guide you towards the support that best matches your needs.
+                                </p>
+                                
+                                <div>
+                                    <Link href="/therapists">
+                                        <Button className="h-14 px-8 rounded-full bg-accent text-white hover:bg-accent/90 text-base font-bold shadow-xl transition-all hover:scale-[1.02] active:scale-98 duration-300 w-full sm:w-auto">
+                                            Explore Therapists
+                                        </Button>
+                                    </Link>
+                                </div>
                             </div>
                         </div>
                     </div>

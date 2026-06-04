@@ -187,18 +187,31 @@ export const generateAdminAvailabilityRange = async (req: Request, res: Response
 export const adminReleaseHoldsNow = async (req: Request, res: Response) => {
     try {
         const force = Boolean(req.body?.force);
+
         if (!force) {
-            await releaseExpiredSlotHolds();
-            return sendData(res, { success: true, mode: 'expiredOnly' });
+            // Only clear holds whose timer has already expired
+            const now = new Date();
+            const result = await Availability.updateMany(
+                { 'slots.reservedUntil': { $lt: now }, 'slots.isBooked': false },
+                { $unset: { 'slots.$[slot].reservedUntil': 1, 'slots.$[slot].reservedBookingId': 1 } },
+                { arrayFilters: [{ 'slot.reservedUntil': { $lt: now }, 'slot.isBooked': false }] }
+            );
+            return sendData(res, {
+                success: true,
+                mode: 'expiredOnly',
+                released: (result as any).modifiedCount ?? 0,
+            });
         }
 
-        await Availability.updateMany(
+        // Force-clear ALL holds regardless of expiry — also clears reservedBookingId
+        const result = await Availability.updateMany(
             { 'slots.isBooked': false, 'slots.reservedUntil': { $exists: true } },
-            { $unset: { 'slots.$[slot].reservedUntil': 1 } },
+            { $unset: { 'slots.$[slot].reservedUntil': 1, 'slots.$[slot].reservedBookingId': 1 } },
             { arrayFilters: [{ 'slot.isBooked': false, 'slot.reservedUntil': { $exists: true } }] }
         );
 
-        return sendData(res, { success: true, mode: 'forceAll' });
+        const affected = (result as any).modifiedCount ?? 0;
+        return sendData(res, { success: true, mode: 'forceAll', released: affected });
     } catch (error) {
         console.error('Admin release holds error:', error);
         return sendError(res, 500, 'Server error', { code: 'ADMIN_AVAILABILITY_RELEASE_FAILED' });

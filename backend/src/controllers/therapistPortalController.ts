@@ -1,7 +1,7 @@
 import { Response } from 'express';
 import { Availability, Booking, Therapist } from '../models';
 import { TherapistAuthRequest } from '../middlewares/therapistAuthMiddleware';
-import { extractWeeklyTemplate, normalizeDate, normalizeTime } from '../utils/schedule';
+import { extractWeeklyTemplate, formatSlotTime, normalizeDate, normalizeTime } from '../utils/schedule';
 import { ACTIVE_BOOKING_STATUSES, BookingStatus, STATUS_TRANSITIONS, syncAvailabilityForStatus, VALID_BOOKING_STATUSES, rescheduleBooking } from '../services/bookingStateService';
 import { sendEmail } from '../services/emailService';
 import { bookingRescheduledEmail } from '../emails/templates/bookingRescheduled';
@@ -132,6 +132,46 @@ export const putTherapistAvailabilityForDate = async (req: TherapistAuthRequest,
     } catch (error) {
         console.error('Therapist availability put error:', error);
         return sendError(res, 500, 'Server error', { code: 'THERAPIST_AVAILABILITY_UPDATE_FAILED' });
+    }
+};
+
+export const getTherapistWeeklySchedule = async (req: TherapistAuthRequest, res: Response) => {
+    try {
+        const therapistId = req.therapist?.therapistId;
+        if (!therapistId) return sendError(res, 401, 'Unauthorized', { code: 'THERAPIST_UNAUTHORIZED' });
+        const therapist = await Therapist.findById(therapistId).lean();
+        if (!therapist) return sendError(res, 404, 'Therapist not found', { code: 'THERAPIST_NOT_FOUND' });
+        return sendData(res, extractWeeklyTemplate(therapist));
+    } catch (error) {
+        console.error('Get weekly schedule error:', error);
+        return sendError(res, 500, 'Server error', { code: 'WEEKLY_SCHEDULE_GET_FAILED' });
+    }
+};
+
+export const putTherapistWeeklySchedule = async (req: TherapistAuthRequest, res: Response) => {
+    try {
+        const therapistId = req.therapist?.therapistId;
+        if (!therapistId) return sendError(res, 401, 'Unauthorized', { code: 'THERAPIST_UNAUTHORIZED' });
+
+        const raw = Array.isArray(req.body?.weeklyAvailability) ? req.body.weeklyAvailability : [];
+        const weeklyAvailability = raw
+            .filter((e: any) => Number.isInteger(Number(e?.dayOfWeek)) && Number(e.dayOfWeek) >= 0 && Number(e.dayOfWeek) <= 6)
+            .map((e: any) => ({
+                dayOfWeek: Number(e.dayOfWeek),
+                slots: Array.isArray(e.slots)
+                    ? Array.from(new Set(
+                        (e.slots as any[])
+                            .map((s: any) => normalizeTime(String(s)))
+                            .filter((t: string | null): t is string => Boolean(t))
+                    )).sort()
+                    : [],
+            }));
+
+        await Therapist.findByIdAndUpdate(therapistId, { $set: { weeklyAvailability } });
+        return sendData(res, { success: true });
+    } catch (error) {
+        console.error('Put weekly schedule error:', error);
+        return sendError(res, 500, 'Server error', { code: 'WEEKLY_SCHEDULE_PUT_FAILED' });
     }
 };
 
@@ -269,9 +309,9 @@ export const updateTherapistBooking = async (req: TherapistAuthRequest, res: Res
                     recipientName,
                     therapistName,
                     previousDate,
-                    previousTime,
+                    previousTime: formatSlotTime(previousTime),
                     nextDate: booking.date,
-                    nextTime: booking.time,
+                    nextTime: formatSlotTime(booking.time),
                     ...(booking.meetingLink ? { meetingLink: booking.meetingLink } : {}),
                 });
                 await sendEmail({ to: recipientEmail, subject: tpl.subject, html: tpl.html });
@@ -280,7 +320,7 @@ export const updateTherapistBooking = async (req: TherapistAuthRequest, res: Res
                     recipientName,
                     therapistName,
                     date: booking.date,
-                    time: booking.time,
+                    time: formatSlotTime(booking.time),
                 });
                 await sendEmail({ to: recipientEmail, subject: tpl.subject, html: tpl.html });
             }

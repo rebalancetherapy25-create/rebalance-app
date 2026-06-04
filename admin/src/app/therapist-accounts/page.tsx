@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { KeyRound, Plus, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { useEffect, useState, useMemo } from 'react';
+import { KeyRound, Plus, ShieldAlert, ShieldCheck, Search, X } from 'lucide-react';
 import api from '@/lib/axios';
 import { useToast } from '@/components/ui/toaster';
 import {
@@ -31,6 +31,32 @@ export default function TherapistAccountsPage() {
   const [accounts, setAccounts] = useState<TherapistAccount[]>([]);
   const [therapists, setTherapists] = useState<Therapist[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // ── Search / filter / sort ─────────────────────────────────────────────
+  const [search, setSearch]             = useState('');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'suspended'>('all');
+  const [sortBy, setSortBy]             = useState<'name' | 'email' | 'date-desc' | 'date-asc'>('date-desc');
+
+  const filteredAccounts = useMemo(() => {
+    let r = [...accounts];
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      r = r.filter(a =>
+        therapistName(a).toLowerCase().includes(q) ||
+        a.email.toLowerCase().includes(q)
+      );
+    }
+    if (filterStatus !== 'all') r = r.filter(a => a.status === filterStatus);
+    switch (sortBy) {
+      case 'name':      r.sort((a, b) => therapistName(a).localeCompare(therapistName(b))); break;
+      case 'email':     r.sort((a, b) => a.email.localeCompare(b.email)); break;
+      case 'date-desc': r.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()); break;
+      case 'date-asc':  r.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()); break;
+    }
+    return r;
+  }, [accounts, search, filterStatus, sortBy]);
+
+  const hasActiveFilters = search.trim() !== '' || filterStatus !== 'all';
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
@@ -199,7 +225,67 @@ export default function TherapistAccountsPage() {
         </button>
       </div>
 
-      <div className="bg-neutral-900 rounded-2xl shadow-sm border border-neutral-800 overflow-hidden">
+      {/* ── Search + Sort ── */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none" />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search by therapist name or email…"
+            className="w-full pl-9 pr-9 py-2.5 bg-neutral-900 border border-neutral-800 rounded-xl text-white text-sm focus:ring-2 focus:ring-emerald-500/50 focus:outline-none placeholder:text-neutral-600"
+          />
+          {search && (
+            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-white transition-colors">
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+        <select
+          value={sortBy}
+          onChange={e => setSortBy(e.target.value as typeof sortBy)}
+          className="px-4 py-2.5 bg-neutral-900 border border-neutral-800 rounded-xl text-neutral-300 text-sm focus:ring-2 focus:ring-emerald-500/50 focus:outline-none"
+        >
+          <option value="date-desc">Sort: Newest first</option>
+          <option value="date-asc">Sort: Oldest first</option>
+          <option value="name">Sort: Name A–Z</option>
+          <option value="email">Sort: Email A–Z</option>
+        </select>
+      </div>
+
+      {/* ── Status filter + count ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          {(['all', 'active', 'suspended'] as const).map(s => (
+            <button
+              key={s}
+              onClick={() => setFilterStatus(s)}
+              className={[
+                'px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors capitalize',
+                filterStatus === s
+                  ? s === 'suspended'
+                    ? 'bg-red-500/20 border-red-500/30 text-red-400'
+                    : s === 'active'
+                    ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400'
+                    : 'bg-neutral-700 border-neutral-600 text-white'
+                  : 'bg-neutral-900 border-neutral-800 text-neutral-500 hover:border-neutral-700 hover:text-neutral-300',
+              ].join(' ')}
+            >
+              {s === 'all' ? `All (${accounts.length})` : `${s} (${accounts.filter(a => a.status === s).length})`}
+            </button>
+          ))}
+        </div>
+        <p className="text-sm text-neutral-500">
+          Showing <span className="text-white font-medium">{filteredAccounts.length}</span> of {accounts.length} accounts
+          {hasActiveFilters && (
+            <button onClick={() => { setSearch(''); setFilterStatus('all'); }} className="ml-2 text-emerald-400 hover:underline text-xs">
+              Clear filters
+            </button>
+          )}
+        </p>
+      </div>
+
+      <div className="bg-neutral-900 rounded-2xl border border-neutral-800 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
             <thead className="bg-neutral-950/50 text-neutral-400 font-medium border-b border-neutral-800 uppercase text-xs tracking-wider">
@@ -218,14 +304,14 @@ export default function TherapistAccountsPage() {
                     Loading…
                   </td>
                 </tr>
-              ) : accounts.length === 0 ? (
+              ) : filteredAccounts.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-8 text-center text-neutral-500">
-                    No therapist accounts found.
+                    {hasActiveFilters ? 'No accounts match your filters.' : 'No therapist accounts found.'}
                   </td>
                 </tr>
               ) : (
-                accounts.map((account) => (
+                filteredAccounts.map((account) => (
                   <tr key={account._id} className="hover:bg-neutral-800/50 transition-colors">
                     <td className="px-6 py-4 font-medium text-white">{therapistName(account)}</td>
                     <td className="px-6 py-4 text-neutral-400">{account.email}</td>

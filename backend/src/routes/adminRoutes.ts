@@ -70,9 +70,9 @@ router.route('/therapist-accounts')
     .post(validate(adminSchemas.createTherapistAccount), createTherapistAccount);
 router.put('/therapist-accounts/:id', validate(adminSchemas.updateTherapistAccount), updateTherapistAccount);
 
+router.post('/availability/release-holds', adminReleaseHoldsNow);
 router.get('/availability/:therapistId', getAdminAvailabilityRange);
 router.put('/availability/:therapistId/:date', putAdminAvailabilityForDate);
 router.post('/availability/:therapistId/generate', generateAdminAvailabilityRange);
-router.post('/availability/release-holds', adminReleaseHoldsNow);
 
 export default router;

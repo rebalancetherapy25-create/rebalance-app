@@ -7,6 +7,7 @@ import api from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar, Clock, User } from 'lucide-react';
+import { formatSlotTime } from '@/lib/date';
 
 type Booking = {
   _id: string;
@@ -125,8 +126,8 @@ export default function BookingsPage() {
                         {email && <span className="text-xs text-muted-foreground truncate">({email})</span>}
                       </div>
                       <div className="text-xs text-muted-foreground mt-1 flex items-center gap-3">
-                        <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> {b.date}</span>
-                        <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {b.time} ({b.sessionType})</span>
+                        <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> {new Date(`${b.date}T00:00:00`).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
+                        <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {formatSlotTime(b.time)} · {b.sessionType}</span>
                       </div>
                     </div>
                     <div className={`shrink-0 text-xs font-bold uppercase border px-2.5 py-1 rounded-full ${statusPill(b.status)}`}>

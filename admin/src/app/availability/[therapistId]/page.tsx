@@ -3,58 +3,257 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { CalendarDays, ChevronLeft, Clock, Lock, Plus, RefreshCcw, Save, Wand2 } from 'lucide-react';
+import {
+  CalendarDays, ChevronLeft, Clock, Lock, RefreshCcw, Save,
+  Wand2, Sunrise, Sun, Sunset, CheckCircle2, X, LayoutTemplate, Copy,
+} from 'lucide-react';
 import api from '@/lib/axios';
+import { formatSlotTime } from '@/lib/date';
+import { useToast } from '@/components/ui/toaster';
 
+// ── Time presets: 6:00 AM – 9:00 PM, every 30 min ────────────────────────
+const ALL_PRESETS: string[] = [];
+for (let h = 6; h <= 21; h++) {
+  ALL_PRESETS.push(`${String(h).padStart(2, '0')}:00`);
+  if (h < 21) ALL_PRESETS.push(`${String(h).padStart(2, '0')}:30`);
+}
+const MORNING   = ALL_PRESETS.filter(s => Number(s.slice(0, 2)) < 12);
+const AFTERNOON = ALL_PRESETS.filter(s => { const h = Number(s.slice(0, 2)); return h >= 12 && h < 17; });
+const EVENING   = ALL_PRESETS.filter(s => Number(s.slice(0, 2)) >= 17);
+
+const DAYS = [
+  { label: 'Monday',    short: 'Mon', dayOfWeek: 1 },
+  { label: 'Tuesday',   short: 'Tue', dayOfWeek: 2 },
+  { label: 'Wednesday', short: 'Wed', dayOfWeek: 3 },
+  { label: 'Thursday',  short: 'Thu', dayOfWeek: 4 },
+  { label: 'Friday',    short: 'Fri', dayOfWeek: 5 },
+  { label: 'Saturday',  short: 'Sat', dayOfWeek: 6 },
+  { label: 'Sunday',    short: 'Sun', dayOfWeek: 0 },
+];
+const WEEKDAY_INDICES = [1, 2, 3, 4, 5];
+
+type WeeklyDay = { dayOfWeek: number; slots: string[] };
 type Slot = { time: string; isBooked?: boolean; reservedUntil?: string };
 type DayAvailability = { date: string; slots: Slot[]; source: 'record' | 'template' };
 
-// Use local dates (not UTC) so the admin's calendar window matches local day boundaries.
 const isoToday = () => {
   const d = new Date();
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 const addDaysIso = (iso: string, days: number) => {
-  const [y, m, day] = iso.split('-').map((n) => Number(n));
+  const [y, m, day] = iso.split('-').map(Number);
   const d = new Date(y, (m || 1) - 1, day || 1);
   d.setDate(d.getDate() + days);
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
-
 const isHeld = (slot: Slot) => {
   if (!slot.reservedUntil) return false;
   const dt = new Date(slot.reservedUntil);
   return !Number.isNaN(dt.getTime()) && dt.getTime() > Date.now();
 };
+const friendlyDate = (iso: string) =>
+  new Date(`${iso}T00:00:00`).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
 
-export default function AdminTherapistAvailabilityPage() {
-  const params = useParams<{ therapistId: string }>();
-  const therapistId = params?.therapistId;
+// ── Shared slot chip ──────────────────────────────────────────────────────
+function SlotChip({
+  time, selected, booked, held, onToggle,
+}: { time: string; selected: boolean; booked?: boolean; held?: boolean; onToggle: () => void }) {
+  return (
+    <button
+      onClick={booked ? undefined : onToggle}
+      disabled={booked}
+      className={[
+        'h-8 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all duration-100 border whitespace-nowrap',
+        booked
+          ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300 cursor-not-allowed'
+          : selected
+          ? 'bg-emerald-500 border-emerald-500 text-neutral-950 shadow-sm'
+          : 'bg-neutral-950 border-neutral-800 text-neutral-300 hover:border-emerald-500/40 hover:bg-emerald-500/5 hover:text-emerald-300',
+      ].join(' ')}
+    >
+      {booked && <Lock className="w-2.5 h-2.5 shrink-0" />}
+      {formatSlotTime(time)}
+      {held && !booked && <span className="text-[9px] opacity-50 ml-0.5">held</span>}
+    </button>
+  );
+}
 
+// ── Shared period group ───────────────────────────────────────────────────
+function PeriodGroup({
+  label, icon, slots, selected, booked, held, onToggle,
+}: {
+  label: string; icon: React.ReactNode; slots: string[];
+  selected: Set<string>; booked: Set<string>; held: Set<string>;
+  onToggle: (t: string) => void;
+}) {
+  return (
+    <div>
+      <div className="flex items-center gap-1.5 mb-2 text-[10px] font-bold uppercase tracking-widest text-neutral-500">
+        {icon} {label}
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {slots.map(t => (
+          <SlotChip key={t} time={t} selected={selected.has(t)} booked={booked.has(t)} held={held.has(t)} onToggle={() => onToggle(t)} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tab 1 — Weekly Template
+// ─────────────────────────────────────────────────────────────────────────────
+function WeeklyTemplateTab({ therapistId, onSaved }: { therapistId: string; onSaved: () => void }) {
+  const [weekly, setWeekly] = useState<WeeklyDay[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving]   = useState(false);
+  const [savedOk, setSavedOk] = useState(false);
+  const [error, setError]     = useState('');
+
+  const slotsFor = (dow: number) => weekly.find(d => d.dayOfWeek === dow)?.slots ?? [];
+
+  const toggleSlot = (dow: number, time: string) => {
+    setSavedOk(false);
+    setWeekly(prev => {
+      const entry = prev.find(d => d.dayOfWeek === dow);
+      if (!entry) return [...prev, { dayOfWeek: dow, slots: [time] }];
+      const slots = entry.slots.includes(time)
+        ? entry.slots.filter(t => t !== time)
+        : [...entry.slots, time].sort();
+      return prev.map(d => d.dayOfWeek === dow ? { ...d, slots } : d);
+    });
+  };
+
+  const clearDay = (dow: number) => {
+    setSavedOk(false);
+    setWeekly(prev => prev.map(d => d.dayOfWeek === dow ? { ...d, slots: [] } : d));
+  };
+
+  const applyMonToWeekdays = () => {
+    const monSlots = slotsFor(1);
+    setSavedOk(false);
+    setWeekly(prev => prev.map(d => WEEKDAY_INDICES.includes(d.dayOfWeek) ? { ...d, slots: [...monSlots] } : d));
+  };
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      try {
+        const res = await api.get(`/admin/therapists/${therapistId}`);
+        const raw: WeeklyDay[] = Array.isArray(res.data?.weeklyAvailability) ? res.data.weeklyAvailability : [];
+        const byDay = new Map(raw.map(d => [d.dayOfWeek, d]));
+        setWeekly(DAYS.map(({ dayOfWeek }) => byDay.get(dayOfWeek) ?? { dayOfWeek, slots: [] }));
+      } catch {
+        setError('Failed to load weekly schedule.');
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [therapistId]);
+
+  const save = async () => {
+    setSaving(true); setError(''); setSavedOk(false);
+    try {
+      await api.put(`/admin/therapists/${therapistId}`, { weeklyAvailability: weekly });
+      setSavedOk(true);
+      setTimeout(() => setSavedOk(false), 3000);
+      onSaved();
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      setError(msg || 'Failed to save schedule.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return <div className="text-neutral-500 text-sm py-8 text-center">Loading schedule…</div>;
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <p className="text-sm text-neutral-400">
+          Set recurring weekly hours. New calendar dates automatically inherit this schedule.
+        </p>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={applyMonToWeekdays}
+            className="px-3 py-2 rounded-xl bg-neutral-950 border border-neutral-800 text-neutral-300 hover:text-white hover:border-neutral-700 transition-colors inline-flex items-center gap-2 text-xs"
+          >
+            <Copy className="w-3.5 h-3.5" /> Mon → Weekdays
+          </button>
+          <button
+            onClick={save} disabled={saving}
+            className={`px-4 py-2 rounded-xl text-sm font-semibold inline-flex items-center gap-2 transition-colors disabled:opacity-60 ${savedOk ? 'bg-emerald-600 text-white' : 'bg-emerald-500 hover:bg-emerald-400 text-neutral-950'}`}
+          >
+            <Save className="w-4 h-4" />
+            {saving ? 'Saving…' : savedOk ? 'Saved!' : 'Save Schedule'}
+          </button>
+        </div>
+      </div>
+
+      {error && <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">{error}</div>}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7 gap-4">
+        {DAYS.map(({ label, dayOfWeek }) => {
+          const slots = new Set(slotsFor(dayOfWeek));
+          const count = slots.size;
+          const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+          return (
+            <div
+              key={dayOfWeek}
+              className={`rounded-xl border p-4 space-y-3 ${isWeekend ? 'border-neutral-700 bg-neutral-800/40' : 'border-neutral-800 bg-neutral-950/40'}`}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-bold text-white">{label}</div>
+                  <div className={`text-[11px] font-bold mt-0.5 ${count > 0 ? 'text-emerald-400' : 'text-neutral-600'}`}>
+                    {count === 0 ? 'Off' : `${count} slot${count !== 1 ? 's' : ''}`}
+                  </div>
+                </div>
+                {count > 0 && (
+                  <button onClick={() => clearDay(dayOfWeek)} className="text-neutral-600 hover:text-red-400 transition-colors p-1 rounded-lg" title="Clear">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+              <PeriodGroup label="Morning"   icon={<Sunrise className="w-3 h-3" />} slots={MORNING}   selected={slots} booked={new Set()} held={new Set()} onToggle={t => toggleSlot(dayOfWeek, t)} />
+              <PeriodGroup label="Afternoon" icon={<Sun     className="w-3 h-3" />} slots={AFTERNOON} selected={slots} booked={new Set()} held={new Set()} onToggle={t => toggleSlot(dayOfWeek, t)} />
+              <PeriodGroup label="Evening"   icon={<Sunset  className="w-3 h-3" />} slots={EVENING}   selected={slots} booked={new Set()} held={new Set()} onToggle={t => toggleSlot(dayOfWeek, t)} />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tab 2 — Calendar
+// ─────────────────────────────────────────────────────────────────────────────
+function CalendarTab({ therapistId, refreshKey }: { therapistId: string; refreshKey: number }) {
+  const { toast } = useToast();
   const from = useMemo(() => isoToday(), []);
-  const to = useMemo(() => addDaysIso(from, 29), [from]);
+  const to   = useMemo(() => addDaysIso(from, 29), [from]);
 
-  const [therapist, setTherapist] = useState<any>(null);
-  const [days, setDays] = useState<DayAvailability[]>([]);
+  const [therapist, setTherapist]       = useState<any>(null);
+  const [days, setDays]                 = useState<DayAvailability[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>(from);
   const [editingSlots, setEditingSlots] = useState<string[]>([]);
-  const [newSlot, setNewSlot] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  const [loading, setLoading]           = useState(true);
+  const [saving, setSaving]             = useState(false);
+  // tracks which specific action is in-flight so each button shows its own label
+  const [activeAction, setActiveAction] = useState<'generate' | 'overwrite' | 'release' | 'force' | 'save' | null>(null);
+  const [error, setError]               = useState('');
 
-  const selected = useMemo(() => days.find((d) => d.date === selectedDate) || null, [days, selectedDate]);
+  const selected    = useMemo(() => days.find(d => d.date === selectedDate) ?? null, [days, selectedDate]);
+  const bookedTimes = useMemo(() => new Set((selected?.slots ?? []).filter(s => s.isBooked).map(s => s.time)), [selected]);
+  const heldTimes   = useMemo(() => new Set((selected?.slots ?? []).filter(s => isHeld(s) && !s.isBooked).map(s => s.time)), [selected]);
+  const selectedSet = useMemo(() => new Set(editingSlots), [editingSlots]);
+  const customSlots = useMemo(() => editingSlots.filter(t => !ALL_PRESETS.includes(t)), [editingSlots]);
 
   const refresh = async () => {
     if (!therapistId) return;
-    setLoading(true);
-    setError('');
+    setLoading(true); setError('');
     try {
       const [tRes, aRes] = await Promise.all([
         api.get(`/admin/therapists/${therapistId}`),
@@ -62,243 +261,269 @@ export default function AdminTherapistAvailabilityPage() {
       ]);
       setTherapist(tRes.data);
       setDays(aRes.data || []);
-    } catch (e: unknown) {
-      console.error('Failed to load availability', e);
+    } catch {
       setError('Failed to load availability.');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [therapistId]);
+  useEffect(() => { refresh(); }, [therapistId, refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    const slots = (selected?.slots || []).map((s) => s.time).sort();
-    setEditingSlots(slots);
-    setNewSlot('');
+    setEditingSlots((selected?.slots ?? []).map(s => s.time).sort());
   }, [selected?.date]);
 
   const toggleSlot = (time: string) => {
-    setEditingSlots((prev) => prev.includes(time) ? prev.filter((t) => t !== time) : [...prev, time].sort());
+    if (bookedTimes.has(time)) return;
+    setEditingSlots(prev => prev.includes(time) ? prev.filter(t => t !== time) : [...prev, time].sort());
   };
 
-  const addSlot = () => {
-    const t = newSlot.trim();
-    if (!t) return;
-    setEditingSlots((prev) => Array.from(new Set([...prev, t])).sort());
-    setNewSlot('');
+  const run = async (
+    action: typeof activeAction,
+    fn: () => Promise<any>,
+    successMsg: string,
+  ) => {
+    setSaving(true); setActiveAction(action); setError('');
+    try {
+      const res = await fn();
+      await refresh();
+      // sendData wraps payload in { data: { ... } }
+      const payload = res?.data?.data ?? res?.data ?? {};
+      let detail: string | undefined;
+      if (payload.created !== undefined) {
+        detail = `Created ${payload.created}, updated ${payload.updated}, skipped ${payload.skipped}.`;
+      } else if (payload.released !== undefined) {
+        detail = payload.released === 0
+          ? 'No active holds found.'
+          : `${payload.released} document${payload.released !== 1 ? 's' : ''} updated.`;
+      }
+      toast({ title: successMsg, ...(detail ? { description: detail } : {}) });
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      const errText = msg || 'Something went wrong.';
+      setError(errText);
+      toast({ variant: 'error', title: 'Action failed', items: [errText] });
+    } finally {
+      setSaving(false); setActiveAction(null);
+    }
   };
 
-  const save = async () => {
+  const save = () => run('save', async () => {
     if (!therapistId || !selectedDate) return;
-    setSaving(true);
-    setError('');
-    try {
-      await api.put(`/admin/availability/${therapistId}/${selectedDate}`, { slots: editingSlots });
-      await refresh();
-    } catch (e: unknown) {
-      const message = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
-      setError(message || 'Failed to save availability.');
-    } finally {
-      setSaving(false);
-    }
-  };
+    return api.put(`/admin/availability/${therapistId}/${selectedDate}`, { slots: editingSlots });
+  }, `Saved ${editingSlots.length} slot${editingSlots.length !== 1 ? 's' : ''} for ${selectedDate}`);
 
-  const generate = async (overwrite: boolean) => {
+  const generate = (overwrite: boolean) => run(
+    overwrite ? 'overwrite' : 'generate',
+    () => api.post(`/admin/availability/${therapistId}/generate`, { from, to, overwrite }),
+    overwrite ? 'Calendar overwritten from weekly template' : 'Missing dates filled from weekly template',
+  );
+
+  const releaseHolds = (force: boolean) => run(
+    force ? 'force' : 'release',
+    () => api.post('/admin/availability/release-holds', { force }),
+    force ? 'All holds force-released' : 'Expired holds released',
+  );
+
+  return (
+    <div className="space-y-5">
+      {/* Action buttons */}
+      <div className="flex flex-wrap gap-2">
+        <button onClick={() => generate(false)} disabled={saving}
+          className="px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 hover:bg-emerald-500/15 transition-colors inline-flex items-center gap-2 disabled:opacity-60 text-sm">
+          <Wand2 className={`w-4 h-4 ${activeAction === 'generate' ? 'animate-spin' : ''}`} />
+          {activeAction === 'generate' ? 'Generating…' : 'Generate (missing only)'}
+        </button>
+        <button onClick={() => generate(true)} disabled={saving}
+          className="px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 hover:bg-amber-500/15 transition-colors inline-flex items-center gap-2 disabled:opacity-60 text-sm">
+          <Wand2 className={`w-4 h-4 ${activeAction === 'overwrite' ? 'animate-spin' : ''}`} />
+          {activeAction === 'overwrite' ? 'Overwriting…' : 'Generate (overwrite)'}
+        </button>
+        <button onClick={() => releaseHolds(false)} disabled={saving}
+          className="px-3 py-2 rounded-xl bg-neutral-950 border border-neutral-800 text-neutral-300 hover:text-white hover:border-neutral-700 transition-colors inline-flex items-center gap-2 disabled:opacity-60 text-sm">
+          <Lock className={`w-4 h-4 ${activeAction === 'release' ? 'animate-pulse' : ''}`} />
+          {activeAction === 'release' ? 'Releasing…' : 'Release expired holds'}
+        </button>
+        <button onClick={() => releaseHolds(true)} disabled={saving}
+          className="px-3 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 hover:bg-red-500/15 transition-colors inline-flex items-center gap-2 disabled:opacity-60 text-sm">
+          <Lock className={`w-4 h-4 ${activeAction === 'force' ? 'animate-pulse' : ''}`} />
+          {activeAction === 'force' ? 'Releasing all…' : 'Force release all holds'}
+        </button>
+        <button onClick={refresh} disabled={saving}
+          className="px-3 py-2 rounded-xl bg-neutral-950 border border-neutral-800 text-neutral-300 hover:text-white hover:border-neutral-700 transition-colors inline-flex items-center gap-2 disabled:opacity-60 text-sm ml-auto">
+          <RefreshCcw className="w-4 h-4" /> Refresh
+        </button>
+      </div>
+
+      {error && <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">{error}</div>}
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Date list */}
+        <div className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden">
+          <div className="p-5 border-b border-neutral-800">
+            <div className="text-white font-semibold">Dates</div>
+            <div className="text-xs text-neutral-500 mt-0.5">{from} → {to}</div>
+          </div>
+          <div className="p-3 space-y-1.5 max-h-[70vh] overflow-y-auto">
+            {loading ? (
+              <div className="text-neutral-500 text-sm py-4 text-center">Loading…</div>
+            ) : days.map(d => {
+              const active      = d.date === selectedDate;
+              const bookedCount = d.slots.filter(s => s.isBooked).length;
+              const heldCount   = d.slots.filter(s => isHeld(s)).length;
+              const total       = d.slots.length;
+              return (
+                <button key={d.date} onClick={() => setSelectedDate(d.date)}
+                  className={['w-full text-left rounded-xl border px-3 py-2.5 transition-colors', active ? 'border-emerald-500/40 bg-emerald-500/10' : 'border-neutral-800 bg-neutral-950/40 hover:bg-neutral-950/70'].join(' ')}>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-sm font-medium text-white">{friendlyDate(d.date)}</div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {d.source === 'template' && <span className="text-[9px] font-bold text-neutral-500 bg-neutral-800 px-1.5 py-0.5 rounded">Default</span>}
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${total > 0 ? 'bg-emerald-500/15 text-emerald-400' : 'bg-neutral-800 text-neutral-500'}`}>{total}</span>
+                    </div>
+                  </div>
+                  {(bookedCount > 0 || heldCount > 0) && (
+                    <div className="mt-1 text-xs text-neutral-500 flex items-center gap-3">
+                      {bookedCount > 0 && <span className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3 text-emerald-500" />{bookedCount} booked</span>}
+                      {heldCount > 0  && <span>{heldCount} held</span>}
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Slot editor */}
+        <div className="lg:col-span-2 bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden">
+          <div className="p-5 border-b border-neutral-800 flex items-start justify-between gap-4">
+            <div>
+              <div className="text-white font-semibold flex items-center gap-2">
+                <Clock className="w-4 h-4 text-neutral-500" />
+                {selected ? friendlyDate(selectedDate) : 'Select a date'}
+              </div>
+              <div className="text-xs text-neutral-500 mt-0.5">
+                {selected
+                  ? selected.source === 'template' ? 'Using weekly template — changes apply to this date only' : 'Click chips to toggle. Booked slots are locked.'
+                  : 'Pick a date on the left to edit its slots.'}
+              </div>
+            </div>
+            {selected && (
+              <button onClick={save} disabled={saving}
+                className="px-3 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-neutral-950 text-sm font-semibold transition-colors inline-flex items-center gap-2 disabled:opacity-60 shrink-0">
+                <Save className="w-4 h-4" /> {activeAction === 'save' ? 'Saving…' : 'Save'}
+              </button>
+            )}
+          </div>
+
+          {selected && (
+            <div className="p-5 space-y-5">
+              <PeriodGroup label="Morning"   icon={<Sunrise className="w-3 h-3" />} slots={MORNING}   selected={selectedSet} booked={bookedTimes} held={heldTimes} onToggle={toggleSlot} />
+              <PeriodGroup label="Afternoon" icon={<Sun     className="w-3 h-3" />} slots={AFTERNOON} selected={selectedSet} booked={bookedTimes} held={heldTimes} onToggle={toggleSlot} />
+              <PeriodGroup label="Evening"   icon={<Sunset  className="w-3 h-3" />} slots={EVENING}   selected={selectedSet} booked={bookedTimes} held={heldTimes} onToggle={toggleSlot} />
+
+              {customSlots.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-1.5 mb-2 text-[10px] font-bold uppercase tracking-widest text-neutral-500">
+                    <Clock className="w-3 h-3" /> Custom
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {customSlots.map(t => (
+                      <SlotChip key={t} time={t} selected booked={bookedTimes.has(t)} held={heldTimes.has(t)} onToggle={() => toggleSlot(t)} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {editingSlots.length === 0 && (
+                <p className="text-sm text-neutral-500 text-center py-4">No slots selected — click any time above to add it.</p>
+              )}
+
+              <div className="pt-3 border-t border-neutral-800 flex items-center justify-between">
+                <span className="text-xs text-neutral-500">
+                  {editingSlots.length} slot{editingSlots.length !== 1 ? 's' : ''} selected
+                  {bookedTimes.size > 0 && ` · ${bookedTimes.size} booked (locked)`}
+                </span>
+                <button
+                  onClick={() => setEditingSlots(prev => prev.filter(t => bookedTimes.has(t)))}
+                  className="text-xs text-neutral-500 hover:text-red-400 transition-colors flex items-center gap-1"
+                >
+                  <X className="w-3 h-3" /> Clear all
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main Page
+// ─────────────────────────────────────────────────────────────────────────────
+export default function AdminTherapistAvailabilityPage() {
+  const params = useParams<{ therapistId: string }>();
+  const therapistId = params?.therapistId ?? '';
+
+  const [therapistName, setTherapistName] = useState('Therapist');
+  const [tab, setTab] = useState<'weekly' | 'calendar'>('weekly');
+  const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
+
+  useEffect(() => {
     if (!therapistId) return;
-    setSaving(true);
-    setError('');
-    try {
-      await api.post(`/admin/availability/${therapistId}/generate`, { from, to, overwrite });
-      await refresh();
-    } catch (e: unknown) {
-      const message = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
-      setError(message || 'Failed to generate availability.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const releaseHolds = async (force: boolean) => {
-    setSaving(true);
-    setError('');
-    try {
-      await api.post('/admin/availability/release-holds', { force });
-      await refresh();
-    } catch (e: unknown) {
-      const message = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
-      setError(message || 'Failed to release holds.');
-    } finally {
-      setSaving(false);
-    }
-  };
+    api.get(`/admin/therapists/${therapistId}`)
+      .then(r => setTherapistName(r.data?.name || 'Therapist'))
+      .catch(() => {});
+  }, [therapistId]);
 
   return (
     <div className="space-y-6">
-      <div className="bg-neutral-900 p-6 rounded-2xl shadow-sm border border-neutral-800 space-y-4">
+      {/* Header */}
+      <div className="bg-neutral-900 p-6 rounded-2xl border border-neutral-800 space-y-4">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-1">
             <Link href="/availability" className="inline-flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors">
               <ChevronLeft className="w-4 h-4" /> Back
             </Link>
             <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-              <CalendarDays className="w-5 h-5 text-emerald-400" /> {therapist?.name || 'Therapist'} Availability
+              <CalendarDays className="w-5 h-5 text-emerald-400" />
+              {therapistName} Availability
             </h1>
-            <p className="text-neutral-500 text-sm">Edit date-level slots. Booked slots cannot be removed.</p>
+            <p className="text-neutral-500 text-sm">Manage weekly schedule and override specific dates.</p>
           </div>
-          <button
-            onClick={refresh}
-            className="px-3 py-2 rounded-xl bg-neutral-950 border border-neutral-800 text-neutral-300 hover:text-white hover:border-neutral-700 transition-colors inline-flex items-center gap-2"
-          >
-            <RefreshCcw className="w-4 h-4" /> Refresh
-          </button>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        {/* Tab switcher */}
+        <div className="flex gap-1 p-1 bg-neutral-950 rounded-xl w-fit border border-neutral-800">
           <button
-            onClick={() => generate(false)}
-            disabled={saving}
-            className="px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 hover:bg-emerald-500/15 transition-colors inline-flex items-center gap-2 disabled:opacity-60"
+            onClick={() => setTab('weekly')}
+            className={['px-5 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-all', tab === 'weekly' ? 'bg-neutral-800 text-white' : 'text-neutral-500 hover:text-neutral-300'].join(' ')}
           >
-            <Wand2 className="w-4 h-4" /> Generate (missing only)
+            <LayoutTemplate className="w-4 h-4" /> Weekly Template
           </button>
           <button
-            onClick={() => generate(true)}
-            disabled={saving}
-            className="px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 hover:bg-amber-500/15 transition-colors inline-flex items-center gap-2 disabled:opacity-60"
+            onClick={() => setTab('calendar')}
+            className={['px-5 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-all', tab === 'calendar' ? 'bg-neutral-800 text-white' : 'text-neutral-500 hover:text-neutral-300'].join(' ')}
           >
-            <Wand2 className="w-4 h-4" /> Generate (overwrite)
-          </button>
-          <button
-            onClick={() => releaseHolds(false)}
-            disabled={saving}
-            className="px-3 py-2 rounded-xl bg-neutral-950 border border-neutral-800 text-neutral-300 hover:text-white hover:border-neutral-700 transition-colors inline-flex items-center gap-2 disabled:opacity-60"
-          >
-            <Lock className="w-4 h-4" /> Release expired holds
-          </button>
-          <button
-            onClick={() => releaseHolds(true)}
-            disabled={saving}
-            className="px-3 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 hover:bg-red-500/15 transition-colors inline-flex items-center gap-2 disabled:opacity-60"
-          >
-            <Lock className="w-4 h-4" /> Force release all holds
+            <CalendarDays className="w-4 h-4" /> Calendar
           </button>
         </div>
       </div>
 
-      {error && (
-        <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">
-          {error}
-        </div>
+      {tab === 'weekly' && (
+        <WeeklyTemplateTab
+          therapistId={therapistId}
+          onSaved={() => setCalendarRefreshKey(k => k + 1)}
+        />
       )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden">
-          <div className="p-5 border-b border-neutral-800">
-            <div className="text-white font-semibold">Dates</div>
-            <div className="text-xs text-neutral-500 mt-1">{from} to {to}</div>
-          </div>
-          <div className="p-4 space-y-2 max-h-[70vh] overflow-y-auto">
-            {loading ? (
-              <div className="text-neutral-500 text-sm">Loading…</div>
-            ) : (
-              days.map((d) => {
-                const active = d.date === selectedDate;
-                const bookedCount = d.slots.filter((s) => s.isBooked).length;
-                const heldCount = d.slots.filter((s) => isHeld(s)).length;
-                return (
-                  <button
-                    key={d.date}
-                    onClick={() => setSelectedDate(d.date)}
-                    className={[
-                      'w-full text-left rounded-xl border px-3 py-2.5 transition-colors',
-                      active ? 'border-emerald-500/40 bg-emerald-500/10' : 'border-neutral-800 bg-neutral-950/40 hover:bg-neutral-950/70',
-                    ].join(' ')}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm font-medium text-white">{d.date}</div>
-                      <div className="text-[10px] text-neutral-500 uppercase">{d.source}</div>
-                    </div>
-                    <div className="mt-1 text-xs text-neutral-500 flex items-center gap-3">
-                      <span>{bookedCount} booked</span>
-                      <span>{heldCount} held</span>
-                    </div>
-                  </button>
-                );
-              })
-            )}
-          </div>
-        </div>
-
-        <div className="lg:col-span-2 bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden">
-          <div className="p-5 border-b border-neutral-800 flex items-center justify-between">
-            <div>
-              <div className="text-white font-semibold flex items-center gap-2">
-                <Clock className="w-4 h-4 text-neutral-500" /> Edit {selectedDate}
-              </div>
-              <div className="text-xs text-neutral-500 mt-1">Add/remove slots. Booked slots are locked.</div>
-            </div>
-            <button
-              onClick={save}
-              disabled={saving}
-              className="px-3 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-neutral-950 text-sm font-medium transition-colors inline-flex items-center gap-2 disabled:opacity-60"
-            >
-              <Save className="w-4 h-4" /> {saving ? 'Saving…' : 'Save'}
-            </button>
-          </div>
-
-          <div className="p-5 space-y-4">
-            <div className="flex items-end gap-3">
-              <div className="flex-1">
-                <label className="block text-xs text-neutral-400 mb-1">Add slot (e.g. 10:00 AM or 14:30)</label>
-                <input
-                  value={newSlot}
-                  onChange={(e) => setNewSlot(e.target.value)}
-                  className="w-full px-4 py-2 bg-neutral-950 border border-neutral-800 rounded-xl text-white focus:ring-2 focus:ring-emerald-500/50 focus:outline-none placeholder:text-neutral-600"
-                  placeholder="10:00 AM"
-                />
-              </div>
-              <button
-                onClick={addSlot}
-                className="px-3 py-2 rounded-xl bg-neutral-950 border border-neutral-800 text-neutral-300 hover:text-white hover:border-neutral-700 transition-colors inline-flex items-center gap-2"
-              >
-                <Plus className="w-4 h-4" /> Add
-              </button>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-              {editingSlots.length === 0 ? (
-                <div className="text-neutral-500 text-sm col-span-full">No slots set for this date.</div>
-              ) : (
-                editingSlots.map((time) => {
-                  const slot = selected?.slots.find((s) => s.time === time);
-                  const booked = Boolean(slot?.isBooked);
-                  const held = slot ? isHeld(slot) : false;
-                  return (
-                    <button
-                      key={time}
-                      onClick={() => !booked && toggleSlot(time)}
-                      className={[
-                        'px-3 py-2 rounded-xl border text-sm font-medium flex items-center justify-between gap-2 transition-colors',
-                        booked ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300 cursor-not-allowed' : 'bg-neutral-950 border-neutral-800 text-neutral-300 hover:bg-neutral-950/70',
-                      ].join(' ')}
-                      title={booked ? 'Booked' : 'Toggle'}
-                    >
-                      <span>{time}</span>
-                      <span className="text-[10px] text-neutral-500 uppercase">
-                        {booked ? 'booked' : held ? 'held' : ''}
-                      </span>
-                    </button>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+      {tab === 'calendar' && (
+        <CalendarTab
+          therapistId={therapistId}
+          refreshKey={calendarRefreshKey}
+        />
+      )}
     </div>
   );
 }

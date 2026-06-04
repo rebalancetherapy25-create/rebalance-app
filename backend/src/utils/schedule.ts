@@ -1,3 +1,13 @@
+export const formatSlotTime = (time: string): string => {
+    const parts = time.split(':');
+    const h = Number(parts[0] ?? '');
+    const m = Number(parts[1] ?? '');
+    if (Number.isNaN(h) || Number.isNaN(m)) return time;
+    const period = h < 12 ? 'AM' : 'PM';
+    const hour = h % 12 === 0 ? 12 : h % 12;
+    return `${hour}:${String(m).padStart(2, '0')} ${period}`;
+};
+
 const DAY_NAME_TO_INDEX: Record<string, number> = {
     sunday: 0,
     monday: 1,

@@ -38,6 +38,7 @@ const seedAdmin = async () => {
             email: adminEmail,
             password: hashedPassword,
             role: 'admin',
+            isVerified: true,
         });
 
         console.log(`Super Admin created successfully!`);

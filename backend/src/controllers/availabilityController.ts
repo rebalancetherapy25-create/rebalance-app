@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import { Availability } from '../models';
-import { normalizeDate, normalizeTime } from '../utils/schedule';
+import { Availability, Therapist } from '../models';
+import { extractWeeklyTemplate, normalizeDate, normalizeTime } from '../utils/schedule';
 import { releaseExpiredSlotHolds } from '../services/bookingMaintenanceService';
 import { sendData, sendError } from '../lib/http';
 
@@ -26,20 +26,29 @@ export const getTherapistAvailability = async (req: Request, res: Response) => {
             date: normalizedDate,
         });
 
+        const now = new Date();
+
         if (!availability) {
-            // No record means no slots have been booked or held yet for this date.
-            // Return empty so frontend can fallback to its template.
+            // No date-level record — fall back to the therapist's weekly template
+            // so the frontend always sees consistent data with the admin calendar.
+            const therapist = await Therapist.findById(therapistId).lean();
+            if (!therapist) {
+                res.setHeader('X-Availability-Record', '0');
+                return sendData(res, []);
+            }
+            const template = extractWeeklyTemplate(therapist);
+            const dayOfWeek = new Date(`${normalizedDate}T00:00:00.000Z`).getUTCDay();
+            const templateSlots = (template.find(t => t.dayOfWeek === dayOfWeek)?.slots ?? [])
+                .map(time => ({ time, isBooked: false }));
             res.setHeader('X-Availability-Record', '0');
-            return sendData(res, []);
+            return sendData(res, templateSlots);
         }
 
         res.setHeader('X-Availability-Record', '1');
-        const now = new Date();
 
-        // Filter out booked and currently locked slots (5 mins expiry)
+        // Filter out booked and currently held slots
         const availableSlots = availability.slots.filter((slot) => {
             if (slot.isBooked) return false;
-            // A slot is "locked" if reservedUntil exists AND is in the future
             if (slot.reservedUntil && new Date(slot.reservedUntil) > now) return false;
             return true;
         });

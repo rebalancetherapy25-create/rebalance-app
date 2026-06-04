@@ -5,7 +5,7 @@ import Razorpay from 'razorpay';
 import { sendEmail } from '../services/emailService';
 import { releaseExpiredSlotHolds, runBookingMaintenance } from '../services/bookingMaintenanceService';
 import { AuthRequest } from '../middlewares/authMiddleware';
-import { getTemplateSlotsForDate, normalizeDate, normalizeTime } from '../utils/schedule';
+import { formatSlotTime, getTemplateSlotsForDate, normalizeDate, normalizeTime } from '../utils/schedule';
 import { bookingConfirmedEmail } from '../emails/templates/bookingConfirmed';
 import { sendData, sendError } from '../lib/http';
 import { assertRazorpayConfig, confirmBookingPaymentByOrderId, verifyRazorpayPaymentSignature } from '../services/paymentService';
@@ -92,7 +92,7 @@ export const createBooking = async (req: AuthRequest, res: Response) => {
     try {
         await runBookingMaintenance();
 
-        const { therapistId, date, time, sessionType, name, email } = req.body;
+        const { therapistId, date, time, sessionType, name, email, couponCode } = req.body;
         if (!therapistId || !date || !time || !sessionType) {
             return sendError(res, 400, 'therapistId, date, time, and sessionType are required', { code: 'BOOKING_MISSING_FIELDS' });
         }
@@ -141,7 +141,23 @@ export const createBooking = async (req: AuthRequest, res: Response) => {
             return sendError(res, 409, 'Slot is no longer available', { code: 'BOOKING_SLOT_UNAVAILABLE' });
         }
 
-        const amount = Math.round(Number(therapist.price || 0));
+        let originalAmount = Math.round(Number(therapist.price || 0));
+        let amount = originalAmount;
+        let discountAmount = 0;
+        let appliedCouponCode = undefined;
+
+        if (couponCode) {
+            const coupon = await mongoose.model('Coupon').findOne({ code: String(couponCode).toUpperCase() });
+            if (coupon && coupon.isActive && (!coupon.expiresAt || new Date() < coupon.expiresAt) && (!coupon.maxUsage || coupon.currentUsage < coupon.maxUsage)) {
+                discountAmount = Math.round(originalAmount * (coupon.discountPercentage / 100));
+                amount = Math.max(0, originalAmount - discountAmount);
+                appliedCouponCode = coupon.code;
+            } else {
+                await releaseHold(therapistId, normalizedDate, normalizedTime, bookingId);
+                return sendError(res, 400, 'Invalid or expired coupon code', { code: 'COUPON_INVALID' });
+            }
+        }
+
         const bookingPayload: any = {
             _id: bookingId,
             therapistId,
@@ -150,6 +166,11 @@ export const createBooking = async (req: AuthRequest, res: Response) => {
             sessionType: normalizedSessionType,
             amount,
             status: 'pending',
+            ...(appliedCouponCode ? {
+                couponCode: appliedCouponCode,
+                discountAmount,
+                originalAmount
+            } : {})
         };
         if (userId) {
             bookingPayload.userId = userId;
@@ -158,6 +179,32 @@ export const createBooking = async (req: AuthRequest, res: Response) => {
         }
 
         const booking = await Booking.create(bookingPayload);
+
+        if (amount === 0) {
+            // Free booking (e.g. 100% discount coupon)
+            booking.status = 'confirmed';
+            await booking.save();
+
+            // Permanently book the slot
+            await Availability.updateOne(
+                { therapistId, date: normalizedDate, 'slots.time': normalizedTime },
+                {
+                    $set: { 'slots.$.isBooked': true },
+                    $unset: { 'slots.$.reservedUntil': 1, 'slots.$.reservedBookingId': 1 },
+                }
+            );
+
+            if (appliedCouponCode) {
+                await mongoose.model('Coupon').updateOne({ code: appliedCouponCode }, { $inc: { currentUsage: 1 } });
+            }
+
+            return sendData(res, {
+                orderId: `FREE_BOOKING_${booking._id}`,
+                amount: 0,
+                currency: 'INR',
+                bookingId: booking._id,
+            });
+        }
 
         try {
             const order = await getRazorpay().orders.create({
@@ -244,7 +291,7 @@ export const verifyPayment = async (req: AuthRequest, res: Response) => {
                 recipientName,
                 therapistName: therapistFromRef?.name || 'your therapist',
                 date: confirmedBooking.date,
-                time: confirmedBooking.time,
+                time: formatSlotTime(confirmedBooking.time),
                 ...(confirmedBooking.meetingLink ? { meetingLink: confirmedBooking.meetingLink } : {}),
             });
             await sendEmail({ to: recipientEmail, subject: tpl.subject, html: tpl.html });

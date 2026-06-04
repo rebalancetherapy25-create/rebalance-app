@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
-import { User, Therapist, Booking } from '../models';
-import { extractWeeklyTemplate, normalizeDate, normalizeTime } from '../utils/schedule';
+import { User, Therapist, Booking, Availability } from '../models';
+import { extractWeeklyTemplate, formatSlotTime, normalizeDate, normalizeTime } from '../utils/schedule';
 import { runBookingMaintenance } from '../services/bookingMaintenanceService';
 import { createTherapistAccountAndInvite } from '../services/therapistInviteService';
 import { sendEmail } from '../services/emailService';
@@ -11,11 +11,26 @@ import { sendData, sendError } from '../lib/http';
 import {
     ACTIVE_BOOKING_STATUSES,
     type BookingStatus,
-    rescheduleBooking,
+    releaseSlot,
     STATUS_TRANSITIONS,
     syncAvailabilityForStatus,
     VALID_BOOKING_STATUSES,
 } from '../services/bookingStateService';
+
+// Admin override: upsert a booked slot directly without requiring the therapist's weekly template.
+const adminMarkSlotBooked = async (therapistId: string, date: string, time: string) => {
+    const updated = await Availability.updateOne(
+        { therapistId, date, 'slots.time': time },
+        { $set: { 'slots.$.isBooked': true }, $unset: { 'slots.$.reservedUntil': 1, 'slots.$.reservedBookingId': 1 } }
+    );
+    if (updated.matchedCount === 0) {
+        await Availability.findOneAndUpdate(
+            { therapistId, date },
+            { $push: { slots: { time, isBooked: true } } },
+            { upsert: true }
+        );
+    }
+};
 const VALID_SESSION_TYPES = new Set(['video', 'phone', 'chat', 'audio']);
 
 const normalizeSessionType = (value: string): 'video' | 'phone' | 'chat' | 'audio' | null => {
@@ -338,13 +353,7 @@ export const createBooking = async (req: Request, res: Response) => {
         });
 
         if (normalizedStatus === 'confirmed' || normalizedStatus === 'completed') {
-            const syncResult = await syncAvailabilityForStatus(booking, normalizedStatus, 'pending');
-            if (!syncResult.ok) {
-                await booking.deleteOne();
-                return sendError(res, 409, syncResult.error || 'Failed to sync availability', {
-                    code: 'BOOKING_AVAILABILITY_SYNC_FAILED',
-                });
-            }
+            await adminMarkSlotBooked(String(therapistId), normalizedDate, normalizedTime);
         }
 
         return sendData(res, booking, 201);
@@ -444,7 +453,7 @@ export const updateBookingStatus = async (req: Request, res: Response) => {
             });
         }
 
-        // Reschedule (admin)
+        // Reschedule (admin) — bypasses availability template check
         if (req.body?.reschedule?.date || req.body?.reschedule?.time) {
             const nextDate = normalizeDate(String(req.body.reschedule.date));
             const nextTime = normalizeTime(String(req.body.reschedule.time));
@@ -452,13 +461,24 @@ export const updateBookingStatus = async (req: Request, res: Response) => {
                 return sendError(res, 400, 'Invalid reschedule date/time', { code: 'BOOKING_RESCHEDULE_INVALID' });
             }
             const therapistId = String((booking.therapistId as any)?._id || booking.therapistId);
-            const result = await rescheduleBooking(String(booking._id), therapistId, nextDate, nextTime);
-            if (!result.ok) {
-                return sendError(res, result.status, result.error, { code: 'BOOKING_RESCHEDULE_FAILED' });
+            const conflict = await Booking.findOne({
+                _id: { $ne: booking._id },
+                therapistId,
+                date: nextDate,
+                time: nextTime,
+                status: { $in: ACTIVE_BOOKING_STATUSES },
+            }).select('_id');
+            if (conflict) {
+                return sendError(res, 409, 'Another active booking already exists for this slot', { code: 'BOOKING_RESCHEDULE_CONFLICT' });
             }
-            didReschedule = true;
+            await adminMarkSlotBooked(therapistId, nextDate, nextTime);
+            if (booking.status === 'confirmed' || booking.status === 'pending') {
+                await releaseSlot(therapistId, booking.date, booking.time);
+            }
             booking.date = nextDate;
             booking.time = nextTime;
+            await booking.save();
+            didReschedule = true;
         }
 
         // Meeting link update
@@ -522,9 +542,9 @@ export const updateBookingStatus = async (req: Request, res: Response) => {
                     recipientName,
                     therapistName,
                     previousDate,
-                    previousTime,
+                    previousTime: formatSlotTime(previousTime),
                     nextDate: booking.date,
-                    nextTime: booking.time,
+                    nextTime: formatSlotTime(booking.time),
                     ...(booking.meetingLink ? { meetingLink: booking.meetingLink } : {}),
                 });
                 await sendEmail({ to: recipientEmail, subject: tpl.subject, html: tpl.html });
@@ -533,7 +553,7 @@ export const updateBookingStatus = async (req: Request, res: Response) => {
                     recipientName,
                     therapistName,
                     date: booking.date,
-                    time: booking.time,
+                    time: formatSlotTime(booking.time),
                 });
                 await sendEmail({ to: recipientEmail, subject: tpl.subject, html: tpl.html });
             }

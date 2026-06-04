@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import api from '@/lib/api';
+import { formatSlotTime } from '@/lib/date';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -138,8 +139,8 @@ export default function BookingDetailPage() {
                 {client.name} {client.email && <span className="text-xs text-muted-foreground">({client.email})</span>}
               </div>
               <div className="text-xs text-muted-foreground mt-1 flex items-center gap-3">
-                <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> {booking.date}</span>
-                <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {booking.time} ({booking.sessionType})</span>
+                <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> {new Date(`${booking.date}T00:00:00`).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {formatSlotTime(booking.time)} · {booking.sessionType}</span>
               </div>
               <div className="text-xs text-muted-foreground mt-1">Status: <span className="font-semibold text-foreground">{booking.status}</span></div>
             </div>
@@ -181,11 +182,11 @@ export default function BookingDetailPage() {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <label className="text-sm font-semibold">New date</label>
-              <Input value={rescheduleDate} onChange={(e) => setRescheduleDate(e.target.value)} className="h-11 rounded-xl bg-white" placeholder="YYYY-MM-DD" />
+              <Input type="date" value={rescheduleDate} onChange={(e) => setRescheduleDate(e.target.value)} className="h-11 rounded-xl bg-white" />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-semibold">New time</label>
-              <Input value={rescheduleTime} onChange={(e) => setRescheduleTime(e.target.value)} className="h-11 rounded-xl bg-white" placeholder="HH:mm" />
+              <Input type="time" value={rescheduleTime} onChange={(e) => setRescheduleTime(e.target.value)} className="h-11 rounded-xl bg-white" />
             </div>
             <div className="flex items-center gap-2">
               <Button

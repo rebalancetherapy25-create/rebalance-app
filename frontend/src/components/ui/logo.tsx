@@ -20,7 +20,7 @@ export function Logo({ className = '', width = 180, height = 48, showText = true
                 className="h-11 w-11 object-contain origin-center sm:h-16 sm:w-16 sm:scale-125 xl:scale-150"
                 priority
             />
-            {showText && <span className={`text-lg sm:text-3xl font-heading font-black tracking-tight ${textColorClass}`}>Rebalance Therapy</span>}
+            {showText && <span className={`text-lg sm:text-3xl font-semibold font-sans tracking-tight ${textColorClass}`}>Rebalance Therapy</span>}
         </Link>
     );
 }

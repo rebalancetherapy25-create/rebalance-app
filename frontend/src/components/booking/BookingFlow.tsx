@@ -1,37 +1,43 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Video, Phone, MessageCircle, Lock, Globe, Clock } from 'lucide-react';
+import {
+    Video, Phone, MessageCircle, Lock, Globe, Clock,
+    Loader2, CheckCircle2, Tag, ChevronDown, ShieldCheck, Calendar, User, Mail,
+    Sunrise, Sun, Sunset
+} from 'lucide-react';
 import { getApiBaseUrl, unwrapApiData } from '@/lib/runtime';
 import { CSRF_HEADER_NAME, ensureCsrfToken } from '@/lib/auth';
 import { buildDateOptions, type DateOption, type LegacyAvailability } from '@/lib/booking';
+import { formatSlotTime } from '@/lib/date';
 import { emailPattern } from '@/lib/form-validation';
 
-const STEPS = ['Format', 'Date & Time', 'Details', 'Payment', 'Confirmed'];
+const STEPS = ['Date & Time', 'Details', 'Payment', 'Confirmed'];
 const API_BASE = getApiBaseUrl();
 
-interface OrderData {
-    orderId: string;
-    amount: number;
-    currency: string;
-    bookingId: string;
-}
+const FORMAT_META: Record<string, { icon: React.ReactNode; label: string; desc: string }> = {
+    Video: { icon: <Video className="w-4 h-4" />, label: 'Video Call', desc: 'Face-to-face via video' },
+    Phone: { icon: <Phone className="w-4 h-4" />, label: 'Phone Call', desc: 'Voice-only consultation' },
+    Chat:  { icon: <MessageCircle className="w-4 h-4" />, label: 'Chat', desc: 'Text-based session' },
+};
 
-interface RazorpayResponse {
-    razorpay_order_id: string;
-    razorpay_payment_id: string;
-    razorpay_signature: string;
-}
+const groupSlotsByPeriod = (slots: string[]) => {
+    const morning: string[] = [], afternoon: string[] = [], evening: string[] = [];
+    slots.forEach((s) => {
+        const h = parseInt(s.split(':')[0], 10);
+        if (h < 12) morning.push(s);
+        else if (h < 17) afternoon.push(s);
+        else evening.push(s);
+    });
+    return { morning, afternoon, evening };
+};
 
-interface BookingErrors {
-    name?: string;
-    email?: string;
-    general?: string;
-    payment?: string;
-}
+interface OrderData { orderId: string; amount: number; currency: string; bookingId: string; }
+interface RazorpayResponse { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string; }
+interface BookingErrors { name?: string; email?: string; general?: string; payment?: string; }
 
 interface BookingFlowProps {
     therapistId: string;
@@ -44,26 +50,13 @@ interface BookingFlowProps {
 }
 
 export default function BookingFlow({
-    therapistId,
-    therapistName,
-    specialty,
-    price,
-    sessionTypes,
-    availability,
-    onComplete
+    therapistId, therapistName, specialty, price, sessionTypes, availability, onComplete
 }: BookingFlowProps) {
     const [currentStep, setCurrentStep] = useState(0);
-
-    // Dynamic State
     const [sessionType, setSessionType] = useState('');
     const [date, setDate] = useState('');
     const [time, setTime] = useState('');
-    const [bookingDetails, setBookingDetails] = useState({
-        name: '',
-        email: '',
-        reason: ''
-    });
-
+    const [bookingDetails, setBookingDetails] = useState({ name: '', email: '', reason: '' });
     const [processing, setProcessing] = useState(false);
     const [liveSlots, setLiveSlots] = useState<string[]>([]);
     const [fetchingSlots, setFetchingSlots] = useState(false);
@@ -71,83 +64,50 @@ export default function BookingFlow({
     const [timeLeft, setTimeLeft] = useState<number | null>(null);
     const [dateOptions, setDateOptions] = useState<DateOption[]>([]);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [errors, setErrors] = useState<BookingErrors>({});
+    const [showCoupon, setShowCoupon] = useState(false);
 
-    // Fetch Live Slots when date changes
-    useEffect(() => {
-        const fetchLiveSlots = async () => {
-            if (!therapistId || !date) return;
-            setFetchingSlots(true);
-            try {
-                const res = await fetch(`${API_BASE}/availability/${therapistId}?date=${date}`);
-                if (res.ok) {
-                    const hasRecord = res.headers.get('X-Availability-Record') === '1';
-                    const data = unwrapApiData(await res.json()) as { time: string }[];
-                    if (data && data.length > 0) {
-                        setLiveSlots(data.map((s: { time: string }) => s.time).sort());
-                    } else {
-                        if (hasRecord) {
-                            setLiveSlots([]);
-                        } else {
-                            // Fallback to template if no live record yet.
-                            const templateSlots = dateOptions.find((option) => option.date === date)?.slots || [];
-                            setLiveSlots(templateSlots);
-                        }
-                    }
-                }
-            } catch (err) {
-                console.error("Failed to fetch live slots", err);
-                // Fallback on error
-                const templateSlots = dateOptions.find((option) => option.date === date)?.slots || [];
-                setLiveSlots(templateSlots);
-            } finally {
-                setFetchingSlots(false);
+    const slotCache = useRef<Map<string, string[]>>(new Map());
+    const authFetched = useRef(false);
+
+    const [couponCode, setCouponCode] = useState('');
+    const [couponStatus, setCouponStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+    const [appliedDiscountData, setAppliedDiscountData] = useState<{ discountPercentage: number; code: string } | null>(null);
+    const [applyingCoupon, setApplyingCoupon] = useState(false);
+
+    const handleApplyCoupon = useCallback(async () => {
+        if (!couponCode.trim()) return;
+        setApplyingCoupon(true);
+        setCouponStatus(null);
+        try {
+            const csrfToken = await ensureCsrfToken(API_BASE);
+            const res = await fetch(`${API_BASE}/coupons/validate`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json', ...(csrfToken ? { [CSRF_HEADER_NAME]: csrfToken } : {}) },
+                body: JSON.stringify({ code: couponCode }),
+            });
+            const data = await res.json();
+            if (res.ok) {
+                setAppliedDiscountData({ discountPercentage: data.data.discountPercentage, code: data.data.code });
+                setCouponStatus({ type: 'success', message: `${data.data.discountPercentage}% discount applied!` });
+            } else {
+                setAppliedDiscountData(null);
+                setCouponStatus({ type: 'error', message: data.error || 'Invalid coupon code' });
             }
-        };
-
-        fetchLiveSlots();
-    }, [date, therapistId, dateOptions]);
-
-    useEffect(() => {
-        const detectAuthenticatedUser = async () => {
-            try {
-                const response = await fetch(`${API_BASE}/auth/me`, {
-                    credentials: 'include',
-                });
-                if (!response.ok) {
-                    setIsAuthenticated(false);
-                    return;
-                }
-
-                const me = unwrapApiData(await response.json());
-                setIsAuthenticated(true);
-                setBookingDetails((prev) => ({
-                    ...prev,
-                    name: prev.name || me?.name || '',
-                    email: prev.email || me?.email || '',
-                }));
-            } catch {
-                setIsAuthenticated(false);
-            }
-        };
-
-        detectAuthenticatedUser();
-    }, []);
+        } catch {
+            setAppliedDiscountData(null);
+            setCouponStatus({ type: 'error', message: 'Failed to apply coupon' });
+        } finally {
+            setApplyingCoupon(false);
+        }
+    }, [couponCode]);
 
     useEffect(() => {
         const options = buildDateOptions(availability || []);
         setDateOptions(options);
-
-        if (sessionTypes && sessionTypes.length > 0) {
-            setSessionType(sessionTypes[0]);
-        } else {
-            setSessionType('Video');
-        }
-
-        if (options.length > 0) {
-            setDate(options[0].date);
-            // Time is now handled by the liveSlots effect
-        }
-
+        setSessionType(sessionTypes?.[0] ?? 'Video');
+        if (options.length > 0) setDate(options[0].date);
         const script = document.createElement('script');
         script.src = 'https://checkout.razorpay.com/v1/checkout.js';
         script.async = true;
@@ -159,517 +119,685 @@ export default function BookingFlow({
     }, [sessionTypes, availability]);
 
     useEffect(() => {
+        if (!therapistId || !dateOptions.length) return;
+        const prefetchAll = async () => {
+            await Promise.all(
+                dateOptions.filter((opt) => !slotCache.current.has(opt.date)).map(async (opt) => {
+                    try {
+                        const res = await fetch(`${API_BASE}/availability/${therapistId}?date=${opt.date}`);
+                        if (!res.ok) return;
+                        const hasRecord = res.headers.get('X-Availability-Record') === '1';
+                        const data = unwrapApiData(await res.json()) as { time: string }[];
+                        slotCache.current.set(opt.date, data?.length > 0 ? data.map((s) => s.time).sort() : hasRecord ? [] : opt.slots);
+                    } catch { slotCache.current.set(opt.date, opt.slots); }
+                })
+            );
+            if (dateOptions[0]) setLiveSlots(slotCache.current.get(dateOptions[0].date) ?? dateOptions[0].slots);
+        };
+        prefetchAll();
+    }, [therapistId, dateOptions]);
+
+    useEffect(() => {
+        if (!therapistId || !date) return;
+        if (slotCache.current.has(date)) { setLiveSlots(slotCache.current.get(date)!); return; }
+        const controller = new AbortController();
+        setFetchingSlots(true);
+        const fetchSlots = async () => {
+            try {
+                const res = await fetch(`${API_BASE}/availability/${therapistId}?date=${date}`, { signal: controller.signal });
+                if (res.ok) {
+                    const hasRecord = res.headers.get('X-Availability-Record') === '1';
+                    const data = unwrapApiData(await res.json()) as { time: string }[];
+                    const slots = data?.length > 0 ? data.map((s) => s.time).sort() : hasRecord ? [] : dateOptions.find((o) => o.date === date)?.slots ?? [];
+                    slotCache.current.set(date, slots);
+                    setLiveSlots(slots);
+                }
+            } catch (err) {
+                if ((err as Error).name !== 'AbortError') setLiveSlots(dateOptions.find((o) => o.date === date)?.slots ?? []);
+            } finally { if (!controller.signal.aborted) setFetchingSlots(false); }
+        };
+        fetchSlots();
+        return () => controller.abort();
+    }, [date, therapistId, dateOptions]);
+
+    useEffect(() => {
+        if (currentStep !== 1 || authFetched.current) return;
+        authFetched.current = true;
+        const detectAuth = async () => {
+            try {
+                const response = await fetch(`${API_BASE}/auth/me`, { credentials: 'include' });
+                if (!response.ok) return;
+                const me = unwrapApiData(await response.json());
+                setIsAuthenticated(true);
+                setBookingDetails((prev) => ({ ...prev, name: prev.name || me?.name || '', email: prev.email || me?.email || '' }));
+            } catch { /* guest path */ }
+        };
+        detectAuth();
+    }, [currentStep]);
+
+    useEffect(() => {
         let timer: NodeJS.Timeout;
-        if (currentStep === 3 && timeLeft !== null && timeLeft > 0) {
-            timer = setTimeout(() => setTimeLeft((prev) => (prev ? prev - 1 : 0)), 1000);
-        }
+        if (currentStep === 2 && timeLeft !== null && timeLeft > 0)
+            timer = setTimeout(() => setTimeLeft((p) => (p ? p - 1 : 0)), 1000);
         return () => clearTimeout(timer);
     }, [currentStep, timeLeft]);
 
-    const [errors, setErrors] = useState<BookingErrors>({});
-
-    const validateForm = () => {
-        if (isAuthenticated) {
-            setErrors((prev) => ({ ...prev, name: undefined, email: undefined }));
-            return true;
-        }
-
-        const newErrors: BookingErrors = {};
-        if (!bookingDetails.name.trim()) {
-            newErrors.name = 'Full name is required';
-        } else if (bookingDetails.name.trim().length < 2) {
-            newErrors.name = 'Name must be at least 2 characters';
-        }
-
-        if (!bookingDetails.email.trim()) {
-            newErrors.email = 'Email address is required';
-        } else if (!emailPattern.test(bookingDetails.email)) {
-            newErrors.email = 'Please enter a valid email address';
-        }
-
-        setErrors(newErrors);
-        return Object.keys(newErrors).length === 0;
+    const validateDetails = () => {
+        if (isAuthenticated) { setErrors((p) => ({ ...p, name: undefined, email: undefined })); return true; }
+        const e: BookingErrors = {};
+        if (!bookingDetails.name.trim()) e.name = 'Full name is required';
+        else if (bookingDetails.name.trim().length < 2) e.name = 'Name must be at least 2 characters';
+        if (!bookingDetails.email.trim()) e.email = 'Email is required';
+        else if (!emailPattern.test(bookingDetails.email)) e.email = 'Please enter a valid email';
+        setErrors(e);
+        return !Object.keys(e).length;
     };
 
     const handleNextStep = async () => {
-        // Step 0 -> 1: Session Format
         if (currentStep === 0) {
-            if (!sessionType) {
-                setErrors({ ...errors, general: 'Please select a session format' });
-                return;
-            }
-            setCurrentStep(1);
-            return;
+            if (!date || !time) { setErrors({ ...errors, general: 'Please select a date and time' }); return; }
+            setErrors({}); setCurrentStep(1); return;
         }
-
-        // Step 1 -> 2: Date & Time
         if (currentStep === 1) {
-            if (!date || !time) {
-                setErrors({ ...errors, general: 'Please select both date and time' });
-                return;
-            }
-            setCurrentStep(2);
-            return;
-        }
-
-        // Step 2 -> 3 transition: Lock slot and Create Order
-        if (currentStep === 2) {
-            if (!validateForm()) return;
-
+            if (!validateDetails()) return;
             setProcessing(true);
             try {
                 const csrfToken = await ensureCsrfToken(API_BASE);
                 const createRes = await fetch(`${API_BASE}/bookings/create`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        ...(csrfToken ? { [CSRF_HEADER_NAME]: csrfToken } : {}),
-                    },
+                    headers: { 'Content-Type': 'application/json', ...(csrfToken ? { [CSRF_HEADER_NAME]: csrfToken } : {}) },
                     credentials: 'include',
                     body: JSON.stringify({
-                        therapistId,
-                        date,
-                        time,
-                        sessionType,
-                        ...(isAuthenticated ? {} : {
-                            name: bookingDetails.name,
-                            email: bookingDetails.email
-                        })
-                    })
+                        therapistId, date, time, sessionType,
+                        ...(appliedDiscountData ? { couponCode: appliedDiscountData.code } : {}),
+                        ...(isAuthenticated ? {} : { name: bookingDetails.name, email: bookingDetails.email }),
+                    }),
                 });
-
                 if (!createRes.ok) {
                     const errData = await createRes.json();
-                    let errorMsg = errData.error || "Something didn't go through - let's try again.";
-                    if (errData.fields) {
-                        const firstFieldMsg = Object.values(errData.fields)[0];
-                        if (firstFieldMsg) {
-                            errorMsg = `${errorMsg}: ${firstFieldMsg}`;
-                        }
-                    }
-                    setErrors({ ...errors, general: errorMsg });
-                    setProcessing(false);
-                    return;
+                    let msg = errData.error || "Something didn't go through — let's try again.";
+                    if (errData.fields) { const f = Object.values(errData.fields)[0]; if (f) msg = `${msg}: ${f}`; }
+                    setErrors({ ...errors, general: msg }); return;
                 }
-                const data = unwrapApiData(await createRes.json());
-                setOrderData(data as OrderData);
-                setTimeLeft(300); // 5 minutes
-                setProcessing(false);
-                // SUCCESS: Proceed to next step
-                setCurrentStep(3);
-                return;
-            } catch (err) {
-                console.error(err);
-                setErrors({ ...errors, general: 'We hit a snag' });
-                setProcessing(false);
-                return;
-            }
-        }
-
-        // Step 3 -> Pay
-        if (currentStep === 3) {
-            if (!orderData) return;
-
-            const options = {
-                key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_mocked_key',
-                amount: orderData.amount,
-                currency: orderData.currency,
-                name: "Rebalance Therapy",
-                description: `${sessionType} Session with ${therapistName}`,
-                order_id: orderData.orderId,
-                handler: async function (response: RazorpayResponse) {
-                    try {
-                        const csrfToken = await ensureCsrfToken(API_BASE);
-                        const verifyRes = await fetch(`${API_BASE}/bookings/verify`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                ...(csrfToken ? { [CSRF_HEADER_NAME]: csrfToken } : {}),
-                            },
-                            credentials: 'include',
-                            body: JSON.stringify({
-                                razorpay_order_id: response.razorpay_order_id,
-                                razorpay_payment_id: response.razorpay_payment_id,
-                                razorpay_signature: response.razorpay_signature,
-                                bookingId: orderData.bookingId
-                            })
-                        });
-
-                        if (verifyRes.ok) {
-                            setCurrentStep(4);
-                        } else {
-                            const errData = await verifyRes.json().catch(() => ({}));
-                            setErrors((prev) => ({ ...prev, payment: errData?.error || 'Payment verification failed. Please contact support.' }));
-                        }
-                    } catch (err) {
-                        console.error('Verification error', err);
-                        setErrors((prev) => ({ ...prev, payment: 'Payment verification failed. Please contact support.' }));
-                    }
-                },
-                prefill: {
-                    name: bookingDetails.name,
-                    email: bookingDetails.email,
-                },
-                theme: {
-                    color: "#059669"
-                }
-            };
-
-            const RazorpayConstructor = (window as unknown as { Razorpay?: new (opts: object) => { open: () => void } }).Razorpay;
-            if (!RazorpayConstructor) {
-                setErrors((prev) => ({ ...prev, general: 'Payment service failed to initialize' }));
-                return;
-            }
-            const rzp = new RazorpayConstructor(options);
-            rzp.open();
+                setOrderData(unwrapApiData(await createRes.json()) as OrderData);
+                setTimeLeft(300); setCurrentStep(2);
+            } catch { setErrors({ ...errors, general: 'We hit a snag — please try again.' }); }
+            finally { setProcessing(false); }
             return;
         }
-
-        setCurrentStep(prev => Math.min(prev + 1, STEPS.length - 1));
+        if (currentStep === 2) {
+            if (!orderData) return;
+            const opts = {
+                key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_mocked_key',
+                amount: orderData.amount, currency: orderData.currency,
+                name: 'Rebalance Therapy', description: `${sessionType} Session with ${therapistName}`,
+                order_id: orderData.orderId,
+                handler: async (response: RazorpayResponse) => {
+                    try {
+                        const csrfToken = await ensureCsrfToken(API_BASE);
+                        const vRes = await fetch(`${API_BASE}/bookings/verify`, {
+                            method: 'POST', credentials: 'include',
+                            headers: { 'Content-Type': 'application/json', ...(csrfToken ? { [CSRF_HEADER_NAME]: csrfToken } : {}) },
+                            body: JSON.stringify({ razorpay_order_id: response.razorpay_order_id, razorpay_payment_id: response.razorpay_payment_id, razorpay_signature: response.razorpay_signature, bookingId: orderData.bookingId }),
+                        });
+                        if (vRes.ok) setCurrentStep(3);
+                        else { const e = await vRes.json().catch(() => ({})); setErrors((p) => ({ ...p, payment: e?.error || 'Payment verification failed.' })); }
+                    } catch { setErrors((p) => ({ ...p, payment: 'Payment verification failed. Contact support.' })); }
+                },
+                prefill: { name: bookingDetails.name, email: bookingDetails.email },
+                theme: { color: '#059669' },
+            };
+            const RC = (window as unknown as { Razorpay?: new (o: object) => { open: () => void } }).Razorpay;
+            if (!RC) { setErrors((p) => ({ ...p, general: 'Payment service unavailable' })); return; }
+            new RC(opts).open(); return;
+        }
+        setCurrentStep((p) => Math.min(p + 1, STEPS.length - 1));
     };
 
-    const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 0));
-
+    const prevStep = () => setCurrentStep((p) => Math.max(p - 1, 0));
     const payableAmount = orderData ? orderData.amount / 100 : price;
+    const timerPct = timeLeft !== null ? (timeLeft / 300) * 100 : 100;
+    const today = new Date().toISOString().split('T')[0];
+    const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+
+    const SlotGroup = ({ label, icon, slots }: { label: string; icon: React.ReactNode; slots: string[] }) => {
+        if (!slots.length) return null;
+        return (
+            <div className="space-y-1.5">
+                <p className="flex items-center gap-1.5 text-[9px] lg:text-[10px] font-black uppercase tracking-widest text-muted-foreground/70">
+                    {icon}{label}
+                </p>
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-4">
+                    {slots.map((slot) => {
+                        const isSelected = time === slot;
+                        return (
+                            <button
+                                key={slot}
+                                type="button"
+                                onClick={() => { setTime(slot); setErrors({}); setTimeout(() => setCurrentStep(1), 180); }}
+                                className={`relative flex items-center justify-center h-11 rounded-xl border-2 font-bold transition-all duration-200 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30 ${
+                                    isSelected
+                                        ? 'border-primary bg-primary text-background shadow-md shadow-primary/20 scale-[1.04]'
+                                        : 'border-border/40 bg-background text-foreground hover:border-primary hover:bg-primary/5 hover:text-primary active:scale-95'
+                                }`}
+                            >
+                                {isSelected && <CheckCircle2 className="absolute left-2 w-3 h-3 opacity-80" />}
+                                {formatSlotTime(slot)}
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+        );
+    };
 
     return (
         <div className="relative z-10 flex h-full w-full min-w-0 flex-col overflow-hidden bg-background lg:border lg:border-border/10 lg:bg-background/80 lg:backdrop-blur-2xl lg:min-h-[550px] lg:flex-row lg:rounded-[1.5rem] lg:shadow-[0_32px_80px_rgba(0,0,0,0.1)]">
 
-            {/* Left Sidebar - Mobile Horizontal / Desktop Vertical */}
-            <div className="relative flex w-full min-w-0 shrink-0 flex-col overflow-hidden bg-primary p-3 pb-2 text-background lg:w-[240px] lg:p-8">
-                <div className="absolute top-[-50px] right-[-50px] w-48 h-48 bg-background/5 rounded-full blur-3xl hidden lg:block"></div>
+            {/* ── Sidebar ── */}
+            <div className="relative flex w-full min-w-0 shrink-0 flex-col overflow-hidden bg-primary p-3 pb-2 text-background lg:w-[230px] lg:p-7">
+                <div className="absolute -top-12 -right-12 w-44 h-44 bg-background/5 rounded-full blur-3xl hidden lg:block" />
+                <div className="absolute bottom-0 left-0 w-full h-1/3 bg-gradient-to-t from-black/10 to-transparent hidden lg:block" />
 
-                <div className="relative z-10 mb-2 pr-10 lg:mb-8 lg:pr-0">
-                    <div className="hidden lg:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-background/10 text-background/90 text-xs font-bold uppercase tracking-widest mb-3">
-                        <Lock className="w-2.5 h-2.5" /> Secure
+                <div className="relative z-10 mb-2 pr-10 lg:mb-6 lg:pr-0">
+                    <div className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-background/15 text-background/90 text-[10px] font-bold uppercase tracking-widest mb-4">
+                        <Lock className="w-3 h-3" /> Secure Booking
                     </div>
-                    <h2 className="max-w-[100%] truncate text-base font-heading font-bold tracking-tight lg:text-xl">{therapistName}</h2>
-                    <p className="max-w-[95%] truncate text-[10px] font-medium italic text-background/80 lg:text-xs">{specialty}</p>
+                    <h2 className="truncate text-base font-heading font-bold tracking-tight lg:text-lg">{therapistName}</h2>
+                    <p className="truncate text-[10px] font-medium italic text-background/70 lg:text-xs mt-0.5">{specialty}</p>
                 </div>
 
-                {/* Steps Stepper */}
-                <div className="relative z-10 flex w-full gap-2 lg:gap-5 overflow-x-auto pb-2 pt-1 touch-pan-x [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:flex-1 lg:flex-col lg:overflow-visible lg:pb-0">
-                    {STEPS.map((step, index) => {
-                        const isActive = index === currentStep;
-                        const isPast = index < currentStep;
+                {/* Steps */}
+                <div className="relative z-10 flex w-full gap-2 overflow-x-auto pb-1 pt-1 lg:flex-1 lg:flex-col lg:gap-4 lg:overflow-visible lg:pb-0 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden touch-pan-x">
+                    {STEPS.map((step, i) => {
+                        const isActive = i === currentStep;
+                        const isPast = i < currentStep;
                         return (
-                            <div key={step} className={`flex shrink-0 items-center gap-1.5 lg:gap-3 transition-opacity duration-500 ${isActive ? 'opacity-100' : 'opacity-60'}`}>
-                                <div className={`flex h-5 w-5 lg:h-7 lg:w-7 items-center justify-center rounded-lg lg:rounded-xl border-2 text-[9px] lg:text-xs font-black transition-all duration-300 ${isActive || isPast ? 'scale-110 border-border bg-background text-primary shadow-sm' : 'border-background/20 bg-transparent text-background'
-                                    }`}>
-                                    {isPast ? '✓' : index + 1}
+                            <div key={step} className={`flex shrink-0 items-center gap-2 lg:gap-3 transition-all duration-300 ${isActive ? 'opacity-100' : 'opacity-50'}`}>
+                                <div className={`flex h-6 w-6 lg:h-7 lg:w-7 shrink-0 items-center justify-center rounded-lg border-2 text-[9px] lg:text-[10px] font-black transition-all duration-300 ${
+                                    isPast ? 'border-background bg-background text-primary scale-105 shadow-sm'
+                                    : isActive ? 'border-background bg-background/20 text-background scale-110 shadow-sm'
+                                    : 'border-background/25 bg-transparent text-background/70'
+                                }`}>
+                                    {isPast ? '✓' : i + 1}
                                 </div>
-                                <div className="flex flex-col">
-                                    <span className={`whitespace-nowrap text-[9px] lg:text-xs font-bold uppercase tracking-[0.1em] lg:tracking-wide ${isActive ? 'text-background' : 'text-background/80'}`}>{step}</span>
-                                </div>
+                                <span className={`whitespace-nowrap text-[9px] lg:text-xs font-bold uppercase tracking-wider ${isActive ? 'text-background' : 'text-background/70'}`}>{step}</span>
                             </div>
-                        )
+                        );
                     })}
+                </div>
+
+                <div className="relative z-10 hidden lg:flex mt-auto flex-col gap-1 pt-5 border-t border-background/15">
+                    <span className="text-[9px] font-bold uppercase tracking-widest text-background/50">Session Fee</span>
+                    <div className="flex items-baseline gap-1">
+                        <span className="text-2xl font-heading font-black text-background">₹{price}</span>
+                        <span className="text-[10px] text-background/50 font-medium">/ session</span>
+                    </div>
                 </div>
             </div>
 
-            {/* Right Content Area */}
-            <div className="relative flex flex-1 flex-col bg-background/60 min-h-0">
-                {/* Header */}
-                <div className="flex h-12 shrink-0 items-center justify-between border-b border-border/10 px-4 sm:px-6 lg:h-16 lg:px-8">
-                    <div className="flex items-center gap-2">
-                        <span className="rounded-sm bg-accent/10 px-1.5 py-0.5 text-[9px] lg:text-[11px] font-black uppercase tracking-tighter text-accent">Step {currentStep + 1}</span>
-                        <div className="font-heading text-sm font-black italic tracking-tight text-foreground lg:text-lg">
-                            {currentStep === 4 ? 'Success' : STEPS[currentStep]}
-                        </div>
-                    </div>
-                </div>
+            {/* ── Right Content ── */}
+            <div className="relative flex flex-1 flex-col bg-background min-h-0">
 
-                {/* Content Scrollable Area */}
-                <div className="flex-1 overflow-y-auto px-4 pb-20 pt-4 sm:px-6 lg:max-h-[400px] lg:px-8 lg:pb-8 lg:pt-6">
-                    {/* Step 0: Format */}
+                {/* Header */}
+                <div className="flex h-13 shrink-0 items-center justify-between border-b border-border/10 px-4 sm:px-6 lg:h-15 lg:px-8 py-3">
+                    <div className="flex items-center gap-2.5">
+                        <span className="rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-tight text-primary">
+                            {currentStep + 1}/{STEPS.length}
+                        </span>
+                        <h3 className="font-heading text-sm font-black tracking-tight text-foreground lg:text-base">
+                            {currentStep === 3 ? '🎉 Booking Confirmed' : STEPS[currentStep]}
+                        </h3>
+                    </div>
                     {currentStep === 0 && (
-                        <div className="space-y-3 lg:space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
-                            <h3 className="text-sm lg:text-lg font-heading font-black text-foreground">Select Format</h3>
-                            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
-                                {(sessionTypes || ['Video', 'Phone']).map((format) => (
-                                    <div
-                                        key={format}
-                                        onClick={() => setSessionType(format)}
-                                        className={`group p-3 lg:p-4 rounded-xl lg:rounded-2xl border-[1.5px] lg:border-2 cursor-pointer transition-all ${sessionType === format ? 'border-primary bg-primary/5' : 'border-border/30 bg-background/50 hover:border-primary/20'}`}
-                                    >
-                                        <div className="flex items-center gap-3 lg:gap-4">
-                                            <div className={`w-8 h-8 lg:w-10 lg:h-10 rounded-[10px] lg:rounded-xl flex items-center justify-center transition-all ${sessionType === format ? 'bg-primary text-background' : 'bg-accent/10 text-primary'}`}>
-                                                {format === 'Video' ? <Video className="w-3.5 h-3.5 lg:w-4 lg:h-4" /> : format === 'Phone' ? <Phone className="w-3.5 h-3.5 lg:w-4 lg:h-4" /> : <MessageCircle className="w-3.5 h-3.5 lg:w-4 lg:h-4" />}
-                                            </div>
-                                            <div>
-                                                <h4 className="font-bold text-xs lg:text-sm text-foreground">{format} Session</h4>
-                                                <p className="text-[10px] lg:text-xs text-muted-foreground font-medium">Private consultation</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
+                        <div className="flex items-center gap-1.5 rounded-full bg-muted/60 px-2.5 py-1">
+                            <Globe className="w-3 h-3 text-muted-foreground" />
+                            <span className="text-[9px] font-bold text-muted-foreground">IST (GMT+5:30)</span>
                         </div>
                     )}
+                    {currentStep === 2 && timeLeft !== null && (
+                        <div className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 ${timeLeft < 60 ? 'bg-destructive/10' : 'bg-primary/10'}`}>
+                            <Clock className={`w-3 h-3 ${timeLeft < 60 ? 'text-destructive' : 'text-primary'}`} />
+                            <span className={`text-[10px] font-black tabular-nums ${timeLeft < 60 ? 'text-destructive' : 'text-primary'}`}>
+                                {String(Math.floor(timeLeft / 60)).padStart(2, '0')}:{String(timeLeft % 60).padStart(2, '0')}
+                            </span>
+                        </div>
+                    )}
+                </div>
 
-                    {/* Step 1: Date & Time */}
-                    {currentStep === 1 && (
-                        <div className="space-y-5 lg:space-y-7 animate-in fade-in slide-in-from-right-4 duration-500">
-                            {/* Timezone Indicator */}
-                            <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 px-3 py-1.5 border border-primary/10 transition-colors hover:bg-primary/10">
-                                <Globe className="w-3.5 h-3.5 text-primary animate-pulse" />
-                                <span className="text-[10px] lg:text-xs font-bold uppercase tracking-widest text-primary/80">Timezone: IST (GMT+5:30)</span>
-                            </div>
+                {/* Timer progress bar on payment step */}
+                {currentStep === 2 && timeLeft !== null && (
+                    <div className="h-0.5 w-full bg-border/20 shrink-0">
+                        <div
+                            className={`h-full transition-all duration-1000 ${timeLeft < 60 ? 'bg-destructive' : 'bg-primary'}`}
+                            style={{ width: `${timerPct}%` }}
+                        />
+                    </div>
+                )}
 
-                            {/* Date Selector */}
-                            <div className="space-y-3">
-                                <div className="flex items-center justify-between">
-                                    <h4 className="font-heading font-black text-sm lg:text-base text-foreground tracking-tight">Pick a Date</h4>
-                                    <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider bg-background/50 px-2 py-0.5 rounded-md border border-border/20">14 Days</span>
-                                </div>
-                                <div className="flex w-full gap-2.5 overflow-x-auto pb-4 pt-2">
-                                    {dateOptions.map((option) => {
-                                        const isSelected = date === option.date;
+                {/* Scrollable content */}
+                <div className="flex-1 overflow-y-auto px-4 pb-24 pt-5 sm:px-6 lg:px-8 lg:pb-10 lg:pt-6">
+
+                    {/* ── Step 0: Date & Time ── */}
+                    {currentStep === 0 && (
+                        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-400">
+
+                            {/* Format selector */}
+                            <div className="space-y-2">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Session Format</p>
+                                <div className="flex gap-2 flex-wrap">
+                                    {(sessionTypes?.length ? sessionTypes : ['Video', 'Phone']).map((fmt) => {
+                                        const meta = FORMAT_META[fmt];
+                                        const isSelected = sessionType === fmt;
                                         return (
                                             <button
-                                                key={option.date}
+                                                key={fmt}
                                                 type="button"
-                                                onClick={() => {
-                                                    setDate(option.date);
-                                                    setTime('');
-                                                }}
-                                                className={`group relative flex flex-col items-center justify-center p-3 rounded-[1.25rem] border-2 transition-all duration-300 min-w-[76px] lg:min-w-[88px] shrink-0 focus:outline-none focus:ring-4 focus:ring-primary/20
-                                                    ${isSelected 
-                                                        ? 'border-primary bg-primary text-background shadow-lg shadow-primary/20 scale-[1.02]' 
-                                                        : 'border-border/30 bg-background/60 hover:border-primary/40 hover:bg-background text-foreground hover:-translate-y-0.5 shadow-sm'
-                                                    }`}
+                                                onClick={() => setSessionType(fmt)}
+                                                className={`flex items-center gap-2 pl-3 pr-4 py-2 rounded-xl border-2 text-xs font-bold transition-all duration-200 ${
+                                                    isSelected
+                                                        ? 'border-primary bg-primary/10 text-primary shadow-sm'
+                                                        : 'border-border/40 bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground'
+                                                }`}
                                             >
-                                                {isSelected && (
-                                                    <div className="absolute inset-0 rounded-[1.1rem] ring-1 ring-inset ring-white/20"></div>
-                                                )}
-                                                <span className={`text-[10px] lg:text-[11px] font-black uppercase tracking-widest mb-1 ${isSelected ? 'text-primary-foreground/90' : 'text-muted-foreground group-hover:text-primary/70'} transition-colors`}>
-                                                    {option.label.split(' ')[0]}
+                                                <span className={`${isSelected ? 'text-primary' : 'text-muted-foreground'}`}>
+                                                    {meta?.icon ?? <MessageCircle className="w-4 h-4" />}
                                                 </span>
-                                                <span className={`text-base lg:text-lg font-heading font-black italic tracking-tighter ${isSelected ? 'text-background' : 'text-foreground'}`}>
-                                                    {option.label.split(' ')[1]}
-                                                </span>
-                                                <span className="absolute bottom-1 w-1 h-1 rounded-full bg-primary/40 opacity-0 group-hover:opacity-100 transition-opacity"></span>
+                                                <span>{meta?.label ?? fmt}</span>
+                                                {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-primary ml-0.5" />}
                                             </button>
                                         );
                                     })}
                                 </div>
                             </div>
 
-                            {/* Time Selector */}
-                            <div className="space-y-3 relative">
+                            {/* Date strip */}
+                            <div className="space-y-2">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Select Date</p>
+                                <div className="flex gap-2 overflow-x-auto pb-2 pt-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                                    {dateOptions.map((opt) => {
+                                        const isSelected = date === opt.date;
+                                        const isToday = opt.date === today;
+                                        const isTomorrow = opt.date === tomorrow;
+                                        const label = isToday ? 'Today' : isTomorrow ? 'Tomorrow' : opt.label.split(' ')[0];
+                                        const day = isToday || isTomorrow ? opt.label.split(' ')[1] : opt.label.split(' ')[1];
+                                        const hasSlots = (slotCache.current.get(opt.date) ?? opt.slots).length > 0;
+                                        return (
+                                            <button
+                                                key={opt.date}
+                                                type="button"
+                                                onClick={() => { setDate(opt.date); setTime(''); }}
+                                                className={`group relative flex flex-col items-center justify-center gap-0.5 py-3 rounded-2xl border-2 transition-all duration-200 min-w-[72px] lg:min-w-[80px] shrink-0 focus:outline-none ${
+                                                    isSelected
+                                                        ? 'border-primary bg-primary text-background shadow-lg shadow-primary/25'
+                                                        : 'border-border/30 bg-background text-foreground hover:border-primary/50 hover:-translate-y-0.5 shadow-sm'
+                                                }`}
+                                            >
+                                                <span className={`text-[9px] font-black uppercase tracking-widest ${isSelected ? 'text-background/80' : isToday ? 'text-primary font-black' : 'text-muted-foreground'}`}>
+                                                    {label}
+                                                </span>
+                                                <span className={`text-lg font-heading font-black leading-none ${isSelected ? 'text-background' : 'text-foreground'}`}>
+                                                    {day}
+                                                </span>
+                                                {/* Slot availability dot */}
+                                                <div className={`w-1.5 h-1.5 rounded-full mt-0.5 ${isSelected ? 'bg-background/50' : hasSlots ? 'bg-emerald-400' : 'bg-muted-foreground/30'}`} />
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* Time slots grouped */}
+                            <div className="space-y-4">
                                 <div className="flex items-center justify-between">
-                                    <h4 className="font-heading font-black text-sm lg:text-base text-foreground tracking-tight">Available Times</h4>
-                                    {fetchingSlots && liveSlots.length > 0 && (
-                                        <div className="flex items-center gap-2 text-[10px] font-bold text-primary uppercase tracking-widest">
-                                            <div className="w-3 h-3 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-                                            <span>Loading...</span>
-                                        </div>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                                        Available Times
+                                        {!fetchingSlots && liveSlots.length > 0 && (
+                                            <span className="ml-1.5 text-[9px] font-medium normal-case text-muted-foreground/60 italic">tap to continue</span>
+                                        )}
+                                    </p>
+                                    {fetchingSlots && (
+                                        <span className="flex items-center gap-1 text-[10px] text-primary font-bold">
+                                            <Loader2 className="w-3 h-3 animate-spin" /> Loading…
+                                        </span>
                                     )}
                                 </div>
 
                                 {fetchingSlots ? (
-                                    <div className="grid grid-cols-3 gap-2 lg:gap-3 sm:grid-cols-4 lg:grid-cols-4">
-                                        {Array.from({ length: 8 }).map((_, index) => (
-                                            <Skeleton key={index} className="h-10 rounded-xl lg:h-11" />
-                                        ))}
+                                    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                                        {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-11 rounded-xl" />)}
                                     </div>
                                 ) : liveSlots.length > 0 ? (
-                                    <div className={`grid grid-cols-3 gap-2 lg:gap-3 transition-opacity duration-300 sm:grid-cols-4 lg:grid-cols-4 ${fetchingSlots ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
-                                        {liveSlots.map((slot: string) => {
-                                            const isSelected = time === slot;
+                                    <div className="space-y-4">
+                                        {(() => {
+                                            const { morning, afternoon, evening } = groupSlotsByPeriod(liveSlots);
                                             return (
-                                                <button
-                                                    key={slot}
-                                                    type="button"
-                                                    onClick={() => setTime(slot)}
-                                                    className={`relative flex items-center justify-center py-2.5 px-1 rounded-xl border-2 font-black transition-all duration-300 text-[11px] lg:text-xs tracking-wide focus:outline-none focus:ring-4 focus:ring-primary/20
-                                                        ${isSelected 
-                                                            ? 'border-primary bg-primary/10 text-primary scale-[1.03] shadow-inner' 
-                                                            : 'border-border/30 bg-background/50 text-foreground hover:border-primary/40 hover:bg-background hover:-translate-y-0.5'
-                                                        }`}
-                                                >
-                                                    {isSelected && <div className="absolute left-2 w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />}
-                                                    {slot}
-                                                </button>
+                                                <>
+                                                    <SlotGroup label="Morning" icon={<Sunrise className="w-3 h-3" />} slots={morning} />
+                                                    <SlotGroup label="Afternoon" icon={<Sun className="w-3 h-3" />} slots={afternoon} />
+                                                    <SlotGroup label="Evening" icon={<Sunset className="w-3 h-3" />} slots={evening} />
+                                                </>
                                             );
-                                        })}
+                                        })()}
                                     </div>
                                 ) : (
-                                    !fetchingSlots && (
-                                        <div className="flex flex-col items-center justify-center py-10 px-4 text-center bg-gradient-to-b from-accent/5 to-transparent rounded-[1.5rem] border border-dashed border-accent/20">
-                                            <div className="w-10 h-10 mb-3 rounded-full bg-accent/10 flex items-center justify-center">
-                                                <Clock className="w-5 h-5 text-accent/60" />
-                                            </div>
-                                            <h5 className="text-sm font-heading font-black text-foreground mb-1">No Times Available</h5>
-                                            <p className="text-[10px] lg:text-xs font-medium text-muted-foreground leading-relaxed max-w-[200px]">
-                                                Dr. {therapistName.split(' ')[1] || therapistName} is fully booked on this day. Please select another date.
-                                            </p>
-                                        </div>
-                                    )
+                                    <div className="flex flex-col items-center py-10 text-center rounded-2xl border border-dashed border-border/40 bg-muted/20">
+                                        <Calendar className="w-8 h-8 text-muted-foreground/40 mb-3" />
+                                        <p className="text-sm font-bold text-foreground">No slots on this day</p>
+                                        <p className="text-xs text-muted-foreground mt-1">Try selecting another date →</p>
+                                    </div>
+                                )}
+
+                                {errors.general && (
+                                    <p className="text-xs font-bold text-destructive">{errors.general}</p>
                                 )}
                             </div>
                         </div>
                     )}
 
-                    {/* Step 2: Details */}
-                    {currentStep === 2 && (
-                        <div className="space-y-4 lg:space-y-5 animate-in fade-in slide-in-from-right-4 duration-500">
+                    {/* ── Step 1: Details ── */}
+                    {currentStep === 1 && (
+                        <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-400">
+
+                            {/* Ticket-style booking summary */}
+                            <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/8 via-primary/5 to-transparent">
+                                <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-l-full" />
+                                <div className="flex items-center gap-3 pl-5 pr-4 py-4">
+                                    <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center shrink-0 text-primary">
+                                        {FORMAT_META[sessionType]?.icon ?? <MessageCircle className="w-4 h-4" />}
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-sm font-bold text-foreground leading-snug">
+                                            {FORMAT_META[sessionType]?.label ?? sessionType} with {therapistName}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground mt-0.5">
+                                            {new Date(date).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })} · {formatSlotTime(time)} IST
+                                        </p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setCurrentStep(0)}
+                                        className="shrink-0 text-[10px] font-bold text-primary bg-primary/10 hover:bg-primary/20 px-2.5 py-1 rounded-full transition-colors"
+                                    >
+                                        Change
+                                    </button>
+                                </div>
+                            </div>
+
                             {errors.general && (
-                                <div className="p-2.5 bg-destructive-light border border-destructive-border rounded-lg lg:rounded-xl text-destructive text-[10px] lg:text-xs font-bold flex items-center gap-2">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-destructive animate-pulse" />
+                                <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-xl text-xs font-bold text-destructive">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-destructive shrink-0" />
                                     {errors.general}
                                 </div>
                             )}
 
-                            <div className="space-y-1">
-                                <h3 className="text-sm lg:text-lg font-heading font-black text-foreground">Your Details</h3>
-                                <p className="text-[10px] lg:text-xs text-muted-foreground font-medium">
-                                    {isAuthenticated
-                                        ? 'Using your account profile details for this booking.'
-                                        : 'We\'ll send the session link to your email.'}
-                                </p>
+                            {/* Form card */}
+                            <div className="rounded-2xl border border-border/25 overflow-hidden shadow-sm">
+                                <div className="flex items-center justify-between px-4 py-3 bg-muted/40 border-b border-border/20">
+                                    <div>
+                                        <h3 className="text-sm font-bold text-foreground">Your Details</h3>
+                                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                                            {isAuthenticated ? 'Pre-filled from your account.' : "We'll send your session link here."}
+                                        </p>
+                                    </div>
+                                    {isAuthenticated && (
+                                        <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                                            <CheckCircle2 className="w-3 h-3" /> Verified
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="bg-background p-4 space-y-3">
+                                    {/* Name */}
+                                    <div className="space-y-1.5">
+                                        <label className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                                            <User className="w-3 h-3" /> Full Name
+                                        </label>
+                                        <Input
+                                            placeholder="Your full name"
+                                            value={bookingDetails.name}
+                                            onChange={e => { setBookingDetails({ ...bookingDetails, name: e.target.value }); if (errors.name) setErrors(p => ({ ...p, name: undefined })); }}
+                                            className={`h-11 rounded-xl text-sm bg-muted/30 border-border/30 focus:bg-background transition-colors ${errors.name ? 'border-destructive bg-destructive/5' : ''}`}
+                                        />
+                                        {errors.name && <p className="text-xs text-destructive font-semibold">{errors.name}</p>}
+                                    </div>
+                                    {/* Email */}
+                                    <div className="space-y-1.5">
+                                        <label className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                                            <Mail className="w-3 h-3" /> Email Address
+                                        </label>
+                                        <Input
+                                            type="email"
+                                            placeholder="you@email.com"
+                                            value={bookingDetails.email}
+                                            onChange={e => { setBookingDetails({ ...bookingDetails, email: e.target.value }); if (errors.email) setErrors(p => ({ ...p, email: undefined })); }}
+                                            className={`h-11 rounded-xl text-sm bg-muted/30 border-border/30 focus:bg-background transition-colors ${errors.email ? 'border-destructive bg-destructive/5' : ''}`}
+                                        />
+                                        {errors.email && <p className="text-xs text-destructive font-semibold">{errors.email}</p>}
+                                    </div>
+                                    {/* Reason */}
+                                    <div className="space-y-1.5">
+                                        <label className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                                            <MessageCircle className="w-3 h-3" />
+                                            Reason <span className="font-medium normal-case tracking-normal ml-1">(optional)</span>
+                                        </label>
+                                        <textarea
+                                            placeholder="What would you like to discuss?"
+                                            value={bookingDetails.reason}
+                                            onChange={e => setBookingDetails({ ...bookingDetails, reason: e.target.value })}
+                                            className="w-full rounded-xl bg-muted/30 border border-border/30 focus:bg-background p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/15 focus:border-primary/40 transition-all min-h-[68px] resize-none"
+                                        />
+                                    </div>
+                                </div>
                             </div>
 
-                            <div className="space-y-3 lg:space-y-4">
-                                <div className="space-y-1 lg:space-y-1.5">
-                                    <label className="text-[9px] lg:text-xs font-black text-muted-foreground uppercase tracking-widest ml-1">Full Name</label>
-                                    <Input
-                                        placeholder="Siddharth Sharma"
-                                        value={bookingDetails.name}
-                                        onChange={e => {
-                                            setBookingDetails({ ...bookingDetails, name: e.target.value });
-                                            if (errors.name) setErrors(prev => ({ ...prev, name: undefined }));
-                                        }}
-                                        className={`h-10 lg:h-12 rounded-lg lg:rounded-xl text-xs lg:text-sm font-bold bg-background/50 ${errors.name ? 'border-destructive focus:ring-destructive/20' : ''}`}
-                                    />
-                                    {errors.name && <p className="text-[10px] lg:text-xs text-destructive font-bold ml-1">{errors.name}</p>}
-                                </div>
-                                <div className="space-y-1 lg:space-y-1.5">
-                                    <label className="text-[9px] lg:text-xs font-black text-muted-foreground uppercase tracking-widest ml-1">Email</label>
-                                    <Input
-                                        type="email"
-                                        placeholder="you@email.com"
-                                        value={bookingDetails.email}
-                                        onChange={e => {
-                                            setBookingDetails({ ...bookingDetails, email: e.target.value });
-                                            if (errors.email) setErrors(prev => ({ ...prev, email: undefined }));
-                                        }}
-                                        className={`h-10 lg:h-12 rounded-lg lg:rounded-xl text-xs lg:text-sm font-bold bg-background/50 ${errors.email ? 'border-destructive focus:ring-destructive/20' : ''}`}
-                                    />
-                                    {errors.email && <p className="text-[10px] lg:text-xs text-destructive font-bold ml-1">{errors.email}</p>}
-                                </div>
-                                <div className="space-y-1 lg:space-y-1.5">
-                                    <label className="text-[9px] lg:text-xs font-black text-muted-foreground uppercase tracking-widest ml-1">Reason (Optional)</label>
-                                    <textarea
-                                        placeholder="..."
-                                        value={bookingDetails.reason}
-                                        onChange={e => setBookingDetails({ ...bookingDetails, reason: e.target.value })}
-                                        className="w-full rounded-lg lg:rounded-xl bg-background/50 border border-border/40 p-2.5 lg:p-3 text-xs lg:text-sm font-bold focus:outline-none focus:ring-1 focus:ring-primary min-h-[50px] lg:min-h-[80px]"
-                                    />
-                                </div>
+                            {/* Coupon accordion */}
+                            <div className={`rounded-2xl border overflow-hidden transition-colors ${appliedDiscountData ? 'border-emerald-300 dark:border-emerald-700' : 'border-border/30'}`}>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowCoupon(!showCoupon)}
+                                    className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-muted/30 transition-colors"
+                                >
+                                    <span className="flex items-center gap-2.5">
+                                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${appliedDiscountData ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600' : 'bg-muted text-muted-foreground'}`}>
+                                            <Tag className="w-3.5 h-3.5" />
+                                        </div>
+                                        {appliedDiscountData ? (
+                                            <span className="text-xs font-bold text-emerald-600">
+                                                {appliedDiscountData.discountPercentage}% off applied!
+                                            </span>
+                                        ) : (
+                                            <span className="text-xs font-semibold text-muted-foreground">Have a promo code?</span>
+                                        )}
+                                    </span>
+                                    <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${showCoupon ? 'rotate-180' : ''}`} />
+                                </button>
+                                {showCoupon && (
+                                    <div className="px-4 pb-4 pt-2 border-t border-border/20 bg-muted/20 space-y-2.5">
+                                        <div className="flex gap-2">
+                                            <Input
+                                                placeholder="PROMO CODE"
+                                                value={couponCode}
+                                                onChange={e => { setCouponCode(e.target.value.toUpperCase()); setCouponStatus(null); }}
+                                                className="h-10 rounded-xl text-xs font-bold uppercase tracking-widest bg-background"
+                                            />
+                                            <Button
+                                                type="button"
+                                                onClick={handleApplyCoupon}
+                                                disabled={applyingCoupon || !couponCode.trim()}
+                                                className="h-10 rounded-xl px-5 text-xs font-bold shrink-0"
+                                            >
+                                                {applyingCoupon ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Apply'}
+                                            </Button>
+                                        </div>
+                                        {couponStatus && (
+                                            <p className={`text-xs font-bold ${couponStatus.type === 'success' ? 'text-emerald-600' : 'text-destructive'}`}>
+                                                {couponStatus.type === 'success' ? '✓ ' : '✕ '}{couponStatus.message}
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}
 
-                    {/* Step 3: Payment */}
-                    {currentStep === 3 && (
-                        <div className="space-y-4 lg:space-y-5 animate-in fade-in slide-in-from-right-4 duration-500">
+                    {/* ── Step 2: Payment ── */}
+                    {currentStep === 2 && (
+                        <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-400">
                             {errors.general && (
-                                <div className="p-2.5 bg-destructive-light border border-destructive-border rounded-lg lg:rounded-xl text-destructive text-[10px] lg:text-xs font-bold flex items-center gap-2">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-destructive animate-pulse" />
-                                    {errors.general}
+                                <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-xl text-xs font-bold text-destructive">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-destructive shrink-0" /> {errors.general}
                                 </div>
                             )}
                             {errors.payment && (
-                                <div className="flex items-center gap-1.5 text-[10px] lg:text-xs font-medium text-destructive bg-destructive-light/50 px-2.5 py-1.5 rounded-lg border border-destructive/20 mt-3">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-destructive animate-pulse" />
-                                    {errors.payment}
+                                <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-xl text-xs font-medium text-destructive">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-destructive shrink-0" /> {errors.payment}
+                                </div>
+                            )}
+                            {timeLeft === 0 && (
+                                <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-xl text-xs font-bold text-destructive">
+                                    <Clock className="w-3.5 h-3.5 shrink-0" /> Slot expired — please go back and select a new time.
                                 </div>
                             )}
 
-                            <div className={`flex items-center gap-2.5 p-3 rounded-lg lg:rounded-xl border text-[10px] lg:text-xs font-bold shadow-sm ${timeLeft === 0 ? 'bg-destructive/10 text-destructive border-destructive/20' : 'bg-primary/5 text-foreground border-primary/20'}`}>
-                                <Clock className={`w-3.5 lg:w-4 h-3.5 lg:h-4 ${timeLeft === 0 ? 'text-destructive' : 'text-primary'}`} />
-                                <span>
-                                    {timeLeft === 0 ? (
-                                        <strong className="text-destructive italic">Slot expired!</strong>
-                                    ) : (
-                                        <>Slot locked for <strong className="text-primary italic animate-pulse">
-                                            {String(Math.floor((timeLeft || 0) / 60)).padStart(2, '0')}:{String((timeLeft || 0) % 60).padStart(2, '0')}
-                                        </strong> mins</>
-                                    )}
-                                </span>
-                            </div>
-
-                            <div className="bg-background p-4 lg:p-6 rounded-xl lg:rounded-2xl border border-border/10 space-y-3 shadow-sm">
-                                <h4 className="font-heading font-black text-[11px] lg:text-sm uppercase italic tracking-tighter border-b pb-2.5 lg:pb-3">Order Summary</h4>
-                                <div className="space-y-2 lg:space-y-3">
-                                    <div className="flex justify-between items-center text-[10px] lg:text-xs">
-                                        <div className="flex flex-col">
-                                            <span className="font-bold text-foreground italic">{sessionType} Session</span>
-                                            <span className="text-[10px] lg:text-xs text-muted-foreground font-medium">{date} • {time}</span>
+                            {/* Order card */}
+                            <div className="rounded-2xl border border-border/20 overflow-hidden shadow-sm">
+                                <div className="bg-muted/30 px-5 py-4 border-b border-border/15">
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">Booking Summary</p>
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                                            {FORMAT_META[sessionType]?.icon ?? <Video className="w-4 h-4" />}
                                         </div>
-                                        <span className="font-black text-primary">₹{payableAmount}</span>
-                                    </div>
-                                    <div className="flex justify-between text-[10px] lg:text-xs font-bold text-muted-foreground border-t border-border/10 pt-2.5 lg:pt-3">
-                                        <span>Subtotal</span>
-                                        <span>₹{payableAmount}</span>
-                                    </div>
-                                    <div className="flex justify-between text-[10px] lg:text-xs font-bold text-muted-foreground">
-                                        <span>Tax/Fees</span>
-                                        <span>Included</span>
-                                    </div>
-                                    <div className="flex justify-between items-center pt-1.5">
-                                        <span className="font-black text-[11px] lg:text-sm italic uppercase">Total</span>
-                                        <span className="text-base lg:text-xl font-heading font-black text-primary italic">₹{payableAmount}</span>
+                                        <div>
+                                            <p className="text-sm font-bold text-foreground">{FORMAT_META[sessionType]?.label ?? sessionType} Session</p>
+                                            <p className="text-xs text-muted-foreground">{new Date(date).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })} · {formatSlotTime(time)}</p>
+                                        </div>
                                     </div>
                                 </div>
+                                <div className="px-5 py-4 space-y-2.5">
+                                    <div className="flex justify-between text-sm text-muted-foreground">
+                                        <span>Session fee</span><span>₹{price}</span>
+                                    </div>
+                                    {appliedDiscountData && (
+                                        <div className="flex justify-between text-sm text-emerald-600 font-bold">
+                                            <span>Discount ({appliedDiscountData.code})</span>
+                                            <span>−₹{price - payableAmount}</span>
+                                        </div>
+                                    )}
+                                    <div className="flex justify-between text-sm text-muted-foreground">
+                                        <span>Taxes & fees</span><span>Included</span>
+                                    </div>
+                                    <div className="flex justify-between items-center pt-2.5 border-t border-border/20">
+                                        <span className="text-base font-black text-foreground">Total</span>
+                                        <span className="text-xl font-heading font-black text-primary">₹{payableAmount}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Trust badge */}
+                            <div className="flex items-center justify-center gap-2 py-2">
+                                <ShieldCheck className="w-4 h-4 text-muted-foreground/50" />
+                                <span className="text-[10px] text-muted-foreground/60 font-medium">Secured by Razorpay · 256-bit SSL encryption</span>
                             </div>
                         </div>
                     )}
 
-                {/* Step 4: Confirmation */}
-                {currentStep === 4 && (
-                    <div className="text-center py-4 space-y-4 lg:space-y-5 animate-in fade-in zoom-in-95 duration-500 flex flex-col items-center">
-                        <div className="w-12 h-12 lg:w-16 lg:h-16 bg-green-500 rounded-full lg:rounded-2xl flex items-center justify-center text-background text-lg lg:text-2xl shadow-lg shadow-green-500/20 rotate-3">✓</div>
-                        <div className="space-y-1.5 lg:space-y-2">
-                            <h2 className="text-lg lg:text-2xl font-heading font-black text-foreground italic uppercase">Confirmed!</h2>
-                            <p className="text-muted-foreground text-[10px] lg:text-xs font-medium leading-relaxed max-w-[200px] mx-auto">
-                                Successfully booked your <span className="text-primary italic font-bold">{sessionType}</span> session.
-                            </p>
-                        </div>
-                        <div className="w-full bg-accent/5 p-3 lg:p-4 rounded-lg lg:rounded-xl border border-accent/10 text-left">
-                            <p className="text-[10px] lg:text-xs text-muted-foreground leading-relaxed font-medium">Check your email for the meeting link and calendar invite.</p>
-                        </div>
-                        {onComplete && (
-                            <Button onClick={onComplete} className="w-full h-10 lg:h-11 rounded-lg lg:rounded-xl bg-primary text-background text-[10px] lg:text-xs font-black italic uppercase tracking-widest shadow-lg shadow-primary/20">Finish</Button>
-                        )}
-                    </div>
-                )}
-            </div>
+                    {/* ── Step 3: Confirmed ── */}
+                    {currentStep === 3 && (
+                        <div className="flex flex-col items-center text-center py-6 space-y-5 animate-in fade-in zoom-in-95 duration-500">
+                            <div className="w-16 h-16 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/30 rotate-3">
+                                <CheckCircle2 className="w-8 h-8 text-white" />
+                            </div>
+                            <div>
+                                <h2 className="text-2xl font-heading font-black text-foreground">You're booked!</h2>
+                                <p className="text-sm text-muted-foreground mt-1">Your session is confirmed.</p>
+                            </div>
 
-                {/* Footer */}
-                {currentStep < 4 && (
-                    <div className="mt-auto sticky bottom-0 flex w-full shrink-0 items-center justify-between border-t border-border/10 bg-background/95 px-4 py-3 backdrop-blur sm:px-6 lg:h-20 lg:bg-background/40 lg:px-8">
+                            {/* Booking details card */}
+                            <div className="w-full rounded-2xl border border-border/20 overflow-hidden text-left shadow-sm">
+                                <div className="bg-primary/5 px-4 py-3 border-b border-border/10">
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-primary/70">Session Details</p>
+                                </div>
+                                <div className="divide-y divide-border/10">
+                                    <div className="flex items-center gap-3 px-4 py-3">
+                                        <User className="w-4 h-4 text-muted-foreground/60 shrink-0" />
+                                        <div>
+                                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Therapist</p>
+                                            <p className="text-sm font-bold text-foreground">{therapistName}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-3 px-4 py-3">
+                                        <Calendar className="w-4 h-4 text-muted-foreground/60 shrink-0" />
+                                        <div>
+                                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Date & Time</p>
+                                            <p className="text-sm font-bold text-foreground">
+                                                {new Date(date).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} · {formatSlotTime(time)}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-3 px-4 py-3">
+                                        {FORMAT_META[sessionType]?.icon
+                                            ? <span className="text-muted-foreground/60 shrink-0 w-4 h-4 flex items-center">{FORMAT_META[sessionType].icon}</span>
+                                            : <Video className="w-4 h-4 text-muted-foreground/60 shrink-0" />}
+                                        <div>
+                                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Format</p>
+                                            <p className="text-sm font-bold text-foreground">{FORMAT_META[sessionType]?.label ?? sessionType}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <p className="text-xs text-muted-foreground leading-relaxed max-w-xs">
+                                A confirmation with the meeting link has been sent to your email.
+                            </p>
+
+                            {onComplete && (
+                                <Button onClick={onComplete} className="w-full h-11 rounded-xl bg-primary text-background text-xs font-black uppercase tracking-wider shadow-lg shadow-primary/20">
+                                    Done
+                                </Button>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                {/* ── Footer ── */}
+                {currentStep < 3 && (
+                    <div className="mt-auto sticky bottom-0 flex w-full shrink-0 items-center justify-between border-t border-border/10 bg-background/98 px-4 py-3 backdrop-blur-sm sm:px-6 lg:px-8 lg:py-4">
                         <Button
                             variant="ghost"
                             onClick={prevStep}
                             disabled={currentStep === 0}
-                            className={`text-xs font-black uppercase tracking-widest text-muted-foreground transition-all hover:text-foreground lg:text-xs ${currentStep === 0 ? 'invisible' : ''}`}
+                            className={`h-10 text-xs font-bold text-muted-foreground hover:text-foreground ${currentStep === 0 ? 'invisible' : ''}`}
                         >
-                            ← Prev
+                            ← Back
                         </Button>
 
                         <div className="flex-1" />
 
-                        <Button
-                            onClick={handleNextStep}
-                            disabled={processing || (currentStep === 1 && (!date || !time)) || (currentStep === 3 && timeLeft === 0)}
-                            loading={processing}
-                            loadingText="Locking slot..."
-                            className="flex items-center justify-center w-auto h-9 lg:h-11 rounded-lg lg:rounded-xl px-5 text-[10px] lg:text-xs font-black uppercase tracking-tight shadow-md transition-all sm:px-8 lg:px-10 shrink-0 bg-primary text-primary-foreground hover:bg-primary/90 disabled:bg-muted-foreground/20 disabled:text-muted-foreground disabled:shadow-none"
-                        >
-                            {currentStep === 3 ? `Pay ₹${payableAmount}` : 'Next'}
-                        </Button>
+                        {currentStep === 0 && time && (
+                            <Button onClick={handleNextStep} disabled={fetchingSlots} className="h-10 lg:h-11 rounded-xl px-6 text-xs font-black uppercase tracking-wide shadow-md">
+                                Continue →
+                            </Button>
+                        )}
+                        {currentStep === 1 && (
+                            <Button
+                                onClick={handleNextStep}
+                                disabled={processing}
+                                loading={processing}
+                                loadingText="Locking slot…"
+                                className="h-10 lg:h-11 rounded-xl px-6 text-xs font-black uppercase tracking-wide shadow-md disabled:opacity-50"
+                            >
+                                Review & Pay
+                            </Button>
+                        )}
+                        {currentStep === 2 && (
+                            <Button
+                                onClick={handleNextStep}
+                                disabled={timeLeft === 0}
+                                className="h-10 lg:h-11 rounded-xl px-6 text-xs font-black uppercase tracking-wide shadow-md disabled:opacity-50"
+                            >
+                                Pay ₹{payableAmount}
+                            </Button>
+                        )}
                     </div>
                 )}
             </div>

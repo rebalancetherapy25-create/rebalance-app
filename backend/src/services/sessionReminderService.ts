@@ -1,6 +1,7 @@
 import { Booking, Therapist, User } from '../models';
 import { sendEmail } from './emailService';
 import { sessionReminderEmail } from '../emails/templates/sessionReminder';
+import { formatSlotTime } from '../utils/schedule';
 
 /**
  * Finds confirmed bookings scheduled in the next 24–25 hour window
@@ -53,7 +54,7 @@ export const sendSessionReminders = async (): Promise<void> => {
             recipientName,
             therapistName: therapist?.name ?? 'your therapist',
             date: booking.date as string,
-            time: booking.time as string,
+            time: formatSlotTime(booking.time as string),
             ...(booking.meetingLink ? { meetingLink: booking.meetingLink as string } : {}),
         });
 

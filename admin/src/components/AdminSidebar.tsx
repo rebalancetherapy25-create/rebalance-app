@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Calendar, CalendarDays, Image as ImageIcon, KeyRound, LayoutDashboard, LogOut, Settings, ShieldCheck, UserCog, Users, X } from 'lucide-react';
+import { Calendar, CalendarDays, Image as ImageIcon, KeyRound, LayoutDashboard, LogOut, Settings, ShieldCheck, Ticket, UserCog, Users, X, Tag } from 'lucide-react';
 
 type AdminUser = {
     name?: string;
@@ -31,6 +31,8 @@ const sections = [
             { name: 'Availability', href: '/availability', icon: CalendarDays },
             { name: 'Bookings', href: '/bookings', icon: Calendar },
             { name: 'Banners', href: '/banners', icon: ImageIcon },
+            { name: 'Offer Banners', href: '/offer-banners', icon: Tag },
+            { name: 'Coupons', href: '/coupons', icon: Ticket },
             { name: 'Settings', href: '/settings', icon: Settings },
         ],
     },

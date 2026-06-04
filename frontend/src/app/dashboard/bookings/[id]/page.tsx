@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar, Clock, Video, ArrowLeft, Phone, MessageCircle } from 'lucide-react';
 import api from '@/lib/api';
+import { formatSlotTime } from '@/lib/date';
 
 interface Booking {
     _id: string;
@@ -158,7 +159,7 @@ export default function BookingDetailsPage() {
                                     </div>
                                     <div className="p-4 bg-accent/5 rounded-xl border border-border/50">
                                         <p className="text-sm text-muted-foreground mb-1 flex items-center gap-2"><Clock className="w-4 h-4" /> Time</p>
-                                        <p className="font-semibold text-foreground">{booking.time}</p>
+                                        <p className="font-semibold text-foreground">{formatSlotTime(booking.time)}</p>
                                     </div>
                                     <div className="p-4 bg-accent/5 rounded-xl border border-border/50 sm:col-span-2">
                                         <p className="text-sm text-muted-foreground mb-1 flex items-center gap-2">
