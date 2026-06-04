@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
-import { Search, ChevronRight, HelpCircle, ArrowLeft, Mail, Phone, HeartHandshake, ShieldAlert, Sparkles } from 'lucide-react';
+import { Search, ChevronRight, ArrowLeft, Mail, Phone, HeartHandshake, ShieldAlert, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface FAQItem {

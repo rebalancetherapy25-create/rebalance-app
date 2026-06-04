@@ -27,7 +27,7 @@ export function BeginJourneySection() {
                         className="flex-1 text-center md:text-left w-full space-y-6"
                     >
                         <h3 className="text-2xl md:text-3xl font-display text-foreground leading-snug">
-                            Not sure what you're feeling or which therapist is the right fit?
+                            Not sure what you&apos;re feeling or which therapist is the right fit?
                         </h3>
                         <p className="text-sm md:text-base text-muted-foreground/90 font-medium leading-relaxed">
                             You don&apos;t have to navigate it alone — our team is here to make the process feel simpler, more comfortable, and less overwhelming.

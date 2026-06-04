@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { ArrowLeft, Bell, Calendar, ShieldCheck, Mail, Phone, Lock, HeartHandshake } from 'lucide-react';
+import { ArrowLeft, Bell, Mail, Phone } from 'lucide-react';
 
 export const metadata: Metadata = {
     title: 'Terms & Conditions | Rebalance',

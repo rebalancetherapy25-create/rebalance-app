@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
 import { 
-    Star, ShieldCheck, ChevronRight, Sparkles, Info, 
+    Star, ChevronRight, Info,
     Zap, Lock, Check
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';

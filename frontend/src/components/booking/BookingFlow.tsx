@@ -708,7 +708,7 @@ export default function BookingFlow({
                                 <CheckCircle2 className="w-8 h-8 text-white" />
                             </div>
                             <div>
-                                <h2 className="text-2xl font-heading font-black text-foreground">You're booked!</h2>
+                                <h2 className="text-2xl font-heading font-black text-foreground">You&apos;re booked!</h2>
                                 <p className="text-sm text-muted-foreground mt-1">Your session is confirmed.</p>
                             </div>
 
