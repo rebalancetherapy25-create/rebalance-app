@@ -44,24 +44,24 @@
   :root {
     --font-sans: "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
     --font-display: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
-    --background: 330 25% 97%;
+    --background: 240 20% 98%; /* #FAFAFB */
     --foreground: 332 22% 15%;
-    --card: 0 0% 100%;
+    --card: 0 0% 100%; /* #FFFFFF */
     --card-foreground: 332 22% 15%;
     --popover: 0 0% 100%;
     --popover-foreground: 332 22% 15%;
     --primary: 334 42% 29%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 330 25% 97%;
+    --secondary: 264 26% 96%; /* #F5F3F8 */
     --secondary-foreground: 334 42% 29%;
-    --muted: 330 25% 94%;
+    --muted: 264 26% 96%;
     --muted-foreground: 339 11% 49%;
     --accent: 341 48% 69%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 330 25% 90%;
-    --input: 330 25% 90%;
+    --border: 312 11% 90%; /* #E9E4E8 */
+    --input: 312 11% 90%;
     --ring: 334 42% 29%;
     --chart-1: 12 76% 61%;
     --chart-2: 173 58% 39%;

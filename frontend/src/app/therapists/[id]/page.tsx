@@ -205,7 +205,7 @@ export default async function TherapistProfilePage({ params }: { params: { id: s
 
     if (!t) {
         return (
-            <div className="min-h-[100dvh] bg-[#FDFBFB] flex items-center justify-center text-xl text-muted-foreground font-display">
+            <div className="min-h-[100dvh] bg-background flex items-center justify-center text-xl text-muted-foreground font-display">
                 Therapist profile could not be found.
             </div>
         );
@@ -231,10 +231,10 @@ export default async function TherapistProfilePage({ params }: { params: { id: s
     const patientStories = getPatientStories(t.name, t.id);
 
     return (
-        <div className="min-h-screen bg-[#FDFBFB] font-sans pb-32 sm:pb-36 relative overflow-x-hidden">
+        <div className="min-h-screen bg-background font-sans pb-32 sm:pb-36 relative overflow-x-hidden">
             
             {/* Premium Soft Background Mesh Glow */}
-            <div className="absolute top-0 inset-x-0 h-[640px] bg-gradient-to-b from-[#FAF2F5]/90 via-[#FAF8F8]/50 to-transparent pointer-events-none -z-10" />
+            <div className="absolute top-0 inset-x-0 h-[640px] bg-gradient-to-b from-secondary/90 via-background/50 to-transparent pointer-events-none -z-10" />
 
             {/* Breadcrumb Navigation - Pushed down to clear the fixed global navbar */}
             <div className="mx-auto max-w-7xl px-6 sm:px-8 pt-24 sm:pt-28">
@@ -353,7 +353,7 @@ export default async function TherapistProfilePage({ params }: { params: { id: s
                                 </div>
                             </div>
                             
-                            <div className="rounded-2xl bg-[#FAF2F5] px-4 py-3.5 flex items-start gap-3 border border-accent/15">
+                            <div className="rounded-2xl bg-secondary px-4 py-3.5 flex items-start gap-3 border border-accent/15">
                                 <Info className="h-4.5 w-4.5 text-accent shrink-0 mt-0.5" />
                                 <p className="text-[11px] font-bold text-foreground/80 leading-relaxed">
                                     Your first 15-minute introductory call is completely free. No card details required.
@@ -422,7 +422,7 @@ export default async function TherapistProfilePage({ params }: { params: { id: s
                                 </div>
 
                                 {/* Free introductory alert */}
-                                <div className="rounded-2xl bg-[#FAF2F5] p-4 flex items-start gap-3 border border-accent/15">
+                                <div className="rounded-2xl bg-secondary p-4 flex items-start gap-3 border border-accent/15">
                                     <Info className="h-4.5 w-4.5 text-accent shrink-0 mt-0.5" />
                                     <p className="text-xs font-bold text-foreground/80 leading-relaxed">
                                         Your introductory session is complimentary. Discuss your goals risk-free.

@@ -48,8 +48,14 @@ export const updateCoupon = async (req: AuthRequest, res: Response) => {
         if (code) coupon.code = code.toUpperCase();
         if (discountPercentage !== undefined) coupon.discountPercentage = Number(discountPercentage);
         if (isActive !== undefined) coupon.isActive = isActive === 'true' || isActive === true;
-        if (expiresAt !== undefined) coupon.expiresAt = expiresAt ? new Date(expiresAt) : undefined;
-        if (maxUsage !== undefined) coupon.maxUsage = maxUsage ? Number(maxUsage) : undefined;
+        if (expiresAt !== undefined) {
+            if (expiresAt) coupon.expiresAt = new Date(expiresAt);
+            else delete coupon.expiresAt;
+        }
+        if (maxUsage !== undefined) {
+            if (maxUsage) coupon.maxUsage = Number(maxUsage);
+            else delete coupon.maxUsage;
+        }
 
         await coupon.save();
 

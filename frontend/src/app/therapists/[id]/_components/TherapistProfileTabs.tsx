@@ -108,17 +108,17 @@ export default function TherapistProfileTabs({
     return (
         <div className="space-y-8 w-full">
             {/* Sticky tab bar — floats elegantly with a warm blur and thin borders */}
-            <div className="sticky top-[64px] md:top-[80px] z-20 bg-[#FDFBFB]/95 backdrop-blur-md py-3.5 border-b border-primary/5 transition-all duration-300">
-                <div className="flex gap-1.5 p-1 bg-[#FAF6F6] border border-primary/10 rounded-full max-w-full md:max-w-xl shadow-xs overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden flex-nowrap w-full scroll-smooth">
+            <div className="sticky top-[64px] md:top-[80px] z-20 bg-background/95 backdrop-blur-md py-3.5 border-b border-border/40 transition-all duration-300">
+                <div className="flex gap-1.5 p-1.5 bg-secondary border border-border/60 rounded-full max-w-full md:max-w-xl shadow-sm overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden flex-nowrap w-full scroll-smooth">
                     {tabs.map(tab => (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab as Tab)}
                             className={cn(
-                                'shrink-0 sm:flex-1 py-3 px-5 sm:px-4 rounded-full text-xs md:text-sm font-semibold transition-all duration-300 leading-none select-none tracking-wide outline-none text-center',
+                                'shrink-0 sm:flex-1 py-3 px-5 sm:px-4 rounded-full text-sm md:text-base font-bold transition-all duration-300 leading-none select-none tracking-wide outline-none text-center',
                                 activeTab === tab
                                     ? 'bg-primary text-white shadow-md scale-100'
-                                    : 'text-muted-foreground hover:text-foreground hover:bg-primary/[0.04] active:bg-primary/[0.08]'
+                                    : 'text-muted-foreground hover:text-foreground hover:bg-white hover:shadow-sm'
                             )}
                         >
                             {tab}
@@ -338,8 +338,8 @@ export default function TherapistProfileTabs({
                                             {getCredentialIcon(i)}
                                         </div>
                                         <div className="min-w-0 pt-0.5">
-                                            <h4 className="text-xs sm:text-sm font-extrabold text-foreground leading-snug">{title}</h4>
-                                            <p className="text-[10px] sm:text-xs text-muted-foreground font-semibold mt-1 leading-normal">{subtitle}</p>
+                                            <h4 className="text-sm sm:text-base font-extrabold text-foreground leading-snug">{title}</h4>
+                                            <p className="text-xs sm:text-sm text-muted-foreground font-semibold mt-1 leading-normal">{subtitle}</p>
                                             <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-full mt-2.5 uppercase tracking-wide">
                                                 <Check className="w-2.5 h-2.5 stroke-[3]" /> Verified
                                             </span>
@@ -376,7 +376,7 @@ export default function TherapistProfileTabs({
                             {patientStories.map((story, i) => (
                                 <div 
                                     key={i} 
-                                    className="bg-white border border-primary/10 rounded-3xl p-6 shadow-xs hover:shadow-md hover:border-accent/25 duration-300 flex flex-col justify-between gap-6 relative overflow-hidden group w-full"
+                                    className="bg-white border border-border/60 rounded-3xl p-6 shadow-card hover:shadow-lg hover:border-primary/20 duration-300 flex flex-col justify-between gap-6 relative overflow-hidden group w-full"
                                 >
                                     <div className="space-y-4">
                                         <div className="flex justify-between items-center">

@@ -97,7 +97,7 @@ const config: Config = {
 				sans:    ['var(--font-sans)', 'system-ui', 'sans-serif'],
 			},
 			boxShadow: {
-				'card': '0 4px 20px rgba(107, 41, 72, 0.08)',
+				'card': '0 8px 24px rgba(0,0,0,0.06)',
 			}
 		}
 	},
