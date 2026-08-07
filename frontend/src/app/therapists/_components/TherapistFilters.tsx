@@ -132,7 +132,7 @@ export default function TherapistFilters({
         const fetchTherapists = async () => {
             try {
                 setLoading(true);
-                const params: Record<string, any> = {
+                const params: Record<string, string | number> = {
                     page: currentPage,
                     limit: 10,
                     ...(debouncedSearch && { search: debouncedSearch }),

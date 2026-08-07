@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
 import { 
-    Star, ChevronRight, Info,
+    Star, ChevronRight,
     Zap, Lock, Check, Award, User
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -48,7 +48,7 @@ interface TherapistDetail {
     credentials: string[];
     faq: FAQ[];
     availability: Availability[];
-    weeklyAvailability?: any[];
+    weeklyAvailability?: Record<string, unknown>[];
     joinedDate: string;
     reviews: ReviewItem[];
 }
@@ -104,7 +104,7 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
 }
 
 // Rolling 5-day calendar slot utility
-const getNext5Days = (availability: any[] = [], weeklyAvailability: any[] = []) => {
+const getNext5Days = (availability: Availability[] = [], weeklyAvailability: Record<string, unknown>[] = []) => {
     const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const shortDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -123,9 +123,9 @@ const getNext5Days = (availability: any[] = [], weeklyAvailability: any[] = []) 
         const monthName = months[nextDate.getMonth()];
         
         // Match modern numerical weeklyAvailability first, fallback to legacy weekday string
-        let match = weeklyAvailability?.find((a: any) => Number(a?.dayOfWeek) === dayIndex);
+        let match = weeklyAvailability?.find((a) => Number(a?.dayOfWeek) === dayIndex);
         if (!match || !match.slots) {
-            match = availability?.find((a: any) => String(a?.day || '').toLowerCase() === String(dayName || '').toLowerCase());
+            match = availability?.find((a) => String(a?.day || '').toLowerCase() === String(dayName || '').toLowerCase());
         }
         const slots = Array.isArray(match?.slots) ? match.slots : [];
         
@@ -151,7 +151,7 @@ export default async function TherapistProfilePage({ params }: { params: { id: s
         const data = await fetchTherapist(params.id);
         if (data) {
             const rawReviews = Array.isArray(data.reviews) ? data.reviews : [];
-            const mappedReviews: ReviewItem[] = rawReviews.map((r: any) => ({
+            const mappedReviews: ReviewItem[] = rawReviews.map((r: Record<string, unknown>) => ({
                 stars: Number(r.rating) || 5,
                 quote: String(r.comment || '').trim(),
                 author: String(r.reviewerName || 'Verified Patient'),
