@@ -11,16 +11,16 @@ interface LogoProps {
 
 export function Logo({ className = '', width = 220, height = 64, showText = true, textColorClass = 'text-primary' }: LogoProps) {
     return (
-        <Link href="/" className={`flex items-center gap-3 ${className}`}>
+        <Link href="/" className={`flex items-center gap-2 sm:gap-3 ${className}`}>
             <Image
                 src="/images/logo.svg"
                 alt="Rebalance Therapy Logo"
                 width={width}
                 height={height}
-                className="h-14 w-14 object-contain origin-center sm:h-20 sm:w-20 sm:scale-125 xl:scale-150"
+                className="h-10 w-10 object-contain origin-left sm:h-12 sm:w-12 sm:scale-110 xl:scale-125"
                 priority
             />
-            {showText && <span className={`text-2xl sm:text-4xl font-bold font-sans tracking-tight ${textColorClass}`}>Rebalance Therapy</span>}
+            {showText && <span className={`text-lg sm:text-2xl lg:text-3xl font-bold font-sans tracking-tight whitespace-nowrap ${textColorClass}`}>Rebalance Therapy</span>}
         </Link>
     );
 }

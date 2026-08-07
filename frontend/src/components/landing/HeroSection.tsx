@@ -119,34 +119,41 @@ export function HeroSection({ bannerImage }: HeroSectionProps) {
                     </motion.div>
 
                     {/* Stats badge — floats in after image */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 24 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.7, ease: EASE, delay: 0.8 }}
-                        className="absolute bottom-4 lg:bottom-8 left-1/2 -translate-x-1/2 bg-white rounded-2xl p-3 lg:p-4 shadow-xl flex flex-col items-center min-w-[240px] lg:min-w-[280px] w-11/12 lg:w-auto border border-border/50"
-                    >
-                        <div className="flex -space-x-2 mb-1 lg:mb-2">
-                            {[1, 2, 3].map((i) => (
-                                <div key={i} className="w-6 h-6 lg:w-8 lg:h-8 rounded-full border-2 border-white overflow-hidden bg-gray-200">
-                                    <Image
-                                        src="https://images.unsplash.com/photo-1551836022-d5d88e9218df?q=80&w=100&auto=format&fit=crop&crop=faces&sat=-50"
-                                        alt="User"
-                                        width={32}
-                                        height={32}
-                                        className="w-full h-full object-cover"
-                                    />
+                    <div className="absolute bottom-4 lg:bottom-8 left-1/2 -translate-x-1/2 w-11/12 sm:w-auto flex justify-center z-20">
+                        <motion.div
+                            initial={{ opacity: 0, y: 24 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.7, ease: EASE, delay: 0.8 }}
+                            className="bg-white/95 backdrop-blur-sm rounded-2xl p-3 lg:p-4 shadow-xl flex flex-col items-center min-w-[240px] lg:min-w-[280px] w-full border border-border/50"
+                        >
+                            <div className="flex -space-x-2 mb-1 lg:mb-2">
+                                {[1, 2, 3].map((i) => (
+                                    <div key={i} className="w-6 h-6 lg:w-8 lg:h-8 rounded-full border-2 border-white overflow-hidden bg-gray-200">
+                                        <Image
+                                            src="https://images.unsplash.com/photo-1551836022-d5d88e9218df?q=80&w=100&auto=format&fit=crop&crop=faces&sat=-50"
+                                            alt="User"
+                                            width={32}
+                                            height={32}
+                                            className="w-full h-full object-cover"
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="text-center">
+                                <p className="text-sm font-bold text-foreground">
+                                    10,000+ people
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                    have started their healing
+                                </p>
+                                <div className="flex items-center justify-center gap-1 mt-1 lg:mt-2">
+                                    <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                                    <span className="text-xs font-bold text-foreground">4.9/5</span>
+                                    <span className="text-[10px] text-muted-foreground">from 1,200+ reviews</span>
                                 </div>
-                            ))}
-                        </div>
-                        <p className="text-[10px] lg:text-xs font-bold text-foreground">10,000+ people</p>
-                        <p className="text-[9px] lg:text-[10px] text-muted-foreground mb-1">have started their healing journey with us</p>
-                        <div className="flex items-center gap-1">
-                            <Star className="w-3 h-3 lg:w-4 lg:h-4 fill-yellow-500 text-yellow-500" />
-                            <span className="text-[10px] lg:text-xs font-bold">
-                                4.9/5 <span className="font-normal text-muted-foreground">from 1,200+ reviews</span>
-                            </span>
-                        </div>
-                    </motion.div>
+                            </div>
+                        </motion.div>
+                    </div>
                 </motion.div>
 
             </div>
