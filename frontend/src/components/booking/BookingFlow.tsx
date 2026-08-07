@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
     Video, Phone, MessageCircle, Lock, Globe, Clock,
     Loader2, CheckCircle2, Tag, ChevronDown, ShieldCheck, Calendar, User, Mail,
-    Sunrise, Sun, Sunset
+    Sunrise, Sun, Sunset, ChevronLeft, ChevronRight, FileText
 } from 'lucide-react';
 import { getApiBaseUrl, unwrapApiData } from '@/lib/runtime';
 import { CSRF_HEADER_NAME, ensureCsrfToken } from '@/lib/auth';
@@ -56,7 +56,7 @@ export default function BookingFlow({
     const [sessionType, setSessionType] = useState('');
     const [date, setDate] = useState('');
     const [time, setTime] = useState('');
-    const [bookingDetails, setBookingDetails] = useState({ name: '', email: '', reason: '' });
+    const [bookingDetails, setBookingDetails] = useState({ name: '', email: '', reason: '', notes: '' });
     const [processing, setProcessing] = useState(false);
     const [liveSlots, setLiveSlots] = useState<string[]>([]);
     const [fetchingSlots, setFetchingSlots] = useState(false);
@@ -66,8 +66,14 @@ export default function BookingFlow({
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [errors, setErrors] = useState<BookingErrors>({});
     const [showCoupon, setShowCoupon] = useState(false);
+    const [knownSlotsMap, setKnownSlotsMap] = useState<Record<string, string[]>>({});
+    const dateScrollRef = useRef<HTMLDivElement>(null);
+    const scrollDates = (direction: 'left' | 'right') => {
+        if (dateScrollRef.current) {
+            dateScrollRef.current.scrollBy({ left: direction === 'left' ? -240 : 240, behavior: 'smooth' });
+        }
+    };
 
-    const slotCache = useRef<Map<string, string[]>>(new Map());
     const authFetched = useRef(false);
 
     const [couponCode, setCouponCode] = useState('');
@@ -107,7 +113,8 @@ export default function BookingFlow({
         const options = buildDateOptions(availability || []);
         setDateOptions(options);
         setSessionType(sessionTypes?.[0] ?? 'Video');
-        if (options.length > 0) setDate(options[0].date);
+        const firstAvailable = options.find((o) => o.slots.length > 0) || options[0];
+        if (firstAvailable) setDate(firstAvailable.date);
         const script = document.createElement('script');
         script.src = 'https://checkout.razorpay.com/v1/checkout.js';
         script.async = true;
@@ -120,44 +127,62 @@ export default function BookingFlow({
 
     useEffect(() => {
         if (!therapistId || !dateOptions.length) return;
+        let active = true;
         const prefetchAll = async () => {
+            const resultMap: Record<string, string[]> = {};
             await Promise.all(
-                dateOptions.filter((opt) => !slotCache.current.has(opt.date)).map(async (opt) => {
+                dateOptions.map(async (opt) => {
                     try {
-                        const res = await fetch(`${API_BASE}/availability/${therapistId}?date=${opt.date}`);
-                        if (!res.ok) return;
+                        const res = await fetch(`${API_BASE}/availability/${therapistId}?date=${opt.date}&_t=${Date.now()}`, { cache: 'no-store' });
+                        if (!res.ok) { resultMap[opt.date] = opt.slots; return; }
                         const hasRecord = res.headers.get('X-Availability-Record') === '1';
                         const data = unwrapApiData(await res.json()) as { time: string }[];
-                        slotCache.current.set(opt.date, data?.length > 0 ? data.map((s) => s.time).sort() : hasRecord ? [] : opt.slots);
-                    } catch { slotCache.current.set(opt.date, opt.slots); }
+                        resultMap[opt.date] = data?.length > 0 ? data.map((s) => s.time).sort() : hasRecord ? [] : opt.slots;
+                    } catch { resultMap[opt.date] = opt.slots; }
                 })
             );
-            if (dateOptions[0]) setLiveSlots(slotCache.current.get(dateOptions[0].date) ?? dateOptions[0].slots);
+            if (!active) return;
+            setKnownSlotsMap(resultMap);
+            const firstAvailable = dateOptions.find((o) => (resultMap[o.date] ?? o.slots).length > 0) ?? dateOptions[0];
+            if (firstAvailable && (!liveSlots.length || !date || (resultMap[date] ?? []).length === 0)) {
+                setDate(firstAvailable.date);
+                setLiveSlots(resultMap[firstAvailable.date] ?? firstAvailable.slots);
+            } else if (dateOptions[0] && !liveSlots.length) {
+                setLiveSlots(resultMap[dateOptions[0].date] ?? dateOptions[0].slots);
+            }
         };
         prefetchAll();
+        return () => { active = false; };
     }, [therapistId, dateOptions]);
 
     useEffect(() => {
         if (!therapistId || !date) return;
-        if (slotCache.current.has(date)) { setLiveSlots(slotCache.current.get(date)!); return; }
+        let active = true;
         const controller = new AbortController();
-        setFetchingSlots(true);
-        const fetchSlots = async () => {
+        const fetchSlots = async (isPoll = false) => {
+            if (!isPoll) setFetchingSlots(true);
             try {
-                const res = await fetch(`${API_BASE}/availability/${therapistId}?date=${date}`, { signal: controller.signal });
-                if (res.ok) {
+                const res = await fetch(`${API_BASE}/availability/${therapistId}?date=${date}&_t=${Date.now()}`, {
+                    signal: controller.signal,
+                    cache: 'no-store',
+                    headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' },
+                });
+                if (res.ok && active) {
                     const hasRecord = res.headers.get('X-Availability-Record') === '1';
                     const data = unwrapApiData(await res.json()) as { time: string }[];
                     const slots = data?.length > 0 ? data.map((s) => s.time).sort() : hasRecord ? [] : dateOptions.find((o) => o.date === date)?.slots ?? [];
-                    slotCache.current.set(date, slots);
+                    setKnownSlotsMap((prev) => ({ ...prev, [date]: slots }));
                     setLiveSlots(slots);
                 }
             } catch (err) {
-                if ((err as Error).name !== 'AbortError') setLiveSlots(dateOptions.find((o) => o.date === date)?.slots ?? []);
-            } finally { if (!controller.signal.aborted) setFetchingSlots(false); }
+                if ((err as Error).name !== 'AbortError' && active) {
+                    setLiveSlots(knownSlotsMap[date] ?? dateOptions.find((o) => o.date === date)?.slots ?? []);
+                }
+            } finally { if (!controller.signal.aborted && active) setFetchingSlots(false); }
         };
-        fetchSlots();
-        return () => controller.abort();
+        fetchSlots(false);
+        const pollInterval = setInterval(() => { fetchSlots(true); }, 15000);
+        return () => { active = false; controller.abort(); clearInterval(pollInterval); };
     }, [date, therapistId, dateOptions]);
 
     useEffect(() => {
@@ -209,6 +234,8 @@ export default function BookingFlow({
                     credentials: 'include',
                     body: JSON.stringify({
                         therapistId, date, time, sessionType,
+                        bookingReason: bookingDetails.reason,
+                        notes: bookingDetails.notes,
                         ...(appliedDiscountData ? { couponCode: appliedDiscountData.code } : {}),
                         ...(isAuthenticated ? {} : { name: bookingDetails.name, email: bookingDetails.email }),
                     }),
@@ -292,7 +319,7 @@ export default function BookingFlow({
     };
 
     return (
-        <div className="relative z-10 flex h-full w-full min-w-0 flex-col overflow-hidden bg-background lg:border lg:border-border/10 lg:bg-background/80 lg:backdrop-blur-2xl lg:min-h-[550px] lg:flex-row lg:rounded-[1.5rem] lg:shadow-[0_32px_80px_rgba(0,0,0,0.1)]">
+        <div className="relative z-10 flex flex-1 h-full w-full min-w-0 flex-col overflow-hidden bg-background lg:border lg:border-border/10 lg:bg-background/80 lg:backdrop-blur-2xl lg:min-h-[550px] lg:flex-row lg:rounded-[1.5rem] lg:shadow-[0_32px_80px_rgba(0,0,0,0.1)]">
 
             {/* ── Sidebar ── */}
             <div className="relative flex w-full min-w-0 shrink-0 flex-col overflow-hidden bg-primary p-3 pb-2 text-background lg:w-[230px] lg:p-7">
@@ -337,7 +364,7 @@ export default function BookingFlow({
             </div>
 
             {/* ── Right Content ── */}
-            <div className="relative flex flex-1 flex-col bg-background min-h-0">
+            <div className="relative flex flex-1 flex-col bg-background min-h-0 overflow-hidden">
 
                 {/* Header */}
                 <div className="flex h-13 shrink-0 items-center justify-between border-b border-border/10 px-4 sm:px-6 lg:h-15 lg:px-8 py-3">
@@ -411,39 +438,84 @@ export default function BookingFlow({
                                 </div>
                             </div>
 
-                            {/* Date strip */}
+                            {/* Rolling 30-Day Date Strip */}
                             <div className="space-y-2">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Select Date</p>
-                                <div className="flex gap-2 overflow-x-auto pb-2 pt-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Select Date</p>
+                                        <span className="text-[9px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">30-Day Rolling Window</span>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                        <button
+                                            type="button"
+                                            onClick={() => scrollDates('left')}
+                                            className="p-1 rounded-lg border border-border/40 bg-background hover:bg-muted text-muted-foreground hover:text-foreground transition-colors focus:outline-none"
+                                            title="Scroll Left"
+                                        >
+                                            <ChevronLeft className="w-3.5 h-3.5" />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => scrollDates('right')}
+                                            className="p-1 rounded-lg border border-border/40 bg-background hover:bg-muted text-muted-foreground hover:text-foreground transition-colors focus:outline-none"
+                                            title="Scroll Right"
+                                        >
+                                            <ChevronRight className="w-3.5 h-3.5" />
+                                        </button>
+                                    </div>
+                                </div>
+                                <div ref={dateScrollRef} className="flex gap-2 overflow-x-auto pb-2 pt-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden scroll-smooth">
                                     {dateOptions.map((opt) => {
                                         const isSelected = date === opt.date;
                                         const isToday = opt.date === today;
                                         const isTomorrow = opt.date === tomorrow;
                                         const label = isToday ? 'Today' : isTomorrow ? 'Tomorrow' : opt.label.split(' ')[0];
                                         const day = isToday || isTomorrow ? opt.label.split(' ')[1] : opt.label.split(' ')[1];
-                                        const hasSlots = (slotCache.current.get(opt.date) ?? opt.slots).length > 0;
+                                        const slotCount = (knownSlotsMap[opt.date] ?? opt.slots).length;
+                                        const hasSlots = slotCount > 0;
                                         return (
                                             <button
                                                 key={opt.date}
                                                 type="button"
-                                                onClick={() => { setDate(opt.date); setTime(''); }}
-                                                className={`group relative flex flex-col items-center justify-center gap-0.5 py-3 rounded-2xl border-2 transition-all duration-200 min-w-[72px] lg:min-w-[80px] shrink-0 focus:outline-none ${
-                                                    isSelected
-                                                        ? 'border-primary bg-primary text-background shadow-lg shadow-primary/25'
-                                                        : 'border-border/30 bg-background text-foreground hover:border-primary/50 hover:-translate-y-0.5 shadow-sm'
+                                                disabled={!hasSlots}
+                                                onClick={() => { if (hasSlots) { setDate(opt.date); setTime(''); } }}
+                                                className={`group relative flex flex-col items-center justify-center gap-1 py-3 px-1 rounded-2xl border-2 transition-all duration-200 min-w-[76px] lg:min-w-[84px] shrink-0 focus:outline-none ${
+                                                    !hasSlots
+                                                        ? 'border-border/20 bg-muted/20 text-muted-foreground/40 cursor-not-allowed opacity-50'
+                                                        : isSelected
+                                                        ? 'border-primary bg-primary text-background shadow-lg shadow-primary/25 cursor-pointer'
+                                                        : isToday
+                                                        ? 'border-primary/50 bg-primary/5 text-foreground hover:border-primary hover:-translate-y-0.5 shadow-sm cursor-pointer'
+                                                        : 'border-border/30 bg-background text-foreground hover:border-primary/50 hover:-translate-y-0.5 shadow-sm cursor-pointer'
                                                 }`}
                                             >
-                                                <span className={`text-[9px] font-black uppercase tracking-widest ${isSelected ? 'text-background/80' : isToday ? 'text-primary font-black' : 'text-muted-foreground'}`}>
+                                                {isToday && (
+                                                    <span className={`absolute -top-2 px-1.5 py-0.5 text-[7px] font-black uppercase tracking-wider rounded-full shadow-sm ${
+                                                        isSelected ? 'bg-background text-primary' : 'bg-primary text-background'
+                                                    }`}>
+                                                        Today
+                                                    </span>
+                                                )}
+                                                <span className={`text-[9px] font-black uppercase tracking-widest ${isSelected ? 'text-background/80' : isToday && hasSlots ? 'text-primary font-black' : 'text-muted-foreground'}`}>
                                                     {label}
                                                 </span>
                                                 <span className={`text-lg font-heading font-black leading-none ${isSelected ? 'text-background' : 'text-foreground'}`}>
                                                     {day}
                                                 </span>
-                                                {/* Slot availability dot */}
-                                                <div className={`w-1.5 h-1.5 rounded-full mt-0.5 ${isSelected ? 'bg-background/50' : hasSlots ? 'bg-emerald-400' : 'bg-muted-foreground/30'}`} />
+                                                <div className="flex items-center gap-1 mt-0.5">
+                                                    <div className={`w-1.5 h-1.5 rounded-full ${!hasSlots ? 'bg-red-400/50' : isSelected ? 'bg-background' : 'bg-emerald-400'}`} />
+                                                    <span className={`text-[8px] font-bold tracking-tight ${!hasSlots ? 'text-red-500/70' : isSelected ? 'text-background/90' : 'text-muted-foreground'}`}>
+                                                        {!hasSlots ? 'Full' : `${slotCount} slots`}
+                                                    </span>
+                                                </div>
                                             </button>
                                         );
                                     })}
+                                    {/* 30-Day limit indicator */}
+                                    <div className="flex flex-col items-center justify-center gap-1.5 py-3 px-3 rounded-2xl border-2 border-dashed border-border/40 bg-muted/10 text-muted-foreground min-w-[110px] shrink-0 text-center select-none">
+                                        <Calendar className="w-4 h-4 text-primary/60" />
+                                        <span className="text-[9px] font-bold leading-tight">Max 30 days<br />in advance</span>
+                                    </div>
                                 </div>
                             </div>
 
@@ -584,6 +656,19 @@ export default function BookingFlow({
                                             placeholder="What would you like to discuss?"
                                             value={bookingDetails.reason}
                                             onChange={e => setBookingDetails({ ...bookingDetails, reason: e.target.value })}
+                                            className="w-full rounded-xl bg-muted/30 border border-border/30 focus:bg-background p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/15 focus:border-primary/40 transition-all min-h-[68px] resize-none"
+                                        />
+                                    </div>
+                                    {/* Notes */}
+                                    <div className="space-y-1.5">
+                                        <label className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                                            <FileText className="w-3 h-3" />
+                                            Notes <span className="font-medium normal-case tracking-normal ml-1">(optional)</span>
+                                        </label>
+                                        <textarea
+                                            placeholder="Any additional notes for the therapist?"
+                                            value={bookingDetails.notes}
+                                            onChange={e => setBookingDetails({ ...bookingDetails, notes: e.target.value })}
                                             className="w-full rounded-xl bg-muted/30 border border-border/30 focus:bg-background p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/15 focus:border-primary/40 transition-all min-h-[68px] resize-none"
                                         />
                                     </div>

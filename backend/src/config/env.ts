@@ -82,6 +82,7 @@ const config = {
     backendUrl: optional('BACKEND_URL'),
     resendApiKey: optional('RESEND_API_KEY'),
     emailFrom: normalizeEmailFrom(optional('EMAIL_FROM')),
+    adminEmail: optional('ADMIN_EMAIL') || 'admin@rebalancetherapy.co.in',
     isProduction: env === 'production',
 };
 

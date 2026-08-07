@@ -74,6 +74,8 @@ export const bookingSchemas = {
         name: z.string().trim().min(2, 'Full name must be at least 2 characters long.').optional(),
         email: email.optional(),
         couponCode: z.string().trim().optional(),
+        bookingReason: z.string().optional(),
+        notes: z.string().optional(),
     }),
     verifyPayment: z.object({
         razorpay_order_id: z.string().trim().min(1, 'razorpay_order_id is required'),
@@ -96,14 +98,6 @@ export const therapistPortalSchemas = {
     putAvailabilityForDate: z.object({
         slots: z.array(therapistAvailabilitySlotValue).default([]),
     }),
-    updateBooking: z.object({
-        status: z.enum(['pending', 'confirmed', 'completed', 'cancelled']).optional(),
-        meetingLink: z.string().trim().optional(),
-        reschedule: z.object({
-            date: isoDate,
-            time: timeLike,
-        }).partial().optional(),
-    }),
 };
 
 export const adminSchemas = {
@@ -125,6 +119,8 @@ export const adminSchemas = {
         time: timeLike,
         sessionType: z.preprocess((val) => typeof val === 'string' ? val.toLowerCase() : val, z.enum(['video', 'phone', 'chat', 'audio'])),
         status: z.enum(['pending', 'confirmed', 'completed', 'cancelled']).optional(),
+        bookingReason: z.string().optional(),
+        notes: z.string().optional(),
     }),
     updateBooking: z.object({
         status: z.enum(['pending', 'confirmed', 'completed', 'cancelled']).optional(),

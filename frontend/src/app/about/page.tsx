@@ -1,32 +1,88 @@
+import Image from 'next/image';
 import Link from 'next/link';
+import type { Metadata } from 'next';
 import { Button } from '@/components/ui/button';
 import { ShieldCheck, Zap, Users, MessageCircle, Mail, Phone } from 'lucide-react';
 
+export const metadata: Metadata = {
+    title: 'About ReBalance Therapy | Our Mission & Philosophy',
+    description: 'Learn about ReBalance Therapy, our experienced team, core philosophy, and our mission to make modern mental health support approachable, safe, and empowering.',
+    openGraph: {
+        title: 'About ReBalance Therapy | Our Mission & Philosophy',
+        description: 'Discover our welcoming, empathetic, and human-centric approach to mental health support and online therapy.',
+        type: 'website',
+    },
+};
+
 export default function AboutPage() {
+    // Structured data for SEO (Medical & Professional Service Organization Schema)
+    const jsonLd = {
+        "@context": "https://schema.org",
+        "@type": "MedicalOrganization",
+        name: "ReBalance Therapy",
+        url: "https://www.rebalancetherapy.in",
+        logo: "https://www.rebalancetherapy.in/images/logo.svg",
+        description: "Modern, approachable mental health support and online psychotherapy services designed to feel personal, calming, and empowering.",
+        contactPoint: {
+            "@type": "ContactPoint",
+            telephone: "+91-9341210280",
+            contactType: "customer support",
+            email: "rebalancetherapy25@gmail.com"
+        }
+    };
+
     return (
         <div className="flex flex-col font-sans">
+            {/* SEO Structured Data Injection */}
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+            />
+
             {/* HERO SECTION */}
-            <section className="relative min-h-[70svh] flex flex-col justify-center overflow-hidden bg-background px-4 py-24 sm:px-6 lg:px-8 lg:pt-40 lg:pb-32 z-0">
+            <section aria-labelledby="about-hero-title" className="relative min-h-[70svh] flex flex-col justify-center overflow-hidden bg-background px-4 py-24 sm:px-6 lg:px-8 lg:pt-40 lg:pb-32 z-0">
                 <div aria-hidden="true" className="absolute top-0 right-0 w-[50vw] h-[50vw] bg-primary/5 rounded-full blur-[120px] -mr-[20vw] -mt-[20vw] pointer-events-none"></div>
                 
                 <div className="container relative z-10 mx-auto max-w-7xl">
-                    <div className="max-w-4xl">
+                    <div className="max-w-6xl">
                         <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-accent/10 border border-accent/20 text-accent font-semibold text-[10px] sm:text-xs tracking-widest uppercase mb-6 animate-in fade-in slide-in-from-bottom-4 duration-1000 w-fit">
                             <span>Our Story</span>
                         </div>
                         
-                        <h1 className="text-5xl leading-[0.95] tracking-tight text-foreground sm:text-6xl lg:text-7xl xl:text-[6rem] font-display mb-8">
+                        <h1 id="about-hero-title" className="text-5xl leading-[0.95] tracking-tight text-foreground sm:text-6xl lg:text-7xl xl:text-[6rem] font-display mb-12">
                             Finding your balance <br className="hidden md:block" />
                             <span className="text-primary italic pr-2">should feel easy.</span>
                         </h1>
                         
-                        <div className="max-w-3xl text-sm sm:text-base md:text-lg font-medium leading-relaxed text-muted-foreground/90 space-y-6">
-                            <p>
-                                ReBalance Therapy was born from a simple but powerful realisation that seeking mental health support should never feel overwhelming, complicated, or intimidating. Our founders, two therapists who spent years working closely with individuals from different walks of life, noticed a recurring pattern where many people delayed or completely avoided therapy, not because they didn’t need help, but because the process of finding the right support felt emotionally exhausting. Endless directories, clinical terminology, complicated booking systems, and websites overloaded with information often created more anxiety instead of comfort.
-                            </p>
-                            <p>
-                                People who were already vulnerable were expected to navigate a confusing system at one of the most difficult moments in their lives. That observation became the foundation of ReBalance Therapy. We wanted to create a space where mental health support feels approachable, calming, and human from the very first interaction. Our vision was to design an experience that feels as seamless and elegant as booking any premium wellness service — simple navigation, clear communication, and an environment that immediately makes people feel safe and understood. We believe therapy should not feel clinical or transactional; it should feel welcoming, personal, and empowering. Every detail of our platform, from the design to the booking journey, is intentionally built to reduce stress and make reaching out for support feel like a positive first step rather than a daunting task.
-                            </p>
+                        {/* Responsive Logo & First Paragraph Layout */}
+                        {/* On mobile: flex-col stacks logo above text. On desktop: md:flex-row positions logo beside first paragraph */}
+                        <div className="flex flex-col md:flex-row items-center md:items-start gap-8 md:gap-10 lg:gap-14 xl:gap-16 mt-6">
+                            {/* Increased Logo Container with modern aesthetic and zero distortion */}
+                            <div className="w-64 sm:w-72 md:w-80 shrink-0 relative group my-2 md:my-0">
+                                <div className="p-8 sm:p-10 rounded-[2.5rem] bg-card/90 backdrop-blur-md border border-border/60 shadow-xl shadow-primary/5 flex items-center justify-center transition-all duration-300 group-hover:border-accent/40 group-hover:shadow-2xl">
+                                    <Image
+                                        src="/images/logo.svg"
+                                        alt="ReBalance Therapy Company Logo"
+                                        width={320}
+                                        height={320}
+                                        priority
+                                        className="w-full h-auto object-contain max-h-64 transition-transform duration-500 group-hover:scale-[1.03]"
+                                        sizes="(max-width: 640px) 256px, (max-width: 768px) 288px, 320px"
+                                    />
+                                </div>
+                                {/* Subtle aesthetic ambient glow */}
+                                <div aria-hidden="true" className="absolute -inset-1 bg-gradient-to-r from-accent/25 to-primary/25 rounded-[2.5rem] blur-xl opacity-30 -z-10 transition-opacity duration-500 group-hover:opacity-60" />
+                            </div>
+
+                            {/* First Paragraph and Continued Content */}
+                            <div className="flex-1 space-y-6 text-sm sm:text-base md:text-lg font-medium leading-relaxed text-muted-foreground/90 pt-1">
+                                <p className="text-base sm:text-lg md:text-xl font-semibold text-foreground leading-relaxed border-l-4 border-accent/80 pl-4 sm:pl-6">
+                                    ReBalance Therapy was born from a simple but powerful realisation that seeking mental health support should never feel overwhelming, complicated, or intimidating. Our founders, two therapists who spent years working closely with individuals from different walks of life, noticed a recurring pattern where many people delayed or completely avoided therapy, not because they didn’t need help, but because the process of finding the right support felt emotionally exhausting. Endless directories, clinical terminology, complicated booking systems, and websites overloaded with information often created more anxiety instead of comfort.
+                                </p>
+                                <p className="pt-2">
+                                    People who were already vulnerable were expected to navigate a confusing system at one of the most difficult moments in their lives. That observation became the foundation of ReBalance Therapy. We wanted to create a space where mental health support feels approachable, calming, and human from the very first interaction. Our vision was to design an experience that feels as seamless and elegant as booking any premium wellness service — simple navigation, clear communication, and an environment that immediately makes people feel safe and understood. We believe therapy should not feel clinical or transactional; it should feel welcoming, personal, and empowering. Every detail of our platform, from the design to the booking journey, is intentionally built to reduce stress and make reaching out for support feel like a positive first step rather than a daunting task.
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>

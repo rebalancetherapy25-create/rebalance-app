@@ -19,6 +19,8 @@ export interface IBooking extends Document {
     couponCode?: string;
     discountAmount?: number;
     originalAmount?: number;
+    bookingReason?: string;
+    notes?: string;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -43,6 +45,8 @@ const bookingSchema = new Schema<IBooking>(
         couponCode: { type: String },
         discountAmount: { type: Number },
         originalAmount: { type: Number },
+        bookingReason: { type: String },
+        notes: { type: String },
     },
     { timestamps: true }
 );

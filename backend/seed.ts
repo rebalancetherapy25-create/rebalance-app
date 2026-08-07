@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import { Therapist } from './src/models/Therapist';
+import { extractWeeklyTemplate, syncWeeklyToLegacy } from './src/utils/schedule';
 
 dotenv.config();
 
@@ -9,6 +10,7 @@ const therapists = [
         name: 'Dr. Priya Sharma',
         bio: 'I specialize in helping individuals navigate anxiety, depression, and life transitions using evidence-based CBT techniques. My approach is warm, non-judgmental, and tailored to each person\'s unique journey.',
         credentials: 'PhD Clinical Psychology, NIMHANS Bangalore, Certified CBT Practitioner',
+        gender: 'Female',
         specialties: ['Anxiety', 'Depression', 'Life Transitions', 'CBT'],
         experienceYears: 10,
         price: 1500,
@@ -16,7 +18,7 @@ const therapists = [
         ratingAverage: 4.9,
         ratingCount: 214,
         languages: ['English', 'Hindi', 'Kannada'],
-        sessionTypes: ['Video', 'Phone'],
+        sessionTypes: ['Video', 'Audio'],
         responseRate: 98,
         totalSessions: 520,
         faq: [
@@ -28,12 +30,15 @@ const therapists = [
             { day: 'Monday', slots: ['10:00 AM', '12:00 PM', '3:00 PM'] },
             { day: 'Wednesday', slots: ['11:00 AM', '2:00 PM', '5:00 PM'] },
             { day: 'Friday', slots: ['9:00 AM', '1:00 PM'] },
+            { day: 'Saturday', slots: ['10:00 AM', '12:00 PM', '2:00 PM'] },
+            { day: 'Sunday', slots: ['11:00 AM', '3:00 PM'] },
         ],
     },
     {
         name: 'Dr. Arjun Mehta',
         bio: 'With a background in both psychiatry and psychotherapy, I work with adults dealing with trauma, PTSD, and relationship difficulties. I use EMDR and somatic approaches to help clients process and heal.',
         credentials: 'MD Psychiatry, AIIMS Delhi, Certified EMDR Therapist, Somatic Experiencing Practitioner',
+        gender: 'Male',
         specialties: ['Trauma', 'PTSD', 'Relationships', 'EMDR'],
         experienceYears: 14,
         price: 2000,
@@ -41,7 +46,7 @@ const therapists = [
         ratingAverage: 4.8,
         ratingCount: 187,
         languages: ['English', 'Hindi'],
-        sessionTypes: ['Video', 'Phone'],
+        sessionTypes: ['Video', 'Audio', 'In-person'],
         responseRate: 95,
         totalSessions: 680,
         faq: [
@@ -58,6 +63,7 @@ const therapists = [
         name: 'Dr. Sneha Iyer',
         bio: 'I am passionate about supporting women through reproductive mental health challenges including postpartum depression, pregnancy loss, and infertility. I bring deep empathy and clinical expertise to every session.',
         credentials: 'MSc Counselling Psychology, Tata Institute, Postpartum Support International Certified',
+        gender: 'Female',
         specialties: ['Postpartum Depression', 'Womens Mental Health', 'Grief', 'Infertility'],
         experienceYears: 8,
         price: 1200,
@@ -65,7 +71,7 @@ const therapists = [
         ratingAverage: 4.9,
         ratingCount: 143,
         languages: ['English', 'Tamil', 'Hindi'],
-        sessionTypes: ['Video', 'Phone'],
+        sessionTypes: ['Video', 'Audio'],
         responseRate: 99,
         totalSessions: 390,
         faq: [
@@ -76,12 +82,15 @@ const therapists = [
             { day: 'Monday', slots: ['9:00 AM', '11:00 AM'] },
             { day: 'Wednesday', slots: ['10:00 AM', '3:00 PM', '5:00 PM'] },
             { day: 'Friday', slots: ['11:00 AM', '2:00 PM', '4:00 PM'] },
+            { day: 'Saturday', slots: ['10:00 AM', '1:00 PM'] },
+            { day: 'Sunday', slots: ['10:00 AM', '12:00 PM'] },
         ],
     },
     {
         name: 'Dr. Rohan Kapoor',
         bio: 'I work with adolescents and young adults navigating academic pressure, identity questions, and social anxiety. My approach combines motivational interviewing with mindfulness to foster lasting resilience.',
         credentials: 'MEd Counselling, Delhi University, Certified Adolescent Therapist, Mindfulness-Based Stress Reduction',
+        gender: 'Male',
         specialties: ['Adolescents', 'Academic Stress', 'Social Anxiety', 'Identity'],
         experienceYears: 6,
         price: 1000,
@@ -89,7 +98,7 @@ const therapists = [
         ratingAverage: 4.7,
         ratingCount: 98,
         languages: ['English', 'Hindi', 'Punjabi'],
-        sessionTypes: ['Video', 'Phone'],
+        sessionTypes: ['Video', 'In-person'],
         responseRate: 97,
         totalSessions: 280,
         faq: [
@@ -106,6 +115,7 @@ const therapists = [
         name: 'Dr. Kavya Nair',
         bio: 'As a couples and family therapist, I help partners rebuild trust, improve communication, and rediscover connection. I use Emotionally Focused Therapy (EFT) and the Gottman Method in my practice.',
         credentials: 'MSc Family Therapy, Manipal University, Gottman Level 2 Certified, EFT Trained',
+        gender: 'Female',
         specialties: ['Couples Therapy', 'Family Therapy', 'Communication', 'Trust'],
         experienceYears: 11,
         price: 2500,
@@ -113,7 +123,7 @@ const therapists = [
         ratingAverage: 4.8,
         ratingCount: 162,
         languages: ['English', 'Malayalam', 'Hindi'],
-        sessionTypes: ['Video', 'Phone'],
+        sessionTypes: ['Video', 'Audio'],
         responseRate: 96,
         totalSessions: 440,
         faq: [
@@ -130,6 +140,7 @@ const therapists = [
         name: 'Dr. Vikram Rao',
         bio: 'I specialize in OCD, phobias, and health anxiety using Exposure and Response Prevention (ERP) therapy. I believe in practical, structured treatment that gives clients real tools to reclaim their lives.',
         credentials: 'PhD Psychology, IIT Bombay, IOCDF Certified OCD Specialist, ERP Practitioner',
+        gender: 'Male',
         specialties: ['OCD', 'Phobias', 'Health Anxiety', 'ERP'],
         experienceYears: 12,
         price: 1800,
@@ -137,7 +148,7 @@ const therapists = [
         ratingAverage: 4.9,
         ratingCount: 201,
         languages: ['English', 'Hindi', 'Marathi'],
-        sessionTypes: ['Video', 'Phone'],
+        sessionTypes: ['Video', 'Audio'],
         responseRate: 94,
         totalSessions: 590,
         faq: [
@@ -154,6 +165,7 @@ const therapists = [
         name: 'Dr. Ananya Bose',
         bio: 'I help professionals and executives manage burnout, workplace stress, and career transitions. My coaching-therapy hybrid approach focuses on both emotional wellbeing and practical performance strategies.',
         credentials: 'MBA + MSc Occupational Psychology, ISB Hyderabad, ICF Certified Coach',
+        gender: 'Female',
         specialties: ['Burnout', 'Workplace Stress', 'Career Transitions', 'Executive Coaching'],
         experienceYears: 9,
         price: 3000,
@@ -161,7 +173,7 @@ const therapists = [
         ratingAverage: 4.7,
         ratingCount: 119,
         languages: ['English', 'Bengali', 'Hindi'],
-        sessionTypes: ['Video', 'Phone'],
+        sessionTypes: ['Video', 'Audio'],
         responseRate: 93,
         totalSessions: 310,
         faq: [
@@ -178,6 +190,7 @@ const therapists = [
         name: 'Dr. Sameer Joshi',
         bio: 'I work with individuals facing addiction and substance use challenges, using a compassionate, non-shaming approach rooted in motivational interviewing and harm reduction principles.',
         credentials: 'MD Psychiatry, KEM Mumbai, Addiction Psychiatry Fellowship, CRAFT Certified',
+        gender: 'Male',
         specialties: ['Addiction', 'Substance Use', 'Harm Reduction', 'Recovery'],
         experienceYears: 15,
         price: 2200,
@@ -185,7 +198,7 @@ const therapists = [
         ratingAverage: 4.8,
         ratingCount: 176,
         languages: ['English', 'Hindi', 'Marathi'],
-        sessionTypes: ['Video', 'Phone'],
+        sessionTypes: ['Video', 'In-person'],
         responseRate: 91,
         totalSessions: 720,
         faq: [
@@ -196,12 +209,15 @@ const therapists = [
             { day: 'Monday', slots: ['9:00 AM', '2:00 PM', '5:00 PM'] },
             { day: 'Wednesday', slots: ['9:00 AM', '1:00 PM', '4:00 PM'] },
             { day: 'Friday', slots: ['10:00 AM', '3:00 PM'] },
+            { day: 'Saturday', slots: ['11:00 AM', '2:00 PM'] },
+            { day: 'Sunday', slots: ['11:00 AM', '4:00 PM'] },
         ],
     },
     {
         name: 'Dr. Meera Pillai',
         bio: 'I specialize in grief, loss, and existential concerns. Whether you are mourning a person, a relationship, or a version of yourself, I offer a compassionate space to process and find meaning.',
         credentials: 'MA Existential Psychotherapy, Hyderabad University, Certified Grief Counsellor, ADEC Member',
+        gender: 'Female',
         specialties: ['Grief', 'Loss', 'Existential Therapy', 'Meaning-Making'],
         experienceYears: 7,
         price: 1300,
@@ -209,7 +225,7 @@ const therapists = [
         ratingAverage: 4.9,
         ratingCount: 134,
         languages: ['English', 'Malayalam', 'Tamil'],
-        sessionTypes: ['Video', 'Phone'],
+        sessionTypes: ['Video', 'Audio'],
         responseRate: 98,
         totalSessions: 360,
         faq: [
@@ -226,6 +242,7 @@ const therapists = [
         name: 'Dr. Aditya Verma',
         bio: 'I work with clients experiencing ADHD, learning differences, and neurodivergence. My strengths-based approach helps individuals harness their unique minds and build systems that work for them.',
         credentials: 'MEd Special Education, BHU Varanasi, ADHD Certified Clinician, Positive Psychology Practitioner',
+        gender: 'Male',
         specialties: ['ADHD', 'Neurodivergence', 'Learning Differences', 'Executive Function'],
         experienceYears: 5,
         price: 1100,
@@ -233,7 +250,7 @@ const therapists = [
         ratingAverage: 4.6,
         ratingCount: 87,
         languages: ['English', 'Hindi'],
-        sessionTypes: ['Video', 'Phone'],
+        sessionTypes: ['Video', 'Audio', 'In-person'],
         responseRate: 96,
         totalSessions: 210,
         faq: [
@@ -256,8 +273,14 @@ async function seed() {
         await Therapist.deleteMany({});
         console.log('Cleared existing therapists');
 
-        await Therapist.insertMany(therapists);
-        console.log('✅ Seeded 10 therapists successfully');
+        const enriched = therapists.map((t) => {
+            const weeklyAvailability = extractWeeklyTemplate(t);
+            const availability = syncWeeklyToLegacy(weeklyAvailability);
+            return { ...t, weeklyAvailability, availability };
+        });
+
+        await Therapist.insertMany(enriched);
+        console.log('✅ Seeded 10 therapists successfully with independent weekday & weekend availability');
 
         await mongoose.disconnect();
         process.exit(0);

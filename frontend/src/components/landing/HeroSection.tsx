@@ -113,7 +113,8 @@ export function HeroSection({ bannerImage }: HeroSectionProps) {
                             alt="Therapy session"
                             fill
                             className="object-cover"
-                            priority
+                            loading="lazy"
+                            sizes="(max-width: 1024px) 100vw, 50vw"
                         />
                     </motion.div>
 

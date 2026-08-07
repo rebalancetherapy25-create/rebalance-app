@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { 
     User, Sparkles, Heart, Search, ChevronDown, 
     ShieldCheck, Lock, Calendar, Video, FileText, 
-    Users, Clock, ChevronLeft, ChevronRight 
+    Users, Clock, ChevronLeft, ChevronRight, X, Filter 
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Pagination } from '@/components/ui/pagination';
@@ -22,6 +22,9 @@ export interface Therapist {
     price: number;
     profileImage?: string;
     ratingAverage: number;
+    gender?: string;
+    languages?: string[];
+    sessionTypes?: string[];
 }
 
 interface TherapistFiltersProps {
@@ -29,6 +32,23 @@ interface TherapistFiltersProps {
     initialTotalPages: number;
     initialTotalItems: number;
 }
+
+interface FilterState {
+    search: string;
+    availability: string;
+    sessionType: string;
+    gender: string;
+    language: string;
+    price: string;
+    sortBy: string;
+}
+
+const priceOptions = [
+    { label: 'Any Price Range', value: 'Any Price Range' },
+    { label: 'Under ₹1500 / session', value: '0-1500' },
+    { label: '₹1500 - ₹2500 / session', value: '1500-2500' },
+    { label: '₹2500+ / session', value: '2500+' }
+];
 
 export default function TherapistFilters({
     initialTherapists,
@@ -39,38 +59,59 @@ export default function TherapistFilters({
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // Pagination and Search State
-    const [searchQuery, setSearchQuery] = useState('');
+    // Unified Filter State
+    const [filters, setFilters] = useState<FilterState>({
+        search: '',
+        availability: 'Any time',
+        sessionType: 'All Session Types',
+        gender: 'All Genders',
+        language: 'All Languages',
+        price: 'Any Price Range',
+        sortBy: 'Recommended'
+    });
+
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(initialTotalPages);
     const [totalItems, setTotalItems] = useState(initialTotalItems);
-    const [availabilityFilter, setAvailabilityFilter] = useState('Any time');
-    const [sortBy, setSortBy] = useState('Recommended');
-
     const [isInitialMount, setIsInitialMount] = useState(true);
 
     const handlePageChange = (page: number) => {
         setCurrentPage(page);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        window.scrollTo({ top: 350, behavior: 'smooth' });
     };
 
-    // Reset to page 1 when filters change
-    useEffect(() => {
-        if (!isInitialMount) setCurrentPage(1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [availabilityFilter, sortBy]);
+    const updateFilter = (key: keyof FilterState, value: string) => {
+        setFilters(prev => ({ ...prev, [key]: value }));
+        if (!isInitialMount) {
+            setCurrentPage(1);
+        }
+    };
 
-    // Debounce search query
+    const resetFilters = () => {
+        setFilters({
+            search: '',
+            availability: 'Any time',
+            sessionType: 'All Session Types',
+            gender: 'All Genders',
+            language: 'All Languages',
+            price: 'Any Price Range',
+            sortBy: 'Recommended'
+        });
+        setDebouncedSearch('');
+        setCurrentPage(1);
+    };
+
+    // Debounce search input
     useEffect(() => {
         const timer = setTimeout(() => {
-            setDebouncedSearch(searchQuery);
+            setDebouncedSearch(filters.search);
             if (!isInitialMount) {
                 setCurrentPage(1);
             }
-        }, 500);
+        }, 400);
         return () => clearTimeout(timer);
-    }, [searchQuery, isInitialMount]);
+    }, [filters.search, isInitialMount]);
 
     useEffect(() => {
         if (isInitialMount) {
@@ -91,15 +132,28 @@ export default function TherapistFilters({
         const fetchTherapists = async () => {
             try {
                 setLoading(true);
-                const response = await api.get('/therapists', {
-                    params: {
-                        page: currentPage,
-                        limit: 10,
-                        ...(debouncedSearch && { search: debouncedSearch }),
-                        ...(availabilityMap[availabilityFilter] && { availability: availabilityMap[availabilityFilter] }),
-                        ...(sortMap[sortBy] && { sort: sortMap[sortBy] }),
-                    }
-                });
+                const params: Record<string, any> = {
+                    page: currentPage,
+                    limit: 10,
+                    ...(debouncedSearch && { search: debouncedSearch }),
+                    ...(availabilityMap[filters.availability] && { availability: availabilityMap[filters.availability] }),
+                    ...(sortMap[filters.sortBy] && { sort: sortMap[filters.sortBy] }),
+                };
+
+                if (filters.sessionType && filters.sessionType !== 'All Session Types') {
+                    params.sessionType = filters.sessionType;
+                }
+                if (filters.gender && filters.gender !== 'All Genders') {
+                    params.gender = filters.gender;
+                }
+                if (filters.language && filters.language !== 'All Languages') {
+                    params.language = filters.language;
+                }
+                if (filters.price && filters.price !== 'Any Price Range') {
+                    params.price = filters.price;
+                }
+
+                const response = await api.get('/therapists', { params });
                 setTherapists(response.data.therapists || []);
                 setTotalPages(response.data.totalPages || 1);
                 setTotalItems(response.data.total || 0);
@@ -113,10 +167,28 @@ export default function TherapistFilters({
         };
 
         fetchTherapists();
-    }, [currentPage, debouncedSearch, availabilityFilter, sortBy, isInitialMount]);
+    }, [
+        currentPage, 
+        debouncedSearch, 
+        filters.availability, 
+        filters.sessionType, 
+        filters.gender, 
+        filters.language, 
+        filters.price, 
+        filters.sortBy, 
+        isInitialMount
+    ]);
+
+    const hasActiveFilters = 
+        filters.availability !== 'Any time' ||
+        filters.sessionType !== 'All Session Types' ||
+        filters.gender !== 'All Genders' ||
+        filters.language !== 'All Languages' ||
+        filters.price !== 'Any Price Range' ||
+        debouncedSearch.trim() !== '';
 
     const featuredTherapist = therapists.length > 0 ? therapists[0] : null;
-    const gridTherapists = therapists.length > 0 ? therapists.slice(1) : [];
+    const displayedTherapists = therapists;
 
     return (
         <div className="space-y-16">
@@ -129,7 +201,7 @@ export default function TherapistFilters({
                     </h1>
                     
                     <p className="text-lg md:text-xl text-foreground/70 max-w-lg leading-relaxed">
-                        Browse licensed therapists specialized in anxiety, depression, relationships and more.
+                        Browse licensed therapists specialized in anxiety, depression, relationships and more. Filter by session type, language, price, and gender to match your specific comfort needs.
                     </p>
                     
                     <div className="flex flex-wrap gap-6 pt-2">
@@ -232,29 +304,36 @@ export default function TherapistFilters({
             </div>
 
             {/* SEARCH AND FILTERS */}
-            <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-border/60 mb-6 flex flex-col gap-4 mt-8">
+            <div className="bg-white rounded-[2.5rem] p-6 sm:p-8 shadow-[0_12px_36px_rgba(0,0,0,0.04)] border border-border/60 mb-6 flex flex-col gap-5 mt-8">
                 <div className="relative w-full">
                     <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                     <Input
-                        placeholder="Search by name, specialty, or condition..."
-                        className="h-14 rounded-full border-border/60 bg-secondary/50 pl-12 pr-6 text-base font-medium shadow-none focus-visible:ring-primary"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search by name, specialty, condition, or background..."
+                        className="h-14 rounded-full border-border/60 bg-secondary/40 pl-12 pr-6 text-base font-medium shadow-none focus-visible:ring-2 focus-visible:ring-primary/20 transition-all"
+                        value={filters.search}
+                        onChange={(e) => updateFilter('search', e.target.value)}
                     />
+                    {filters.search && (
+                        <button 
+                            onClick={() => updateFilter('search', '')} 
+                            className="absolute right-5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                    )}
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3 pt-2">
-                    <div className="flex bg-secondary/50 p-1 rounded-full border border-border/40 shrink-0">
+                <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex bg-secondary/60 p-1 rounded-full border border-border/40 shrink-0">
                         {['Any time', 'Today', 'This Week'].map(filter => {
-                            const isSelected = availabilityFilter === filter;
+                            const isSelected = filters.availability === filter;
                             return (
                                 <button
                                     key={filter}
-                                    onClick={() => setAvailabilityFilter(filter)}
-                                    className={`px-4 py-2 rounded-full text-sm font-bold transition-all duration-300 whitespace-nowrap ${isSelected
-                                        ? 'bg-primary text-white'
-                                        : 'text-muted-foreground hover:text-foreground'
-                                        }`}
+                                    onClick={() => updateFilter('availability', filter)}
+                                    className={`px-4 py-2 rounded-full text-xs md:text-sm font-bold transition-all duration-300 whitespace-nowrap ${
+                                        isSelected ? 'bg-primary text-white shadow-xs' : 'text-muted-foreground hover:text-foreground'
+                                    }`}
                                 >
                                     {filter}
                                 </button>
@@ -262,40 +341,78 @@ export default function TherapistFilters({
                         })}
                     </div>
                     
-                    <select className="h-10 px-4 rounded-full border border-border/60 bg-white text-sm font-medium shadow-sm cursor-pointer outline-none hover:border-accent appearance-none">
-                        <option>All Session Types</option>
-                        <option>In-person</option>
-                        <option>Online</option>
-                    </select>
-                    
-                    <select className="h-10 px-4 rounded-full border border-border/60 bg-white text-sm font-medium shadow-sm cursor-pointer outline-none hover:border-accent appearance-none">
-                        <option>All Genders</option>
-                        <option>Female</option>
-                        <option>Male</option>
-                        <option>Non-binary</option>
-                    </select>
-                    
-                    <select className="h-10 px-4 rounded-full border border-border/60 bg-white text-sm font-medium shadow-sm cursor-pointer outline-none hover:border-accent appearance-none">
-                        <option>All Languages</option>
-                        <option>English</option>
-                        <option>Hindi</option>
-                        <option>Spanish</option>
-                    </select>
-                    
-                    <select className="h-10 px-4 rounded-full border border-border/60 bg-white text-sm font-medium shadow-sm cursor-pointer outline-none hover:border-accent appearance-none">
-                        <option>Any Price Range</option>
-                        <option>₹1000 - ₹2000</option>
-                        <option>₹2000 - ₹3000</option>
-                        <option>₹3000+</option>
-                    </select>
-
+                    {/* Session Type Filter */}
                     <div className="relative shrink-0">
-                        <select
-                            value={sortBy}
-                            onChange={(e) => setSortBy(e.target.value)}
-                            className="appearance-none h-10 pl-4 pr-9 rounded-full border border-border/60 bg-white text-sm font-bold text-foreground outline-none transition-colors hover:border-accent shadow-sm cursor-pointer"
+                        <select 
+                            value={filters.sessionType}
+                            onChange={(e) => updateFilter('sessionType', e.target.value)}
+                            className="appearance-none h-10 pl-4 pr-9 rounded-full border border-border/60 bg-white text-xs md:text-sm font-bold text-foreground shadow-xs cursor-pointer outline-none hover:border-primary/40 transition-colors focus:ring-2 focus:ring-primary/20"
                         >
-                            <option value="Recommended">Sort by: Recommended</option>
+                            <option value="All Session Types">All Session Types</option>
+                            <option value="Video">Video Session</option>
+                            <option value="Audio">Audio / Phone Session</option>
+                            <option value="In-person">In-person</option>
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                    </div>
+                    
+                    {/* Gender Filter */}
+                    <div className="relative shrink-0">
+                        <select 
+                            value={filters.gender}
+                            onChange={(e) => updateFilter('gender', e.target.value)}
+                            className="appearance-none h-10 pl-4 pr-9 rounded-full border border-border/60 bg-white text-xs md:text-sm font-bold text-foreground shadow-xs cursor-pointer outline-none hover:border-primary/40 transition-colors focus:ring-2 focus:ring-primary/20"
+                        >
+                            <option value="All Genders">All Genders</option>
+                            <option value="Female">Female</option>
+                            <option value="Male">Male</option>
+                            <option value="Non-binary">Non-binary</option>
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                    </div>
+                    
+                    {/* Language Filter */}
+                    <div className="relative shrink-0">
+                        <select 
+                            value={filters.language}
+                            onChange={(e) => updateFilter('language', e.target.value)}
+                            className="appearance-none h-10 pl-4 pr-9 rounded-full border border-border/60 bg-white text-xs md:text-sm font-bold text-foreground shadow-xs cursor-pointer outline-none hover:border-primary/40 transition-colors focus:ring-2 focus:ring-primary/20"
+                        >
+                            <option value="All Languages">All Languages</option>
+                            <option value="English">English</option>
+                            <option value="Hindi">Hindi</option>
+                            <option value="Tamil">Tamil</option>
+                            <option value="Malayalam">Malayalam</option>
+                            <option value="Kannada">Kannada</option>
+                            <option value="Marathi">Marathi</option>
+                            <option value="Bengali">Bengali</option>
+                            <option value="Punjabi">Punjabi</option>
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                    </div>
+                    
+                    {/* Price Filter */}
+                    <div className="relative shrink-0">
+                        <select 
+                            value={filters.price}
+                            onChange={(e) => updateFilter('price', e.target.value)}
+                            className="appearance-none h-10 pl-4 pr-9 rounded-full border border-border/60 bg-white text-xs md:text-sm font-bold text-foreground shadow-xs cursor-pointer outline-none hover:border-primary/40 transition-colors focus:ring-2 focus:ring-primary/20"
+                        >
+                            {priceOptions.map(opt => (
+                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                    </div>
+
+                    {/* Sort Dropdown */}
+                    <div className="relative shrink-0 ml-auto">
+                        <select
+                            value={filters.sortBy}
+                            onChange={(e) => updateFilter('sortBy', e.target.value)}
+                            className="appearance-none h-10 pl-4 pr-9 rounded-full border border-border/60 bg-secondary text-xs md:text-sm font-bold text-foreground outline-none transition-colors hover:border-primary/40 shadow-xs cursor-pointer focus:ring-2 focus:ring-primary/20"
+                        >
+                            <option value="Recommended">Sort: Recommended</option>
                             <option value="Price: Low to High">Price: Low to High</option>
                             <option value="Price: High to Low">Price: High to Low</option>
                             <option value="Rating: Highest">Rating: Highest</option>
@@ -303,56 +420,127 @@ export default function TherapistFilters({
                         <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                     </div>
                 </div>
+
+                {/* Active Filters Tray */}
+                {hasActiveFilters && (
+                    <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-border/40 animate-in fade-in duration-200">
+                        <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider mr-1">Active Filters:</span>
+                        {filters.availability !== 'Any time' && (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold">
+                                {filters.availability}
+                                <button onClick={() => updateFilter('availability', 'Any time')} className="hover:bg-primary/20 rounded-full p-0.5"><X className="w-3 h-3" /></button>
+                            </span>
+                        )}
+                        {filters.sessionType !== 'All Session Types' && (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold">
+                                {filters.sessionType}
+                                <button onClick={() => updateFilter('sessionType', 'All Session Types')} className="hover:bg-primary/20 rounded-full p-0.5"><X className="w-3 h-3" /></button>
+                            </span>
+                        )}
+                        {filters.gender !== 'All Genders' && (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold">
+                                {filters.gender}
+                                <button onClick={() => updateFilter('gender', 'All Genders')} className="hover:bg-primary/20 rounded-full p-0.5"><X className="w-3 h-3" /></button>
+                            </span>
+                        )}
+                        {filters.language !== 'All Languages' && (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold">
+                                {filters.language}
+                                <button onClick={() => updateFilter('language', 'All Languages')} className="hover:bg-primary/20 rounded-full p-0.5"><X className="w-3 h-3" /></button>
+                            </span>
+                        )}
+                        {filters.price !== 'Any Price Range' && (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold">
+                                {priceOptions.find(p => p.value === filters.price)?.label || filters.price}
+                                <button onClick={() => updateFilter('price', 'Any Price Range')} className="hover:bg-primary/20 rounded-full p-0.5"><X className="w-3 h-3" /></button>
+                            </span>
+                        )}
+                        {debouncedSearch.trim() !== '' && (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold">
+                                &ldquo;{debouncedSearch}&rdquo;
+                                <button onClick={() => updateFilter('search', '')} className="hover:bg-primary/20 rounded-full p-0.5"><X className="w-3 h-3" /></button>
+                            </span>
+                        )}
+                        <button
+                            onClick={resetFilters}
+                            className="text-xs font-bold text-accent hover:text-accent/80 transition-colors ml-2 underline underline-offset-2"
+                        >
+                            Clear All
+                        </button>
+                    </div>
+                )}
             </div>
 
-
-
-            {/* TOP RATED THERAPISTS GRID */}
+            {/* THERAPISTS GRID */}
             <div id="all-therapists" className="min-h-[50vh]">
                 <div className="flex items-center justify-between mb-8">
-                    <h2 className="text-xl font-bold text-foreground">Top Rated Therapists</h2>
-                    <div className="flex gap-2">
-                        <Button 
-                            variant="outline" 
-                            size="icon" 
-                            className="rounded-full w-8 h-8"
-                            onClick={() => currentPage > 1 && handlePageChange(currentPage - 1)}
-                            disabled={currentPage === 1}
-                        >
-                            <ChevronLeft className="w-4 h-4" />
-                        </Button>
-                        <Button 
-                            variant="outline" 
-                            size="icon" 
-                            className="rounded-full w-8 h-8"
-                            onClick={() => currentPage < totalPages && handlePageChange(currentPage + 1)}
-                            disabled={currentPage === totalPages}
-                        >
-                            <ChevronRight className="w-4 h-4" />
-                        </Button>
-                    </div>
+                    <h2 className="text-xl font-bold text-foreground">
+                        {hasActiveFilters ? `Matching Therapists (${totalItems})` : 'Top Rated Therapists'}
+                    </h2>
+                    {totalPages > 1 && (
+                        <div className="flex gap-2">
+                            <Button 
+                                variant="outline" 
+                                size="icon" 
+                                className="rounded-full w-8 h-8"
+                                onClick={() => currentPage > 1 && handlePageChange(currentPage - 1)}
+                                disabled={currentPage === 1 || loading}
+                            >
+                                <ChevronLeft className="w-4 h-4" />
+                            </Button>
+                            <Button 
+                                variant="outline" 
+                                size="icon" 
+                                className="rounded-full w-8 h-8"
+                                onClick={() => currentPage < totalPages && handlePageChange(currentPage + 1)}
+                                disabled={currentPage === totalPages || loading}
+                            >
+                                <ChevronRight className="w-4 h-4" />
+                            </Button>
+                        </div>
+                    )}
                 </div>
 
                 {loading ? (
-                    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                        {Array.from({ length: 4 }).map((_, index) => (
-                            <div key={index} className="space-y-4">
-                                <Skeleton className="aspect-square w-full rounded-2xl" />
-                                <div className="space-y-2">
-                                    <Skeleton className="h-6 w-2/3" />
-                                    <Skeleton className="h-4 w-1/2" />
+                    <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+                        {Array.from({ length: 6 }).map((_, index) => (
+                            <div key={index} className="bg-white rounded-[2rem] p-5 border border-border/40 space-y-4 shadow-sm">
+                                <div className="flex gap-4">
+                                    <Skeleton className="w-[35%] aspect-[4/5] rounded-2xl" />
+                                    <div className="flex-1 space-y-3 py-1">
+                                        <Skeleton className="h-5 w-3/4" />
+                                        <Skeleton className="h-4 w-1/2" />
+                                        <Skeleton className="h-3 w-full mt-4" />
+                                        <Skeleton className="h-3 w-4/5" />
+                                    </div>
                                 </div>
                             </div>
                         ))}
                     </div>
                 ) : error ? (
                     <div className="text-center py-20 text-muted-foreground">{error}</div>
-                ) : gridTherapists.length === 0 ? (
-                    <div className="text-center py-20 text-muted-foreground">No matches found.</div>
+                ) : displayedTherapists.length === 0 ? (
+                    /* EMPTY STATE WHEN NOTHING MATCHES */
+                    <div className="bg-white rounded-[2.5rem] p-12 text-center border border-primary/10 shadow-sm max-w-2xl mx-auto my-8 space-y-6">
+                        <div className="w-20 h-20 rounded-full bg-secondary border border-border/60 flex items-center justify-center mx-auto text-primary">
+                            <Filter className="w-8 h-8 opacity-60" />
+                        </div>
+                        <div className="space-y-2">
+                            <h3 className="text-2xl font-display font-bold text-foreground">No therapists found</h3>
+                            <p className="text-sm text-muted-foreground font-medium max-w-md mx-auto leading-relaxed">
+                                We couldn&apos;t find any therapists matching all of your selected criteria. Try broadening your preferences or clearing some filters to explore more professionals.
+                            </p>
+                        </div>
+                        {hasActiveFilters && (
+                            <Button onClick={resetFilters} className="rounded-full px-8 h-12 font-bold shadow-md hover:shadow-lg transition-all bg-primary text-white">
+                                Clear All Filters
+                            </Button>
+                        )}
+                    </div>
                 ) : (
                     <>
                         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-                            {gridTherapists.map((t) => (
+                            {displayedTherapists.map((t) => (
                                 <div key={t._id} className="bg-white rounded-[2rem] p-5 border border-border/40 shadow-[0_12px_30px_rgba(0,0,0,0.06)] flex flex-row gap-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_16px_40px_rgba(0,0,0,0.08)] hover:border-primary/20 items-stretch group">
                                     {/* Image Container (35% width) */}
                                     <div className="relative w-[35%] max-w-[180px] shrink-0 rounded-2xl overflow-hidden bg-accent/5 aspect-[4/5] self-start">
@@ -383,23 +571,25 @@ export default function TherapistFilters({
                                         </div>
                                         
                                         <div className="space-y-1.5 mb-3">
+                                            {t.gender && (
+                                                <div className="flex items-center gap-2 text-[11px] text-foreground/80 font-medium">
+                                                    <div className="w-3.5 h-3.5 rounded-full bg-emerald-100/50 flex items-center justify-center shrink-0">
+                                                        <span className="text-emerald-600 text-[9px] font-black">✓</span>
+                                                    </div>
+                                                    Gender: {t.gender}
+                                                </div>
+                                            )}
                                             <div className="flex items-center gap-2 text-[11px] text-foreground/80 font-medium">
                                                 <div className="w-3.5 h-3.5 rounded-full bg-emerald-100/50 flex items-center justify-center shrink-0">
                                                     <span className="text-emerald-600 text-[9px] font-black">✓</span>
                                                 </div>
-                                                5+ Years Experience
-                                            </div>
-                                            <div className="flex items-center gap-2 text-[11px] text-foreground/80 font-medium">
-                                                <div className="w-3.5 h-3.5 rounded-full bg-emerald-100/50 flex items-center justify-center shrink-0">
-                                                    <span className="text-emerald-600 text-[9px] font-black">✓</span>
-                                                </div>
-                                                1500+ Sessions
+                                                {t.sessionTypes && t.sessionTypes.length > 0 ? `${t.sessionTypes.join(' & ')} Sessions` : 'Online & Phone Sessions'}
                                             </div>
                                             <div className="flex items-center gap-2 text-[11px] text-foreground/80 font-medium truncate">
                                                 <div className="w-3.5 h-3.5 rounded-full bg-emerald-100/50 flex items-center justify-center shrink-0">
                                                     <span className="text-emerald-600 text-[9px] font-black">✓</span>
                                                 </div>
-                                                Speaks English, Hindi
+                                                Speaks: {t.languages && t.languages.length > 0 ? t.languages.join(', ') : 'English, Hindi'}
                                             </div>
                                         </div>
 
@@ -435,7 +625,7 @@ export default function TherapistFilters({
                                 </div>
                             ))}
                         </div>
-                        {gridTherapists.length > 0 && (
+                        {totalPages > 1 && (
                             <div className="pt-10 flex justify-center">
                                 <Pagination
                                     currentPage={currentPage}

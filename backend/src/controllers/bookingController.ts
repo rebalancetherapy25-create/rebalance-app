@@ -1,11 +1,11 @@
 import { Response } from 'express';
 import mongoose from 'mongoose';
-import { Availability, Booking, Therapist } from '../models';
+import { Availability, Booking, Therapist, User } from '../models';
 import Razorpay from 'razorpay';
-import { sendEmail } from '../services/emailService';
+import { queueEmail } from '../services/emailOutboxService';
 import { releaseExpiredSlotHolds, runBookingMaintenance } from '../services/bookingMaintenanceService';
 import { AuthRequest } from '../middlewares/authMiddleware';
-import { formatSlotTime, getTemplateSlotsForDate, normalizeDate, normalizeTime } from '../utils/schedule';
+import { formatSlotTime, getTemplateSlotsForDate, normalizeDate, normalizeTime, isWithin30DayWindow } from '../utils/schedule';
 import { bookingConfirmedEmail } from '../emails/templates/bookingConfirmed';
 import { sendData, sendError } from '../lib/http';
 import { assertRazorpayConfig, confirmBookingPaymentByOrderId, verifyRazorpayPaymentSignature } from '../services/paymentService';
@@ -92,7 +92,7 @@ export const createBooking = async (req: AuthRequest, res: Response) => {
     try {
         await runBookingMaintenance();
 
-        const { therapistId, date, time, sessionType, name, email, couponCode } = req.body;
+        const { therapistId, date, time, sessionType, name, email, couponCode, bookingReason, notes } = req.body;
         if (!therapistId || !date || !time || !sessionType) {
             return sendError(res, 400, 'therapistId, date, time, and sessionType are required', { code: 'BOOKING_MISSING_FIELDS' });
         }
@@ -102,6 +102,10 @@ export const createBooking = async (req: AuthRequest, res: Response) => {
         const normalizedSessionType = normalizeSessionType(String(sessionType));
         if (!normalizedDate || !normalizedTime || !normalizedSessionType) {
             return sendError(res, 400, 'Invalid date/time/sessionType format', { code: 'BOOKING_INVALID_SLOT' });
+        }
+
+        if (!isWithin30DayWindow(normalizedDate)) {
+            return sendError(res, 400, 'Appointments can only be booked within the next 30 days.', { code: 'BOOKING_OUT_OF_RANGE' });
         }
 
         const therapist = await Therapist.findById(therapistId);
@@ -166,6 +170,8 @@ export const createBooking = async (req: AuthRequest, res: Response) => {
             sessionType: normalizedSessionType,
             amount,
             status: 'pending',
+            bookingReason,
+            notes,
             ...(appliedCouponCode ? {
                 couponCode: appliedCouponCode,
                 discountAmount,
@@ -196,6 +202,26 @@ export const createBooking = async (req: AuthRequest, res: Response) => {
 
             if (appliedCouponCode) {
                 await mongoose.model('Coupon').updateOne({ code: appliedCouponCode }, { $inc: { currentUsage: 1 } });
+            }
+
+            let recipientEmail = guestEmail;
+            let recipientName = guestName || 'there';
+            if (userId) {
+                const user = await User.findById(userId);
+                if (user) {
+                    recipientEmail = user.email;
+                    recipientName = user.name;
+                }
+            }
+
+            if (recipientEmail) {
+                const tpl = bookingConfirmedEmail({
+                    recipientName,
+                    therapistName: therapist.name,
+                    date: normalizedDate,
+                    time: formatSlotTime(normalizedTime),
+                });
+                await queueEmail(recipientEmail, tpl.subject, tpl.html);
             }
 
             return sendData(res, {
@@ -294,7 +320,7 @@ export const verifyPayment = async (req: AuthRequest, res: Response) => {
                 time: formatSlotTime(confirmedBooking.time),
                 ...(confirmedBooking.meetingLink ? { meetingLink: confirmedBooking.meetingLink } : {}),
             });
-            await sendEmail({ to: recipientEmail, subject: tpl.subject, html: tpl.html });
+            await queueEmail(recipientEmail, tpl.subject, tpl.html);
         }
 
         return sendData(res, { success: true, booking: confirmedBooking });
@@ -316,9 +342,24 @@ export const getUserBookings = async (req: AuthRequest, res: Response) => {
 
         const bookings = await Booking.find({ userId })
             .populate('therapistId', 'name profileImage specialties')
-            .sort({ createdAt: -1 });
+            .sort({ createdAt: -1 })
+            .lean();
 
-        return sendData(res, bookings);
+        const now = new Date();
+        const processedBookings = bookings.map(booking => {
+            if (booking.meetingLink) {
+                const bookingTime = new Date(`${booking.date}T${booking.time}:00`);
+                // 1 hour session duration buffer
+                const isExpired = new Date(bookingTime.getTime() + 60 * 60 * 1000) < now;
+                
+                if (booking.status !== 'confirmed' || isExpired) {
+                    delete booking.meetingLink;
+                }
+            }
+            return booking;
+        });
+
+        return sendData(res, processedBookings);
     } catch (error) {
         return sendError(res, 500, 'Server error fetching user bookings', { code: 'BOOKING_LIST_FAILED' });
     }

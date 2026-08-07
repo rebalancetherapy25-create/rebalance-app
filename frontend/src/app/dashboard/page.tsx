@@ -50,14 +50,20 @@ export default function DashboardPage() {
         fetchBookings();
     }, [router]);
 
-    const { upcoming, past } = useMemo(() => {
-        const now = new Date();
-        const valid = bookings.filter((booking) => booking.status === 'confirmed' || booking.status === 'completed');
-        return {
-            upcoming: valid.filter((booking) => bookingDateTime(booking.date, booking.time) >= now && booking.status !== 'completed'),
-            past: valid.filter((booking) => bookingDateTime(booking.date, booking.time) < now || booking.status === 'completed'),
-        };
-    }, [bookings]);
+        const { upcoming, past } = useMemo(() => {
+            const now = new Date();
+            const valid = bookings.filter((booking) => booking.status === 'confirmed' || booking.status === 'completed');
+            return {
+                upcoming: valid.filter((booking) => {
+                    const meetingEndTime = new Date(bookingDateTime(booking.date, booking.time).getTime() + 60 * 60 * 1000);
+                    return meetingEndTime >= now && booking.status !== 'completed';
+                }),
+                past: valid.filter((booking) => {
+                    const meetingEndTime = new Date(bookingDateTime(booking.date, booking.time).getTime() + 60 * 60 * 1000);
+                    return meetingEndTime < now || booking.status === 'completed';
+                }),
+            };
+        }, [bookings]);
 
     return (
         <div className="min-h-screen bg-accent/5 font-sans">

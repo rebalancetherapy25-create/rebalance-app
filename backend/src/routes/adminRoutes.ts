@@ -16,7 +16,11 @@ import {
     createBooking,
     deleteBooking,
     updateAdminProfile,
-    updateAdminPassword
+    updateAdminPassword,
+    getTherapistReviews,
+    createTherapistReview,
+    deleteTherapistReview,
+    uploadTherapistImageAdmin
 } from '../controllers/adminController';
 import {
     listTherapistAccounts,
@@ -31,6 +35,7 @@ import {
 } from '../controllers/adminAvailabilityController';
 import { validate } from '../lib/http';
 import { adminSchemas } from '../validation/schemas';
+import { therapistImageUpload } from '../config/cloudinary';
 
 const router = express.Router();
 
@@ -54,6 +59,13 @@ router.route('/therapists/:id')
     .get(getTherapistById)
     .put(updateTherapist)
     .delete(deleteTherapist);
+
+router.post('/therapists/:id/image', therapistImageUpload.single('image'), uploadTherapistImageAdmin);
+
+router.route('/therapists/:id/reviews')
+    .get(getTherapistReviews)
+    .post(createTherapistReview);
+router.delete('/therapists/:id/reviews/:reviewId', deleteTherapistReview);
 
 router.route('/bookings')
     .get(getBookings)

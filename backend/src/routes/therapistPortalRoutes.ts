@@ -7,10 +7,11 @@ import {
     putTherapistWeeklySchedule,
     getTherapistBookings,
     getTherapistBookingById,
-    updateTherapistBooking,
+    uploadTherapistImage,
 } from '../controllers/therapistPortalController';
 import { validate } from '../lib/http';
 import { therapistPortalSchemas } from '../validation/schemas';
+import { therapistImageUpload } from '../config/cloudinary';
 
 const router = express.Router();
 
@@ -23,6 +24,7 @@ router.put('/availability/:date', validate(therapistPortalSchemas.putAvailabilit
 
 router.get('/bookings', getTherapistBookings);
 router.get('/bookings/:id', getTherapistBookingById);
-router.put('/bookings/:id', validate(therapistPortalSchemas.updateBooking), updateTherapistBooking);
+
+router.post('/image', therapistImageUpload.single('image'), uploadTherapistImage);
 
 export default router;

@@ -129,6 +129,49 @@ export default function SettingsPage() {
 
       <Card className="border-none shadow-card rounded-2xl overflow-hidden">
         <CardHeader>
+          <CardTitle className="font-heading">Profile Image</CardTitle>
+          <CardDescription>Upload a picture to display on your public profile.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-6">
+            <div className="h-24 w-24 shrink-0 overflow-hidden rounded-full border border-border/50 bg-secondary flex items-center justify-center">
+              {me?.therapist?.profileImage ? (
+                <img src={me.therapist.profileImage} alt="Profile" className="h-full w-full object-cover" />
+              ) : (
+                <span className="text-muted-foreground text-xs font-semibold">No Image</span>
+              )}
+            </div>
+            <div className="space-y-3">
+              <Input
+                type="file"
+                accept="image/*"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const formData = new FormData();
+                  formData.append('image', file);
+                  
+                  try {
+                    toast({ title: 'Uploading image...', description: 'Please wait.' });
+                    await api.post('/therapist-portal/image', formData, {
+                      headers: { 'Content-Type': 'multipart/form-data' },
+                    });
+                    toast({ title: 'Success', description: 'Profile image updated.' });
+                    refresh();
+                  } catch (err: unknown) {
+                    toast({ variant: 'error', title: 'Upload failed', items: [getApiErrorMessage(err, 'Failed to upload image.')] });
+                  }
+                }}
+                className="max-w-[250px] cursor-pointer"
+              />
+              <p className="text-xs text-muted-foreground">JPG, PNG or WEBP up to 5MB.</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-none shadow-card rounded-2xl overflow-hidden">
+        <CardHeader>
           <CardTitle className="font-heading">Change Password</CardTitle>
           <CardDescription>Update your therapist portal password. You’ll be signed out after changing it.</CardDescription>
         </CardHeader>

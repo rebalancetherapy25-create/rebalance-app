@@ -70,7 +70,7 @@ export function OfferBannerSection({ activeOffer }: { activeOffer: ActiveOffer }
                                         Special Wellness Offer
                                     </div>
                                     <p className="text-foreground text-sm sm:text-base md:text-lg font-display leading-relaxed">
-                                        {activeOffer?.text ?? 'Get 20% off your introductory session with one of our trusted experts today.'}
+                                        {activeOffer?.text ?? 'Get 20% off your session with one of our trusted experts today.'}
                                     </p>
                                 </div>
                             </div>

@@ -31,6 +31,7 @@ interface PatientStory {
     quote: string;
     author: string;
     status: string;
+    createdAt?: string;
 }
 
 interface BookingProps {
@@ -104,6 +105,10 @@ export default function TherapistProfileTabs({
 }: TherapistProfileTabsProps) {
     const [activeTab, setActiveTab] = useState<Tab>('About');
     const tabs = credentials.length > 0 ? ALL_TABS : ALL_TABS.filter(t => t !== 'Credentials');
+
+    const avgRating = patientStories.length > 0 
+        ? (patientStories.reduce((acc, curr) => acc + (curr.stars || 5), 0) / patientStories.length).toFixed(1)
+        : '0';
 
     return (
         <div className="space-y-8 w-full">
@@ -354,7 +359,6 @@ export default function TherapistProfileTabs({
                 {/* ── REVIEWS TAB ────────────────────────────────── */}
                 {activeTab === 'Reviews' && (
                     <div className="space-y-6 animate-in fade-in duration-300">
-                        {/* Tab header */}
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3">
                             <div>
                                 <h3 className="text-xl sm:text-2xl font-display font-bold text-foreground flex items-center gap-3">
@@ -366,40 +370,75 @@ export default function TherapistProfileTabs({
                                 <p className="text-xs text-muted-foreground mt-1 font-semibold">Anonymized reviews aggregated from verified consultations.</p>
                             </div>
                             <div className="flex items-center gap-1.5 bg-white px-4 py-2 rounded-full border border-primary/10 shadow-xs self-start sm:self-auto">
-                                <Star className="w-4 h-4 fill-yellow-500 text-yellow-500" />
-                                <span className="text-xs font-black text-foreground">4.9<span className="font-semibold text-muted-foreground">/5 average</span></span>
+                                {patientStories.length === 0 ? (
+                                    <span className="text-xs font-black text-muted-foreground">No Reviews Yet</span>
+                                ) : (
+                                    <>
+                                        <Star className="w-4 h-4 fill-yellow-500 text-yellow-500" />
+                                        <span className="text-xs font-black text-foreground">
+                                            {avgRating}
+                                            <span className="font-semibold text-muted-foreground">
+                                                /5 average ({patientStories.length})
+                                            </span>
+                                        </span>
+                                    </>
+                                )}
                             </div>
                         </div>
 
-                        {/* Stacks vertically on mobile and spans columns beautifully on desktop (No double nested borders) */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pt-2">
-                            {patientStories.map((story, i) => (
-                                <div 
-                                    key={i} 
-                                    className="bg-white border border-border/60 rounded-3xl p-6 shadow-card hover:shadow-lg hover:border-primary/20 duration-300 flex flex-col justify-between gap-6 relative overflow-hidden group w-full"
-                                >
-                                    <div className="space-y-4">
-                                        <div className="flex justify-between items-center">
-                                            <div className="flex gap-0.5">
-                                                {Array.from({ length: story.stars }).map((_, si) => (
-                                                    <Star key={si} className="w-3.5 h-3.5 fill-yellow-500 text-yellow-500" />
-                                                ))}
-                                            </div>
-                                            <Quote className="w-6 h-6 text-accent/20 group-hover:text-accent/35 transition-colors duration-300" />
-                                        </div>
-                                        <p className="text-xs sm:text-sm text-foreground/80 font-medium leading-relaxed italic pr-2 font-display">
-                                            &ldquo;{story.quote.replace(/"/g, '')}&rdquo;
-                                        </p>
-                                    </div>
-                                    <div className="flex items-center justify-between border-t border-border/20 pt-4 mt-2">
-                                        <span className="text-xs font-bold text-foreground">{story.author}</span>
-                                        <span className="flex items-center gap-1 text-[9px] font-bold text-emerald-600 bg-emerald-500/10 px-2.5 py-1 rounded-full uppercase">
-                                            <Check className="w-2.5 h-2.5 stroke-[3]" /> {story.status}
-                                        </span>
-                                    </div>
+                        {patientStories.length === 0 ? (
+                            <div className="bg-white rounded-[2rem] p-10 border border-primary/10 shadow-md text-center space-y-3 my-4">
+                                <div className="w-14 h-14 rounded-full bg-secondary/80 border border-border/60 flex items-center justify-center mx-auto">
+                                    <Quote className="w-6 h-6 text-muted-foreground/50" />
                                 </div>
-                            ))}
-                        </div>
+                                <h4 className="text-lg font-display font-bold text-foreground">No Reviews Yet</h4>
+                                <p className="text-xs sm:text-sm text-muted-foreground max-w-sm mx-auto font-medium leading-relaxed">
+                                    This therapist has not received verified written reviews on their profile yet. Sessions remain 100% covered by Rebalance care verification.
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pt-2">
+                                {patientStories.map((story, i) => (
+                                    <div 
+                                        key={i} 
+                                        className="bg-white p-6 sm:p-7 rounded-[2rem] border border-primary/10 shadow-sm flex flex-col justify-between hover:shadow-md hover:border-primary/20 transition-all space-y-6 relative"
+                                    >
+                                        <div className="space-y-3">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-0.5">
+                                                    {[...Array(5)].map((_, idx) => (
+                                                        <Star 
+                                                            key={idx} 
+                                                            className={`w-3.5 h-3.5 ${idx < story.stars ? 'fill-yellow-500 text-yellow-500' : 'fill-muted/30 text-muted/30'}`} 
+                                                        />
+                                                    ))}
+                                                </div>
+                                                <Quote className="w-5 h-5 text-primary/10" />
+                                            </div>
+                                            <p className="text-xs sm:text-sm text-foreground/90 font-medium leading-relaxed italic">
+                                                &ldquo;{story.quote.replace(/"/g, '')}&rdquo;
+                                            </p>
+                                        </div>
+                                        <div className="pt-4 border-t border-primary/5 flex items-center justify-between">
+                                            <div className="flex items-center gap-2.5">
+                                                <div className="w-8 h-8 rounded-full bg-accent/10 text-accent flex items-center justify-center text-xs font-bold font-display">
+                                                    {story.author.charAt(0).toUpperCase()}
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs font-bold text-foreground font-display">
+                                                        {story.author}
+                                                    </p>
+                                                    <p className="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
+                                                        <Check className="w-3 h-3 stroke-[3]" />
+                                                        {story.status || 'Verified Patient'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

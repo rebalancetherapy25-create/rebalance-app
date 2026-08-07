@@ -5,6 +5,8 @@ export interface ITherapist extends Document {
     email?: string;
     bio: string;
     credentials: string;
+    quote?: string;
+    gender?: string;
     specialties: string[];
     experienceYears: number;
     price: number;
@@ -30,6 +32,8 @@ const therapistSchema = new Schema<ITherapist>(
         email: { type: String, unique: true, sparse: true, lowercase: true, trim: true },
         bio: { type: String, required: true },
         credentials: { type: String, required: true },
+        quote: { type: String, default: '' },
+        gender: { type: String, default: '' },
         specialties: [String],
         experienceYears: { type: Number, required: true },
         price: { type: Number, required: true },
@@ -49,5 +53,9 @@ const therapistSchema = new Schema<ITherapist>(
 
 therapistSchema.index({ specialties: 1, ratingAverage: -1 });
 therapistSchema.index({ name: 'text', specialties: 'text', bio: 'text' });
+// Compound indexes for multi-filter search optimization
+therapistSchema.index({ gender: 1, price: 1, ratingAverage: -1 });
+therapistSchema.index({ languages: 1, sessionTypes: 1 });
+therapistSchema.index({ price: 1, ratingAverage: -1 });
 
 export const Therapist = mongoose.model<ITherapist>('Therapist', therapistSchema);

@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { Availability, Therapist } from '../models';
-import { extractWeeklyTemplate, normalizeDate, normalizeTime } from '../utils/schedule';
+import { extractWeeklyTemplate, normalizeDate, normalizeTime, isWithin30DayWindow } from '../utils/schedule';
 import { releaseExpiredSlotHolds } from '../services/bookingMaintenanceService';
 import { sendData, sendError } from '../lib/http';
 
@@ -19,7 +19,17 @@ export const getTherapistAvailability = async (req: Request, res: Response) => {
             return sendError(res, 400, 'Invalid date format. Use YYYY-MM-DD.', { code: 'AVAILABILITY_DATE_INVALID' });
         }
 
+        if (!isWithin30DayWindow(normalizedDate)) {
+            res.setHeader('X-Availability-Record', '0');
+            res.setHeader('X-Availability-Source', 'out-of-range');
+            return sendData(res, []);
+        }
+
         await releaseExpiredSlotHolds();
+
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('X-Availability-Timestamp', new Date().toISOString());
 
         const availability = await Availability.findOne({
             therapistId: therapistId as string,
@@ -34,6 +44,7 @@ export const getTherapistAvailability = async (req: Request, res: Response) => {
             const therapist = await Therapist.findById(therapistId).lean();
             if (!therapist) {
                 res.setHeader('X-Availability-Record', '0');
+                res.setHeader('X-Availability-Source', 'none');
                 return sendData(res, []);
             }
             const template = extractWeeklyTemplate(therapist);
@@ -41,10 +52,12 @@ export const getTherapistAvailability = async (req: Request, res: Response) => {
             const templateSlots = (template.find(t => t.dayOfWeek === dayOfWeek)?.slots ?? [])
                 .map(time => ({ time, isBooked: false }));
             res.setHeader('X-Availability-Record', '0');
+            res.setHeader('X-Availability-Source', 'weekly-template');
             return sendData(res, templateSlots);
         }
 
         res.setHeader('X-Availability-Record', '1');
+        res.setHeader('X-Availability-Source', 'database-record');
 
         // Filter out booked and currently held slots
         const availableSlots = availability.slots.filter((slot) => {
@@ -72,8 +85,27 @@ export const lockSlot = async (req: Request, res: Response) => {
             return sendError(res, 400, 'Invalid date/time format. Expected YYYY-MM-DD and HH:mm.', { code: 'AVAILABILITY_LOCK_INVALID' });
         }
 
+        if (!isWithin30DayWindow(normalizedDate)) {
+            return sendError(res, 400, 'Appointments can only be booked within the next 30 days.', { code: 'BOOKING_OUT_OF_RANGE' });
+        }
+
         const now = new Date();
         const lockExpiry = new Date(now.getTime() + 5 * 60000); // 5 minutes locking
+
+        const existingRecord = await Availability.findOne({ therapistId: therapistId as string, date: normalizedDate });
+        if (!existingRecord) {
+            // Auto-generate availability record from therapist weekly template before atomic locking
+            const therapist = await Therapist.findById(therapistId).lean();
+            if (!therapist) {
+                return sendError(res, 404, 'Therapist not found', { code: 'THERAPIST_NOT_FOUND' });
+            }
+            const template = extractWeeklyTemplate(therapist);
+            const dayOfWeek = new Date(`${normalizedDate}T00:00:00.000Z`).getUTCDay();
+            const templateSlots = (template.find(t => t.dayOfWeek === dayOfWeek)?.slots ?? [])
+                .map(time => ({ time, isBooked: false }));
+            await Availability.create({ therapistId: therapistId as string, date: normalizedDate, slots: templateSlots });
+            console.log(`[DEBUG SCHEDULE SYNC] Initialized date record ${normalizedDate} from template for slot locking.`);
+        }
 
         const result = await Availability.updateOne(
             {
@@ -96,6 +128,7 @@ export const lockSlot = async (req: Request, res: Response) => {
         );
 
         if (result.modifiedCount === 0) {
+            console.log(`[DEBUG SCHEDULE SYNC] Lock failed for slot ${normalizedTime} on ${normalizedDate} (already taken or invalid).`);
             return sendError(res, 409, 'Slot is no longer available', { code: 'AVAILABILITY_SLOT_UNAVAILABLE' });
         }
 

@@ -18,6 +18,8 @@ type Booking = {
   meetingLink?: string;
   userId?: { name?: string; email?: string };
   guestContact?: { name: string; email: string };
+  bookingReason?: string;
+  notes?: string;
 };
 
 // Use local dates (not UTC) so the UI range matches the therapist's calendar day.
@@ -90,7 +92,7 @@ export default function BookingsPage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-3xl font-heading font-extrabold tracking-tight">Bookings</h1>
-          <p className="text-muted-foreground">Manage your upcoming sessions, meeting links, and reschedules.</p>
+          <p className="text-muted-foreground">View your upcoming and past sessions.</p>
         </div>
         <Button onClick={refresh} variant="outline" className="rounded-xl">Refresh</Button>
       </div>
@@ -129,6 +131,11 @@ export default function BookingsPage() {
                         <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> {new Date(`${b.date}T00:00:00`).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
                         <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {formatSlotTime(b.time)} · {b.sessionType}</span>
                       </div>
+                      {(b.bookingReason || b.notes) && (
+                        <div className="text-xs text-muted-foreground mt-2 line-clamp-1 italic">
+                          "{b.bookingReason || b.notes}"
+                        </div>
+                      )}
                     </div>
                     <div className={`shrink-0 text-xs font-bold uppercase border px-2.5 py-1 rounded-full ${statusPill(b.status)}`}>
                       {b.status}

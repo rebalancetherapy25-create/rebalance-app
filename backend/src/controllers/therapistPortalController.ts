@@ -1,7 +1,7 @@
 import { Response } from 'express';
 import { Availability, Booking, Therapist } from '../models';
 import { TherapistAuthRequest } from '../middlewares/therapistAuthMiddleware';
-import { extractWeeklyTemplate, formatSlotTime, normalizeDate, normalizeTime } from '../utils/schedule';
+import { extractWeeklyTemplate, formatSlotTime, normalizeDate, normalizeTime, syncWeeklyToLegacy, syncFutureAvailabilitiesWithTemplate } from '../utils/schedule';
 import { ACTIVE_BOOKING_STATUSES, BookingStatus, STATUS_TRANSITIONS, syncAvailabilityForStatus, VALID_BOOKING_STATUSES, rescheduleBooking } from '../services/bookingStateService';
 import { sendEmail } from '../services/emailService';
 import { bookingRescheduledEmail } from '../emails/templates/bookingRescheduled';
@@ -128,6 +128,8 @@ export const putTherapistAvailabilityForDate = async (req: TherapistAuthRequest,
             { upsert: true, new: true }
         );
 
+        console.log(`[DEBUG SCHEDULE SYNC] Therapist ${therapistId} updated availability for date ${date} via portal (${nextSlots.length} total slots).`);
+
         return sendData(res, updated);
     } catch (error) {
         console.error('Therapist availability put error:', error);
@@ -167,7 +169,10 @@ export const putTherapistWeeklySchedule = async (req: TherapistAuthRequest, res:
                     : [],
             }));
 
-        await Therapist.findByIdAndUpdate(therapistId, { $set: { weeklyAvailability } });
+        const availability = syncWeeklyToLegacy(weeklyAvailability);
+        await Therapist.findByIdAndUpdate(therapistId, { $set: { weeklyAvailability, availability } });
+        await syncFutureAvailabilitiesWithTemplate(String(therapistId), weeklyAvailability);
+        console.log(`[DEBUG SCHEDULE SYNC] Therapist ${therapistId} weekly schedule updated & propagated via portal.`);
         return sendData(res, { success: true });
     } catch (error) {
         console.error('Put weekly schedule error:', error);
@@ -223,113 +228,24 @@ export const getTherapistBookingById = async (req: TherapistAuthRequest, res: Re
     }
 };
 
-export const updateTherapistBooking = async (req: TherapistAuthRequest, res: Response) => {
+
+
+export const uploadTherapistImage = async (req: TherapistAuthRequest, res: Response) => {
     try {
         const therapistId = req.therapist?.therapistId;
         if (!therapistId) return sendError(res, 401, 'Unauthorized', { code: 'THERAPIST_UNAUTHORIZED' });
 
-        const booking = await Booking.findById(req.params.id).populate('userId', 'name email').populate('therapistId', 'name');
-        if (!booking) return sendError(res, 404, 'Booking not found', { code: 'BOOKING_NOT_FOUND' });
-        if (String(booking.therapistId) !== String(therapistId)) return sendError(res, 403, 'Forbidden', { code: 'THERAPIST_FORBIDDEN' });
-
-        const recipientEmail = (booking.userId as any)?.email || booking.guestContact?.email;
-        const recipientName = (booking.userId as any)?.name || booking.guestContact?.name || 'there';
-        const therapistName = (booking.therapistId as any)?.name || 'your therapist';
-        const previousDate = booking.date;
-        const previousTime = booking.time;
-
-        // Reject combined reschedule+status — reschedule saves to DB first; if status sync
-        // then fails the booking ends up with new date/time but old status (inconsistent state).
-        if ((req.body?.reschedule?.date || req.body?.reschedule?.time) && req.body?.status !== undefined) {
-            return sendError(res, 400, 'Cannot reschedule and change status in the same request. Apply each change separately.', { code: 'BOOKING_UPDATE_CONFLICT' });
+        if (!req.file) {
+            return sendError(res, 400, 'No image file provided', { code: 'NO_IMAGE_PROVIDED' });
         }
 
-        let didReschedule = false;
-        let didCancel = false;
+        const imageUrl = req.file.path;
+        
+        await Therapist.findByIdAndUpdate(therapistId, { profileImage: imageUrl });
 
-        // Reschedule (date/time)
-        if (req.body?.reschedule?.date || req.body?.reschedule?.time) {
-            const nextDate = normalizeDate(String(req.body.reschedule.date));
-            const nextTime = normalizeTime(String(req.body.reschedule.time));
-            if (!nextDate || !nextTime) return sendError(res, 400, 'Invalid reschedule date/time', { code: 'BOOKING_RESCHEDULE_INVALID' });
-
-            const result = await rescheduleBooking(String(booking._id), String(therapistId), nextDate, nextTime);
-            if (!result.ok) return sendError(res, result.status, result.error, { code: 'BOOKING_RESCHEDULE_FAILED' });
-
-            didReschedule = true;
-            booking.date = nextDate;
-            booking.time = nextTime;
-        }
-
-        // Status transition
-        if (req.body?.status !== undefined) {
-            const nextStatus = String(req.body.status).toLowerCase() as BookingStatus;
-            if (!VALID_BOOKING_STATUSES.has(nextStatus)) return sendError(res, 400, 'Invalid booking status', { code: 'BOOKING_STATUS_INVALID' });
-
-            const current = booking.status as BookingStatus;
-            if (current !== nextStatus) {
-                if (!STATUS_TRANSITIONS[current]?.includes(nextStatus)) {
-                    return sendError(res, 400, `Cannot transition booking from ${current} to ${nextStatus}`, { code: 'BOOKING_STATUS_TRANSITION_INVALID' });
-                }
-
-                if (nextStatus === 'confirmed') {
-                    const conflict = await Booking.findOne({
-                        _id: { $ne: booking._id },
-                        therapistId,
-                        date: booking.date,
-                        time: booking.time,
-                        status: { $in: ACTIVE_BOOKING_STATUSES },
-                    }).select('_id');
-                    if (conflict) return sendError(res, 409, 'Another active booking already exists for this slot', { code: 'BOOKING_SLOT_CONFLICT' });
-                }
-
-                booking.status = nextStatus;
-                await booking.save();
-                const sync = await syncAvailabilityForStatus(booking, nextStatus, current);
-                if (!sync.ok) {
-                    booking.status = current;
-                    await booking.save();
-                    return sendError(res, 409, sync.error || 'Failed to sync availability', { code: 'BOOKING_AVAILABILITY_SYNC_FAILED' });
-                }
-                if (nextStatus === 'cancelled') {
-                    didCancel = true;
-                }
-            }
-        }
-
-        // Meeting link update
-        if (req.body?.meetingLink !== undefined) {
-            booking.meetingLink = String(req.body.meetingLink || '').trim() || undefined;
-            await booking.save();
-        }
-
-        if (recipientEmail) {
-            if (didReschedule) {
-                const tpl = bookingRescheduledEmail({
-                    recipientName,
-                    therapistName,
-                    previousDate,
-                    previousTime: formatSlotTime(previousTime),
-                    nextDate: booking.date,
-                    nextTime: formatSlotTime(booking.time),
-                    ...(booking.meetingLink ? { meetingLink: booking.meetingLink } : {}),
-                });
-                await sendEmail({ to: recipientEmail, subject: tpl.subject, html: tpl.html });
-            } else if (didCancel) {
-                const tpl = bookingCancelledEmail({
-                    recipientName,
-                    therapistName,
-                    date: booking.date,
-                    time: formatSlotTime(booking.time),
-                });
-                await sendEmail({ to: recipientEmail, subject: tpl.subject, html: tpl.html });
-            }
-        }
-
-        const populated = await Booking.findById(booking._id).populate('userId', 'name email').populate('therapistId', 'name');
-        return sendData(res, { success: true, booking: populated });
+        return sendData(res, { imageUrl });
     } catch (error) {
-        console.error('Therapist booking update error:', error);
-        return sendError(res, 500, 'Server error', { code: 'THERAPIST_BOOKING_UPDATE_FAILED' });
+        console.error('Therapist image upload error:', error);
+        return sendError(res, 500, 'Server error during image upload', { code: 'THERAPIST_IMAGE_UPLOAD_FAILED' });
     }
 };

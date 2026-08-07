@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
-import { User, Therapist, Booking, Availability } from '../models';
-import { extractWeeklyTemplate, formatSlotTime, normalizeDate, normalizeTime } from '../utils/schedule';
+import { User, Therapist, Booking, Availability, Review } from '../models';
+import { extractWeeklyTemplate, formatSlotTime, normalizeDate, normalizeTime, syncWeeklyToLegacy, syncFutureAvailabilitiesWithTemplate } from '../utils/schedule';
 import { runBookingMaintenance } from '../services/bookingMaintenanceService';
 import { createTherapistAccountAndInvite } from '../services/therapistInviteService';
 import { sendEmail } from '../services/emailService';
@@ -174,8 +174,10 @@ export const getTherapistById = async (req: Request, res: Response) => {
             return sendError(res, 404, 'Therapist not found', { code: 'THERAPIST_NOT_FOUND' });
         }
         const obj = therapist.toObject();
+        const reviews = await Review.find({ therapistId: therapist._id }).sort({ createdAt: -1 }).lean();
         return sendData(res, {
             ...obj,
+            reviews,
             about: therapist.bio,
             weeklyAvailability: obj.weeklyAvailability?.length
                 ? obj.weeklyAvailability
@@ -204,7 +206,10 @@ export const createTherapist = async (req: Request, res: Response) => {
             payload.bio = payload.about;
         }
         payload.weeklyAvailability = extractWeeklyTemplate(payload);
+        payload.availability = syncWeeklyToLegacy(payload.weeklyAvailability);
         const therapist = await Therapist.create(payload);
+        await syncFutureAvailabilitiesWithTemplate(String(therapist._id), payload.weeklyAvailability);
+        console.log(`[DEBUG SCHEDULE SYNC] Admin created therapist ${therapist._id} with synchronized schedule.`);
 
         let portalAccessResult: any = undefined;
         if (portalAccess?.create && payload.email) {
@@ -247,21 +252,28 @@ export const updateTherapist = async (req: Request, res: Response) => {
         }
 
         // Handle other fields from req.body
-        const optionalFields = ['languages', 'sessionTypes', 'responseRate', 'totalSessions', 'faq', 'availability', 'profileImage', 'experienceYears', 'credentials'];
+        const optionalFields = ['languages', 'sessionTypes', 'responseRate', 'totalSessions', 'faq', 'availability', 'profileImage', 'experienceYears', 'credentials', 'quote', 'gender'];
         optionalFields.forEach(field => {
             if (req.body[field] !== undefined) {
                 (therapist as any)[field] = req.body[field];
             }
         });
 
+        let scheduleModified = false;
         if (req.body.weeklyAvailability !== undefined || req.body.availability !== undefined) {
             (therapist as any).weeklyAvailability = extractWeeklyTemplate({
                 weeklyAvailability: req.body.weeklyAvailability,
                 availability: req.body.availability,
             });
+            (therapist as any).availability = syncWeeklyToLegacy((therapist as any).weeklyAvailability);
+            scheduleModified = true;
         }
 
         await therapist.save();
+        if (scheduleModified) {
+            await syncFutureAvailabilitiesWithTemplate(String(therapist._id), (therapist as any).weeklyAvailability);
+            console.log(`[DEBUG SCHEDULE SYNC] Admin updated schedule for therapist ${therapist._id} and resynced future daily records.`);
+        }
         return sendData(res, { success: true, therapist });
     } catch (error) {
         return sendError(res, 500, 'Server error updating therapist', { code: 'ADMIN_THERAPIST_UPDATE_FAILED' });
@@ -277,6 +289,31 @@ export const deleteTherapist = async (req: Request, res: Response) => {
         return sendData(res, { success: true, message: 'Therapist deleted' });
     } catch (error) {
         return sendError(res, 500, 'Server error deleting therapist', { code: 'ADMIN_THERAPIST_DELETE_FAILED' });
+    }
+};
+
+export const uploadTherapistImageAdmin = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+
+        if (!req.file) {
+            return sendError(res, 400, 'No image file provided', { code: 'NO_IMAGE_PROVIDED' });
+        }
+
+        const therapist = await Therapist.findById(id);
+        if (!therapist) {
+            return sendError(res, 404, 'Therapist not found', { code: 'ADMIN_THERAPIST_NOT_FOUND' });
+        }
+
+        const imageUrl = req.file.path;
+        
+        therapist.profileImage = imageUrl;
+        await therapist.save();
+
+        return sendData(res, { imageUrl });
+    } catch (error) {
+        console.error('Admin therapist image upload error:', error);
+        return sendError(res, 500, 'Server error during image upload', { code: 'ADMIN_THERAPIST_IMAGE_UPLOAD_FAILED' });
     }
 };
 
@@ -587,5 +624,82 @@ export const deleteBooking = async (req: Request, res: Response) => {
         return sendData(res, { success: true, message: 'Booking deleted' });
     } catch (error) {
         return sendError(res, 500, 'Server error deleting booking', { code: 'ADMIN_BOOKING_DELETE_FAILED' });
+    }
+};
+
+// --- REVIEWS MANAGEMENT ---
+
+export const getTherapistReviews = async (req: Request, res: Response) => {
+    try {
+        const therapistId = String(req.params.id || '');
+        const reviews = await Review.find({ therapistId }).sort({ createdAt: -1 });
+        return sendData(res, reviews);
+    } catch (error) {
+        return sendError(res, 500, 'Server error fetching reviews', { code: 'ADMIN_REVIEWS_LIST_FAILED' });
+    }
+};
+
+export const createTherapistReview = async (req: Request, res: Response) => {
+    try {
+        const { rating, comment, reviewerName, status, userId } = req.body;
+        const therapistId = String(req.params.id || '');
+
+        const therapist = await Therapist.findById(therapistId);
+        if (!therapist) {
+            return sendError(res, 404, 'Therapist not found', { code: 'THERAPIST_NOT_FOUND' });
+        }
+
+        if (!rating || !comment) {
+            return sendError(res, 400, 'Rating and comment are required', { code: 'REVIEW_FIELDS_REQUIRED' });
+        }
+
+        const review = await Review.create({
+            therapistId,
+            rating: Number(rating),
+            comment: String(comment).trim(),
+            reviewerName: String(reviewerName || 'Verified Patient').trim(),
+            status: String(status || 'Verified Patient').trim(),
+            userId: userId || undefined,
+        });
+
+        const allReviews = await Review.find({ therapistId });
+        const count = allReviews.length;
+        const sum = allReviews.reduce((acc, r) => acc + (r.rating || 0), 0);
+        const avg = count > 0 ? Math.round((sum / count) * 10) / 10 : 0;
+
+        therapist.ratingCount = count;
+        therapist.ratingAverage = avg;
+        await therapist.save();
+
+        return sendData(res, review, 201);
+    } catch (error) {
+        return sendError(res, 500, 'Server error creating review', { code: 'ADMIN_REVIEW_CREATE_FAILED' });
+    }
+};
+
+export const deleteTherapistReview = async (req: Request, res: Response) => {
+    try {
+        const therapistId = String(req.params.id || '');
+        const reviewId = String(req.params.reviewId || '');
+        const review = await Review.findOneAndDelete({ _id: reviewId, therapistId });
+        if (!review) {
+            return sendError(res, 404, 'Review not found', { code: 'REVIEW_NOT_FOUND' });
+        }
+
+        const therapist = await Therapist.findById(therapistId);
+        if (therapist) {
+            const allReviews = await Review.find({ therapistId });
+            const count = allReviews.length;
+            const sum = allReviews.reduce((acc, r) => acc + (r.rating || 0), 0);
+            const avg = count > 0 ? Math.round((sum / count) * 10) / 10 : 0;
+
+            therapist.ratingCount = count;
+            therapist.ratingAverage = avg;
+            await therapist.save();
+        }
+
+        return sendData(res, { success: true, message: 'Review deleted' });
+    } catch (error) {
+        return sendError(res, 500, 'Server error deleting review', { code: 'ADMIN_REVIEW_DELETE_FAILED' });
     }
 };

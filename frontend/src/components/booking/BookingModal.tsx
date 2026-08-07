@@ -39,7 +39,7 @@ export default function BookingModal({
             </DialogTrigger>
             <DialogContent hideClose className="flex flex-col h-[100dvh] w-full max-w-[100vw] p-0 m-0 overflow-hidden !rounded-none !border-none bg-background/95 backdrop-blur-3xl shadow-2xl md:h-[90dvh] md:w-[95vw] md:max-w-[1200px] md:!rounded-[3rem] md:border md:border-primary/20">
                 <DialogTitle className="sr-only">Book a session with {therapistName}</DialogTitle>
-                <div className="relative flex-1 overflow-hidden h-full w-full">
+                <div className="relative flex-1 flex flex-col overflow-hidden w-full min-h-0">
                     <button
                         onClick={() => setOpen(false)}
                         aria-label="Close modal"

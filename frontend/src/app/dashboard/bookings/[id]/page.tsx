@@ -105,7 +105,8 @@ export default function BookingDetailsPage() {
     const sessionIcon = SESSION_ICON[booking.sessionType?.toLowerCase()] ?? <Video className="w-4 h-4" />;
     const therapistName = booking.therapistId?.name || 'Therapist';
     const specialty = booking.therapistId?.specialties?.[0] || '';
-    const isPast = new Date(`${booking.date}T${booking.time}:00`) < new Date();
+    const meetingEndTime = new Date(new Date(`${booking.date}T${booking.time}:00`).getTime() + 60 * 60 * 1000);
+    const isPast = meetingEndTime < new Date();
 
     return (
         <div className="min-h-screen font-sans bg-accent/5">

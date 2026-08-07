@@ -8,7 +8,7 @@ import { formatSlotTime } from '@/lib/date';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Calendar, Clock, Link2, User } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, Link2, User, MessageCircle, FileText } from 'lucide-react';
 
 type Booking = {
   _id: string;
@@ -19,6 +19,8 @@ type Booking = {
   meetingLink?: string;
   userId?: { name?: string; email?: string };
   guestContact?: { name: string; email: string };
+  bookingReason?: string;
+  notes?: string;
 };
 
 // Use local dates (not UTC) so defaults match the therapist's calendar day.
@@ -39,11 +41,6 @@ export default function BookingDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const [meetingLink, setMeetingLink] = useState('');
-  const [rescheduleDate, setRescheduleDate] = useState(isoToday());
-  const [rescheduleTime, setRescheduleTime] = useState('10:00');
-  const [saving, setSaving] = useState(false);
-
   const client = useMemo(() => {
     const name = booking?.userId?.name || booking?.guestContact?.name || 'Client';
     const email = booking?.userId?.email || booking?.guestContact?.email || '';
@@ -58,9 +55,6 @@ export default function BookingDetailPage() {
       await api.get('/therapist-auth/me');
       const res = await api.get(`/therapist/bookings/${id}`);
       setBooking(res.data);
-      setMeetingLink(res.data?.meetingLink || '');
-      setRescheduleDate(res.data?.date || isoToday());
-      setRescheduleTime(res.data?.time || '10:00');
     } catch (e: unknown) {
       const status = (e as { response?: { status?: number } })?.response?.status;
       if (status === 401 || status === 403) {
@@ -78,21 +72,6 @@ export default function BookingDetailPage() {
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
-
-  const patch = async (payload: any) => {
-    if (!id) return;
-    setSaving(true);
-    setError('');
-    try {
-      await api.put(`/therapist/bookings/${id}`, payload);
-      await refresh();
-    } catch (e: unknown) {
-      const message = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
-      setError(message || 'Update failed.');
-    } finally {
-      setSaving(false);
-    }
-  };
 
   if (loading) {
     return <div className="text-sm text-muted-foreground">Loading…</div>;
@@ -115,7 +94,7 @@ export default function BookingDetailPage() {
             <ArrowLeft className="w-4 h-4" /> Back to bookings
           </Link>
           <h1 className="text-3xl font-heading font-extrabold tracking-tight">Booking</h1>
-          <p className="text-muted-foreground">Update meeting link, status, or reschedule.</p>
+          <p className="text-muted-foreground">View details for this session.</p>
         </div>
         <Button onClick={refresh} variant="outline" className="rounded-xl">Refresh</Button>
       </div>
@@ -145,59 +124,44 @@ export default function BookingDetailPage() {
               <div className="text-xs text-muted-foreground mt-1">Status: <span className="font-semibold text-foreground">{booking.status}</span></div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-semibold flex items-center gap-2">
-                <Link2 className="w-4 h-4 text-muted-foreground" /> Meeting link
-              </label>
-              <Input value={meetingLink} onChange={(e) => setMeetingLink(e.target.value)} className="h-11 rounded-xl bg-white" placeholder="https://..." />
-              <div className="flex items-center gap-2">
-                <Button disabled={saving} onClick={() => patch({ meetingLink })} className="rounded-xl">Save link</Button>
-                {booking.meetingLink && (
-                  <a href={booking.meetingLink} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-primary hover:underline">
-                    Open
+            {booking.meetingLink && (
+              <div className="space-y-2">
+                <label className="text-sm font-semibold flex items-center gap-2">
+                  <Link2 className="w-4 h-4 text-muted-foreground" /> Meeting link
+                </label>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm bg-accent/5 px-3 py-2 rounded-xl flex-1 border border-border/50 text-muted-foreground truncate">{booking.meetingLink}</span>
+                  <a href={booking.meetingLink} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-primary hover:underline bg-primary/10 px-4 py-2 rounded-xl">
+                    Join
                   </a>
+                </div>
+              </div>
+            )}
+
+            {(booking.bookingReason || booking.notes) && (
+              <div className="space-y-4 border-t pt-4 mt-4">
+                {booking.bookingReason && (
+                  <div className="space-y-1">
+                    <label className="text-sm font-semibold flex items-center gap-2">
+                      <MessageCircle className="w-4 h-4 text-muted-foreground" /> Booking Reason
+                    </label>
+                    <p className="text-sm bg-accent/5 px-4 py-3 rounded-xl border border-border/50 text-foreground whitespace-pre-wrap">
+                      {booking.bookingReason}
+                    </p>
+                  </div>
+                )}
+                {booking.notes && (
+                  <div className="space-y-1">
+                    <label className="text-sm font-semibold flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-muted-foreground" /> Notes
+                    </label>
+                    <p className="text-sm bg-accent/5 px-4 py-3 rounded-xl border border-border/50 text-foreground whitespace-pre-wrap">
+                      {booking.notes}
+                    </p>
+                  </div>
                 )}
               </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2 pt-2">
-              {booking.status === 'pending' && (
-                <Button disabled={saving} onClick={() => patch({ status: 'confirmed' })} className="rounded-xl">Confirm</Button>
-              )}
-              {booking.status === 'confirmed' && (
-                <Button disabled={saving} onClick={() => patch({ status: 'completed' })} className="rounded-xl">Mark completed</Button>
-              )}
-              {(booking.status === 'pending' || booking.status === 'confirmed') && (
-                <Button disabled={saving} onClick={() => patch({ status: 'cancelled' })} variant="destructive" className="rounded-xl">Cancel</Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-none shadow-card rounded-2xl overflow-hidden">
-          <CardHeader>
-            <CardTitle className="font-heading">Reschedule</CardTitle>
-            <CardDescription>Move this booking to a new date/time if the slot is available.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-semibold">New date</label>
-              <Input type="date" value={rescheduleDate} onChange={(e) => setRescheduleDate(e.target.value)} className="h-11 rounded-xl bg-white" />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-semibold">New time</label>
-              <Input type="time" value={rescheduleTime} onChange={(e) => setRescheduleTime(e.target.value)} className="h-11 rounded-xl bg-white" />
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                disabled={saving || booking.status === 'cancelled' || booking.status === 'completed'}
-                onClick={() => patch({ reschedule: { date: rescheduleDate, time: rescheduleTime } })}
-                className="rounded-xl"
-              >
-                Reschedule
-              </Button>
-              <span className="text-xs text-muted-foreground">Uses your availability calendar and prevents conflicts.</span>
-            </div>
+            )}
           </CardContent>
         </Card>
       </div>

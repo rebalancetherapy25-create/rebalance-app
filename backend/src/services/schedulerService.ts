@@ -1,5 +1,6 @@
 import cron from 'node-cron';
 import { sendSessionReminders } from './sessionReminderService';
+import { processOutbox } from './emailOutboxService';
 
 /**
  * Starts all background cron jobs.
@@ -13,6 +14,15 @@ export const startScheduler = (): void => {
             await sendSessionReminders();
         } catch (err) {
             console.error('[scheduler] Session reminder job failed:', err);
+        }
+    });
+
+    // Run every 5 minutes — process email outbox
+    cron.schedule('*/5 * * * *', async () => {
+        try {
+            await processOutbox();
+        } catch (err) {
+            console.error('[scheduler] Email outbox job failed:', err);
         }
     });
 
