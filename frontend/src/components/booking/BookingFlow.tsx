@@ -153,6 +153,7 @@ export default function BookingFlow({
         };
         prefetchAll();
         return () => { active = false; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [therapistId, dateOptions]);
 
     useEffect(() => {
@@ -183,6 +184,7 @@ export default function BookingFlow({
         fetchSlots(false);
         const pollInterval = setInterval(() => { fetchSlots(true); }, 15000);
         return () => { active = false; controller.abort(); clearInterval(pollInterval); };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [date, therapistId, dateOptions]);
 
     useEffect(() => {

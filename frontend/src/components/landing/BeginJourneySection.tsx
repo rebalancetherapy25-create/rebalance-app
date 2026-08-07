@@ -38,13 +38,13 @@ export function BeginJourneySection() {
                         <div className="space-y-4">
                             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary font-medium text-sm">
                                 <HeartHandshake className="w-4 h-4" />
-                                <span>We're here for you</span>
+                                <span>We&apos;re here for you</span>
                             </div>
                             <h3 className="text-3xl md:text-4xl lg:text-5xl font-display text-foreground leading-[1.15] tracking-tight">
                                 Not sure where to start <br className="hidden lg:block"/> or what you need?
                             </h3>
                             <p className="text-base md:text-lg text-muted-foreground font-medium leading-relaxed max-w-2xl mx-auto lg:mx-0">
-                                You don't have to navigate this journey alone. Our dedicated team is here to make the process of finding the right therapist simple, comfortable, and stress-free.
+                                You don&apos;t have to navigate this journey alone. Our dedicated team is here to make the process of finding the right therapist simple, comfortable, and stress-free.
                             </p>
                         </div>
 
@@ -77,7 +77,7 @@ export function BeginJourneySection() {
                                 </Button>
                             </Link>
                             <p className="text-sm text-muted-foreground/80 font-medium italic max-w-[200px] text-center sm:text-left">
-                                We'll help match you with the right support.
+                                We&apos;ll help match you with the right support.
                             </p>
                         </div>
                     </motion.div>
