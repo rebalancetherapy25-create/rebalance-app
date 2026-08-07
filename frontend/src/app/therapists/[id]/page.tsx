@@ -20,6 +20,11 @@ interface Availability {
     slots: string[];
 }
 
+interface WeeklyAvailability {
+    dayOfWeek: number;
+    slots: string[];
+}
+
 interface ReviewItem {
     stars: number;
     quote: string;
@@ -48,7 +53,7 @@ interface TherapistDetail {
     credentials: string[];
     faq: FAQ[];
     availability: Availability[];
-    weeklyAvailability?: Record<string, unknown>[];
+    weeklyAvailability?: WeeklyAvailability[];
     joinedDate: string;
     reviews: ReviewItem[];
 }
@@ -104,7 +109,7 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
 }
 
 // Rolling 5-day calendar slot utility
-const getNext5Days = (availability: Availability[] = [], weeklyAvailability: Record<string, unknown>[] = []) => {
+const getNext5Days = (availability: Availability[] = [], weeklyAvailability: WeeklyAvailability[] = []) => {
     const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const shortDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -123,7 +128,7 @@ const getNext5Days = (availability: Availability[] = [], weeklyAvailability: Rec
         const monthName = months[nextDate.getMonth()];
         
         // Match modern numerical weeklyAvailability first, fallback to legacy weekday string
-        let match = weeklyAvailability?.find((a) => Number(a?.dayOfWeek) === dayIndex);
+        let match: WeeklyAvailability | Availability | undefined = weeklyAvailability?.find((a) => Number(a?.dayOfWeek) === dayIndex);
         if (!match || !match.slots) {
             match = availability?.find((a) => String(a?.day || '').toLowerCase() === String(dayName || '').toLowerCase());
         }
