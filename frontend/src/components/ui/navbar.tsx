@@ -111,7 +111,7 @@ export function Navbar() {
             <div className={`container mx-auto px-4 sm:px-6 transition-all duration-300 ${scrolled ? 'max-w-6xl' : 'max-w-7xl'}`}>
                 <div
                     className={cn(
-                        'flex items-center justify-between rounded-[1.25rem] px-3 transition-all duration-500 sm:rounded-full sm:px-6',
+                        'relative z-40 flex items-center justify-between rounded-[1.25rem] px-3 transition-all duration-500 sm:rounded-full sm:px-6',
                         scrolled || mobileMenuOpen
                             ? 'h-14 border border-border/60 bg-background/92 shadow-xl shadow-black/5 backdrop-blur-xl sm:h-16'
                             : 'h-14 border border-border/40 bg-background/78 backdrop-blur-md sm:h-[4.5rem]',
@@ -220,8 +220,14 @@ export function Navbar() {
             </div>
 
             {mobileMenuOpen && (
-                <div className="fixed inset-0 z-30 bg-background/82 backdrop-blur-sm md:hidden animate-in fade-in duration-300">
-                    <div className="mx-4 mt-20 rounded-[2rem] border border-border/50 bg-background p-5 shadow-2xl">
+                <div 
+                    className="fixed inset-0 z-30 bg-background/82 backdrop-blur-sm md:hidden animate-in fade-in duration-300"
+                    onClick={() => setMobileMenuOpen(false)}
+                >
+                    <div 
+                        className="mx-4 mt-20 rounded-[2rem] border border-border/50 bg-background p-5 shadow-2xl relative z-40"
+                        onClick={(e) => e.stopPropagation()}
+                    >
                         {authStatus === 'authenticated' && (
                             <div className="mb-5 rounded-[1.5rem] border border-primary/15 bg-primary/5 p-4">
                                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Signed in as</p>
