@@ -176,76 +176,94 @@ export default function TherapistsPage() {
                 </div>
             </div>
 
-            {/* ── Grid ── */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                {loading ? (
-                    [1, 2, 3].map(i => (
-                        <div key={i} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 h-56 animate-pulse" />
-                    ))
-                ) : filteredTherapists.length === 0 ? (
-                    <div className="col-span-full py-12 text-center text-neutral-500 bg-neutral-900/50 rounded-2xl border border-neutral-800 border-dashed">
-                        {hasActiveFilters ? 'No therapists match your filters.' : 'No therapists found on the platform.'}
-                    </div>
-                ) : filteredTherapists.map(therapist => (
-                    <div key={therapist._id}
-                        className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 relative group overflow-hidden transition-all hover:border-neutral-700">
-
-                        {/* Action buttons */}
-                        <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                            <Link href={`/therapists/${therapist._id}`}
-                                className="p-2 bg-neutral-800/90 backdrop-blur text-emerald-400 hover:text-white hover:bg-emerald-500/20 rounded-lg transition-colors"
-                                title="View profile">
-                                <ExternalLink className="w-4 h-4" />
-                            </Link>
-                            <Link href={`/therapists/${therapist._id}/edit`}
-                                className="p-2 bg-neutral-800/90 backdrop-blur text-blue-400 hover:text-white hover:bg-blue-500/20 rounded-lg transition-colors"
-                                title="Edit">
-                                <Pencil className="w-4 h-4" />
-                            </Link>
-                            <button onClick={() => openDelete(therapist)}
-                                className="p-2 bg-neutral-800/90 backdrop-blur text-red-500 hover:text-white hover:bg-red-500/20 rounded-lg transition-colors"
-                                title="Delete">
-                                <Trash2 className="w-4 h-4" />
-                            </button>
-                        </div>
-
-                        <div className="flex items-center gap-4 mb-4">
-                            <img
-                                src={therapist.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(therapist.name)}&background=10b981&color=fff`}
-                                alt={therapist.name}
-                                className="w-16 h-16 rounded-2xl object-cover border border-neutral-800"
-                            />
-                            <div>
-                                <h3 className="font-semibold text-white text-lg leading-tight">{therapist.name}</h3>
-                                <div className="flex items-center mt-1 text-sm text-amber-500">
-                                    <Star className="w-4 h-4 fill-amber-500 mr-1" />
-                                    <span className="font-medium">{therapist.ratingAverage?.toFixed(1) || 'New'}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="space-y-3">
-                            <div>
-                                <div className="text-xs uppercase tracking-wider text-neutral-500 mb-1.5 font-medium">Specialties</div>
-                                <div className="flex flex-wrap gap-1.5">
-                                    {therapist.specialties.slice(0, 3).map((spec, i) => (
-                                        <span key={i} className="px-2 py-0.5 bg-neutral-800 text-neutral-300 rounded-md text-xs border border-neutral-700">{spec}</span>
-                                    ))}
-                                    {therapist.specialties.length > 3 && (
-                                        <span className="px-2 py-0.5 bg-neutral-800 text-neutral-400 rounded-md text-xs border border-neutral-700">
-                                            +{therapist.specialties.length - 3}
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-                            <div className="flex items-center pt-2 border-t border-neutral-800">
-                                <IndianRupee className="w-4 h-4 text-emerald-400 mr-0.5" />
-                                <span className="text-emerald-400 font-medium">{therapist.price}</span>
-                                <span className="text-neutral-500 text-xs ml-1">/ session</span>
-                            </div>
-                        </div>
-                    </div>
-                ))}
+            {/* ── Data Table ── */}
+            <div className="bg-neutral-900 rounded-2xl shadow-sm border border-neutral-800 overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                        <thead className="bg-neutral-950/50 text-neutral-400 font-medium border-b border-neutral-800 uppercase text-xs tracking-wider">
+                            <tr>
+                                <th className="px-6 py-4">Therapist</th>
+                                <th className="px-6 py-4">Specialties</th>
+                                <th className="px-6 py-4">Rating</th>
+                                <th className="px-6 py-4">Price / Session</th>
+                                <th className="px-6 py-4 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-neutral-800 text-neutral-300">
+                            {loading ? (
+                                <tr>
+                                    <td colSpan={5} className="px-6 py-8 text-center text-neutral-500">
+                                        <div className="flex flex-col gap-4">
+                                            {[1, 2, 3].map(i => <div key={i} className="h-12 bg-neutral-800/50 rounded-lg animate-pulse" />)}
+                                        </div>
+                                    </td>
+                                </tr>
+                            ) : filteredTherapists.length === 0 ? (
+                                <tr><td colSpan={5} className="px-6 py-12 text-center text-neutral-500">
+                                    {hasActiveFilters ? 'No therapists match your filters.' : 'No therapists found on the platform.'}
+                                </td></tr>
+                            ) : (
+                                filteredTherapists.map(therapist => (
+                                    <tr key={therapist._id} className="hover:bg-neutral-800/50 transition-colors group">
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-4">
+                                                <img
+                                                    src={therapist.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(therapist.name)}&background=10b981&color=fff`}
+                                                    alt={therapist.name}
+                                                    className="w-10 h-10 rounded-full object-cover border border-neutral-700"
+                                                />
+                                                <div className="font-medium text-white">{therapist.name}</div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {therapist.specialties.slice(0, 2).map((spec, i) => (
+                                                    <span key={i} className="px-2 py-0.5 bg-neutral-950 text-neutral-400 rounded-md text-xs border border-neutral-800">{spec}</span>
+                                                ))}
+                                                {therapist.specialties.length > 2 && (
+                                                    <span className="px-2 py-0.5 bg-neutral-950 text-neutral-500 rounded-md text-xs border border-neutral-800">
+                                                        +{therapist.specialties.length - 2}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center text-amber-500">
+                                                <Star className="w-3.5 h-3.5 fill-amber-500 mr-1" />
+                                                <span className="font-medium">{therapist.ratingAverage?.toFixed(1) || 'New'}</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center text-emerald-400">
+                                                <IndianRupee className="w-3.5 h-3.5 mr-0.5" />
+                                                <span className="font-medium">{therapist.price}</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <div className="flex justify-end items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <Link href={`/therapists/${therapist._id}`}
+                                                    className="p-1.5 text-neutral-500 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-colors"
+                                                    title="View profile">
+                                                    <ExternalLink className="w-4 h-4" />
+                                                </Link>
+                                                <Link href={`/therapists/${therapist._id}/edit`}
+                                                    className="p-1.5 text-neutral-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
+                                                    title="Edit">
+                                                    <Pencil className="w-4 h-4" />
+                                                </Link>
+                                                <button onClick={() => openDelete(therapist)}
+                                                    className="p-1.5 text-neutral-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                                                    title="Delete">
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             {/* ── Delete dialog ── */}

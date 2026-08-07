@@ -18,24 +18,34 @@ const sections = [
         ],
     },
     {
-        label: 'People',
+        label: 'Network',
         items: [
             { name: 'Users', href: '/users', icon: Users },
             { name: 'Therapists', href: '/therapists', icon: UserCog },
             { name: 'Therapist Accounts', href: '/therapist-accounts', icon: KeyRound },
+            { name: 'Availability', href: '/availability', icon: CalendarDays },
         ],
     },
     {
-        label: 'Operations',
+        label: 'Bookings',
         items: [
-            { name: 'Availability', href: '/availability', icon: CalendarDays },
-            { name: 'Bookings', href: '/bookings', icon: Calendar },
+            { name: 'Manage Bookings', href: '/bookings', icon: Calendar },
+        ],
+    },
+    {
+        label: 'Content & Offers',
+        items: [
             { name: 'Banners', href: '/banners', icon: ImageIcon },
             { name: 'Offer Banners', href: '/offer-banners', icon: Tag },
             { name: 'Coupons', href: '/coupons', icon: Ticket },
-            { name: 'Settings', href: '/settings', icon: Settings },
         ],
     },
+    {
+        label: 'System',
+        items: [
+            { name: 'Settings', href: '/settings', icon: Settings },
+        ]
+    }
 ];
 
 export default function AdminSidebar({

@@ -473,17 +473,17 @@ export default function BookingsPage() {
                             </button>
                         )}
                     </div>
-                    <select
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
-                        className="px-3 py-2 bg-neutral-950 border border-neutral-800 rounded-lg text-sm text-white focus:ring-1 focus:ring-emerald-500 focus:outline-none"
-                    >
-                        <option value="all">All statuses</option>
-                        <option value="pending">Pending</option>
-                        <option value="confirmed">Confirmed</option>
-                        <option value="completed">Completed</option>
-                        <option value="cancelled">Cancelled</option>
-                    </select>
+                    <div className="flex bg-neutral-950 p-1 rounded-lg border border-neutral-800 overflow-x-auto">
+                        {(['all', 'pending', 'confirmed', 'completed', 'cancelled'] as const).map((status) => (
+                            <button
+                                key={status}
+                                onClick={() => setStatusFilter(status)}
+                                className={`px-4 py-1.5 text-sm font-medium rounded-md capitalize whitespace-nowrap transition-colors ${statusFilter === status ? 'bg-neutral-800 text-white shadow-sm' : 'text-neutral-400 hover:text-white hover:bg-neutral-900/50'}`}
+                            >
+                                {status === 'all' ? 'All Bookings' : status}
+                            </button>
+                        ))}
+                    </div>
                     <select
                         value={therapistFilter}
                         onChange={(e) => setTherapistFilter(e.target.value)}
@@ -592,17 +592,36 @@ export default function BookingsPage() {
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex justify-end items-center gap-3">
-                                                <select
-                                                    disabled={updatingId === booking._id || booking.status === 'completed' || booking.status === 'cancelled'}
-                                                    value={booking.status}
-                                                    onChange={(e) => handleStatusChange(booking._id, e.target.value)}
-                                                    className={`bg-neutral-950 border border-neutral-700 text-xs rounded-lg focus:ring-emerald-500 focus:border-emerald-500 block p-1.5 ${STATUS_COLORS[booking.status]} ${updatingId === booking._id || booking.status === 'completed' || booking.status === 'cancelled' ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                >
-                                                    <option value="pending">Pending</option>
-                                                    <option value="confirmed">Confirmed</option>
-                                                    <option value="completed">Completed</option>
-                                                    <option value="cancelled">Cancelled</option>
-                                                </select>
+                                                {booking.status === 'pending' ? (
+                                                    <div className="flex gap-2">
+                                                        <button 
+                                                            disabled={updatingId === booking._id}
+                                                            onClick={() => handleStatusChange(booking._id, 'confirmed')}
+                                                            className="px-3 py-1.5 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 text-xs font-medium rounded-lg border border-emerald-500/20 transition-colors disabled:opacity-50"
+                                                        >
+                                                            Confirm
+                                                        </button>
+                                                        <button 
+                                                            disabled={updatingId === booking._id}
+                                                            onClick={() => handleStatusChange(booking._id, 'cancelled')}
+                                                            className="px-3 py-1.5 bg-red-500/10 text-red-400 hover:bg-red-500/20 text-xs font-medium rounded-lg border border-red-500/20 transition-colors disabled:opacity-50"
+                                                        >
+                                                            Cancel
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <select
+                                                        disabled={updatingId === booking._id || booking.status === 'completed' || booking.status === 'cancelled'}
+                                                        value={booking.status}
+                                                        onChange={(e) => handleStatusChange(booking._id, e.target.value)}
+                                                        className={`bg-neutral-950 border border-neutral-700 text-xs rounded-lg focus:ring-emerald-500 focus:border-emerald-500 block p-1.5 ${STATUS_COLORS[booking.status]} ${updatingId === booking._id || booking.status === 'completed' || booking.status === 'cancelled' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                    >
+                                                        <option value="pending">Pending</option>
+                                                        <option value="confirmed">Confirmed</option>
+                                                        <option value="completed">Completed</option>
+                                                        <option value="cancelled">Cancelled</option>
+                                                    </select>
+                                                )}
                                                 <button onClick={() => openEditDialog(booking)}
                                                     className="p-1.5 text-neutral-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors" title="Edit">
                                                     <Pencil className="w-4 h-4" />
