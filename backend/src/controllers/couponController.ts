@@ -12,6 +12,37 @@ export const getCoupons = async (req: AuthRequest, res: Response) => {
     }
 };
 
+export const getActiveCoupons = async (req: Request, res: Response) => {
+    try {
+        const now = new Date();
+        const coupons = await Coupon.find({
+            isActive: true,
+            $or: [
+                { expiresAt: { $exists: false } },
+                { expiresAt: null },
+                { expiresAt: { $gt: now } }
+            ],
+            $expr: {
+                $or: [
+                    { $eq: [{ $type: "$maxUsage" }, "missing"] },
+                    { $eq: ["$maxUsage", null] },
+                    { $lt: ["$currentUsage", "$maxUsage"] }
+                ]
+            }
+        }).sort({ discountPercentage: -1 });
+        
+        // Return only what is needed by the frontend to prevent leaking internal usage stats
+        const publicCoupons = coupons.map(c => ({
+            code: c.code,
+            discountPercentage: c.discountPercentage,
+        }));
+        
+        return sendData(res, publicCoupons);
+    } catch (error) {
+        return sendError(res, 500, 'Failed to fetch active coupons', { code: 'ACTIVE_COUPON_FETCH_FAILED' });
+    }
+};
+
 export const createCoupon = async (req: AuthRequest, res: Response) => {
     try {
         const { code, discountPercentage, isActive, expiresAt, maxUsage } = req.body;

@@ -80,18 +80,38 @@ export default function BookingFlow({
     const [couponStatus, setCouponStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
     const [appliedDiscountData, setAppliedDiscountData] = useState<{ discountPercentage: number; code: string } | null>(null);
     const [applyingCoupon, setApplyingCoupon] = useState(false);
+    
+    const [activeCoupons, setActiveCoupons] = useState<{ code: string; discountPercentage: number }[]>([]);
+    const [loadingCoupons, setLoadingCoupons] = useState(false);
+    const hasFetchedCoupons = useRef(false);
 
-    const handleApplyCoupon = useCallback(async () => {
-        if (!couponCode.trim()) return;
+    useEffect(() => {
+        if (showCoupon && !hasFetchedCoupons.current) {
+            hasFetchedCoupons.current = true;
+            setLoadingCoupons(true);
+            fetch(`${API_BASE}/coupons/active`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.data) setActiveCoupons(data.data);
+                })
+                .catch(console.error)
+                .finally(() => setLoadingCoupons(false));
+        }
+    }, [showCoupon]);
+
+    const handleApplyCoupon = useCallback(async (codeToApply?: string | React.MouseEvent) => {
+        const code = typeof codeToApply === 'string' ? codeToApply : couponCode;
+        if (!code.trim()) return;
         setApplyingCoupon(true);
         setCouponStatus(null);
+        if (typeof codeToApply === 'string') setCouponCode(codeToApply);
         try {
             const csrfToken = await ensureCsrfToken(API_BASE);
             const res = await fetch(`${API_BASE}/coupons/validate`, {
                 method: 'POST',
                 credentials: 'include',
                 headers: { 'Content-Type': 'application/json', ...(csrfToken ? { [CSRF_HEADER_NAME]: csrfToken } : {}) },
-                body: JSON.stringify({ code: couponCode }),
+                body: JSON.stringify({ code }),
             });
             const data = await res.json();
             if (res.ok) {
@@ -709,7 +729,7 @@ export default function BookingFlow({
                                             />
                                             <Button
                                                 type="button"
-                                                onClick={handleApplyCoupon}
+                                                onClick={() => handleApplyCoupon()}
                                                 disabled={applyingCoupon || !couponCode.trim()}
                                                 className="h-10 rounded-xl px-5 text-xs font-bold shrink-0"
                                             >
@@ -720,6 +740,27 @@ export default function BookingFlow({
                                             <p className={`text-xs font-bold ${couponStatus.type === 'success' ? 'text-emerald-600' : 'text-destructive'}`}>
                                                 {couponStatus.type === 'success' ? '✓ ' : '✕ '}{couponStatus.message}
                                             </p>
+                                        )}
+                                        
+                                        {activeCoupons.length > 0 && !appliedDiscountData && (
+                                            <div className="pt-2">
+                                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Available Offers</p>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {activeCoupons.map(coupon => (
+                                                        <button
+                                                            key={coupon.code}
+                                                            type="button"
+                                                            onClick={() => handleApplyCoupon(coupon.code)}
+                                                            disabled={applyingCoupon}
+                                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors text-left"
+                                                        >
+                                                            <Tag className="w-3 h-3 text-primary" />
+                                                            <span className="text-xs font-bold text-primary">{coupon.code}</span>
+                                                            <span className="text-[10px] font-semibold text-primary/70">{coupon.discountPercentage}% OFF</span>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
                                         )}
                                     </div>
                                 )}

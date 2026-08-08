@@ -4,13 +4,17 @@ import {
     createCoupon, 
     updateCoupon, 
     deleteCoupon, 
-    validateCoupon 
+    validateCoupon,
+    getActiveCoupons
 } from '../controllers/couponController';
 import { protect, adminOnly } from '../middlewares/authMiddleware';
 import { validate } from '../lib/http';
 import { adminSchemas } from '../validation/schemas';
 
 const router = express.Router();
+
+// Public route to fetch active coupons
+router.get('/active', getActiveCoupons);
 
 // Public route to validate a coupon
 router.post('/validate', validateCoupon);
