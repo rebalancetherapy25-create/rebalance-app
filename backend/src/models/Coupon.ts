@@ -7,6 +7,7 @@ export interface ICoupon extends Document {
     expiresAt?: Date;
     maxUsage?: number;
     currentUsage: number;
+    usedBy: string[];
     createdAt: Date;
     updatedAt: Date;
 }
@@ -19,6 +20,7 @@ const couponSchema = new Schema(
         expiresAt: { type: Date },
         maxUsage: { type: Number },
         currentUsage: { type: Number, default: 0 },
+        usedBy: { type: [String], default: [] },
     },
     { timestamps: true }
 );

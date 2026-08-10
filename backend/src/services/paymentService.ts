@@ -124,7 +124,14 @@ export const confirmBookingPaymentByOrderId = async (options: {
         );
         if (booking.couponCode) {
             const mongoose = require('mongoose');
-            await mongoose.model('Coupon').updateOne({ code: booking.couponCode }, { $inc: { currentUsage: 1 } });
+            let bookingEmail = booking.guestContact?.email;
+            if (booking.userId) {
+                bookingEmail = (booking.userId as any).email?.toLowerCase();
+            }
+            await mongoose.model('Coupon').updateOne(
+                { code: booking.couponCode }, 
+                { $inc: { currentUsage: 1 }, $push: { usedBy: bookingEmail } }
+            );
         }
     } catch (saveError) {
         await Availability.updateOne(

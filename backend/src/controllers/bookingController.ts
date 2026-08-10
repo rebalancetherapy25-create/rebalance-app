@@ -120,6 +120,12 @@ export const createBooking = async (req: AuthRequest, res: Response) => {
             return sendError(res, 400, 'Guest bookings require name and email', { code: 'BOOKING_GUEST_DETAILS_REQUIRED' });
         }
 
+        let bookingEmail = guestEmail;
+        if (userId) {
+            const user = await User.findById(userId);
+            if (user) bookingEmail = user.email.toLowerCase();
+        }
+
         const now = new Date();
         const lockExpiry = new Date(now.getTime() + LOCK_DURATION_MS);
         const bookingId = new mongoose.Types.ObjectId();
@@ -153,6 +159,10 @@ export const createBooking = async (req: AuthRequest, res: Response) => {
         if (couponCode) {
             const coupon = await mongoose.model('Coupon').findOne({ code: String(couponCode).toUpperCase() });
             if (coupon && coupon.isActive && (!coupon.expiresAt || new Date() < coupon.expiresAt) && (!coupon.maxUsage || coupon.currentUsage < coupon.maxUsage)) {
+                if (coupon.usedBy && coupon.usedBy.includes(bookingEmail)) {
+                    await releaseHold(therapistId, normalizedDate, normalizedTime, bookingId);
+                    return sendError(res, 400, 'You have already used this coupon', { code: 'COUPON_ALREADY_USED' });
+                }
                 discountAmount = Math.round(originalAmount * (coupon.discountPercentage / 100));
                 amount = Math.max(0, originalAmount - discountAmount);
                 appliedCouponCode = coupon.code;
@@ -201,7 +211,7 @@ export const createBooking = async (req: AuthRequest, res: Response) => {
             );
 
             if (appliedCouponCode) {
-                await mongoose.model('Coupon').updateOne({ code: appliedCouponCode }, { $inc: { currentUsage: 1 } });
+                await mongoose.model('Coupon').updateOne({ code: appliedCouponCode }, { $inc: { currentUsage: 1 }, $push: { usedBy: bookingEmail } });
             }
 
             let recipientEmail = guestEmail;
@@ -283,9 +293,19 @@ export const applyCouponToBooking = async (req: AuthRequest, res: Response) => {
         const therapist = booking.therapistId as any;
         let originalAmount = Math.round(Number(therapist.price || 0));
 
+        let bookingEmail = booking.guestContact?.email;
+        if (booking.userId) {
+            const user = await User.findById(booking.userId);
+            if (user) bookingEmail = user.email.toLowerCase();
+        }
+
         const coupon = await mongoose.model('Coupon').findOne({ code: String(code).toUpperCase() });
         if (!coupon || !coupon.isActive || (coupon.expiresAt && new Date() > coupon.expiresAt) || (coupon.maxUsage && coupon.currentUsage >= coupon.maxUsage)) {
             return sendError(res, 400, 'Invalid or expired coupon code', { code: 'COUPON_INVALID' });
+        }
+
+        if (bookingEmail && coupon.usedBy && coupon.usedBy.includes(bookingEmail)) {
+            return sendError(res, 400, 'You have already used this coupon', { code: 'COUPON_ALREADY_USED' });
         }
 
         const discountAmount = Math.round(originalAmount * (coupon.discountPercentage / 100));
@@ -307,7 +327,7 @@ export const applyCouponToBooking = async (req: AuthRequest, res: Response) => {
                 }
             );
             
-            await mongoose.model('Coupon').updateOne({ code: coupon.code }, { $inc: { currentUsage: 1 } });
+            await mongoose.model('Coupon').updateOne({ code: coupon.code }, { $inc: { currentUsage: 1 }, $push: { usedBy: bookingEmail } });
 
             let recipientEmail = booking.guestContact?.email;
             let recipientName = booking.guestContact?.name || 'there';
