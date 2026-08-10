@@ -741,8 +741,14 @@ export default function BookingFlow({
                                                 {couponStatus.type === 'success' ? '✓ ' : '✕ '}{couponStatus.message}
                                             </p>
                                         )}
+                                        {loadingCoupons && !appliedDiscountData && (
+                                            <div className="pt-2 flex items-center gap-2 text-muted-foreground">
+                                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                <span className="text-[10px] font-bold uppercase tracking-wider">Finding offers...</span>
+                                            </div>
+                                        )}
                                         
-                                        {activeCoupons.length > 0 && !appliedDiscountData && (
+                                        {!loadingCoupons && activeCoupons.length > 0 && !appliedDiscountData && (
                                             <div className="pt-2">
                                                 <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Available Offers</p>
                                                 <div className="flex flex-wrap gap-2">

@@ -229,8 +229,16 @@ export const createTherapist = async (req: Request, res: Response) => {
             (response as any).portalAccess = portalAccessResult;
         }
         return sendData(res, response, 201);
-    } catch (error) {
-        return sendError(res, 400, 'Invalid data for creating therapist', { code: 'ADMIN_THERAPIST_CREATE_INVALID' });
+    } catch (error: any) {
+        console.error('Error creating therapist:', error);
+        if (error.code === 11000 && error.keyPattern?.email) {
+            return sendError(res, 400, 'A therapist with this email already exists.', { code: 'THERAPIST_EMAIL_EXISTS' });
+        }
+        if (error.name === 'ValidationError') {
+            const messages = Object.values(error.errors).map((err: any) => err.message);
+            return sendError(res, 400, `Validation Error: ${messages.join(', ')}`, { code: 'ADMIN_THERAPIST_CREATE_INVALID', details: error.message });
+        }
+        return sendError(res, 400, 'Invalid data for creating therapist: ' + (error.message || 'Unknown error'), { code: 'ADMIN_THERAPIST_CREATE_INVALID', details: error.message });
     }
 };
 

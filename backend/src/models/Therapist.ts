@@ -59,3 +59,10 @@ therapistSchema.index({ languages: 1, sessionTypes: 1 });
 therapistSchema.index({ price: 1, ratingAverage: -1 });
 
 export const Therapist = mongoose.model<ITherapist>('Therapist', therapistSchema);
+
+// Ensure indexes are synced, especially the sparse email index
+if (process.env.NODE_ENV !== 'test') {
+    mongoose.connection.on('connected', () => {
+        Therapist.syncIndexes().catch(console.error);
+    });
+}
