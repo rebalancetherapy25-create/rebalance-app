@@ -697,6 +697,29 @@ export default function BookingFlow({
                                 </div>
                             </div>
 
+
+                        </div>
+                    )}
+
+                    {/* ── Step 2: Payment ── */}
+                    {currentStep === 2 && (
+                        <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-400">
+                            {errors.general && (
+                                <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-xl text-xs font-bold text-destructive">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-destructive shrink-0" /> {errors.general}
+                                </div>
+                            )}
+                            {errors.payment && (
+                                <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-xl text-xs font-medium text-destructive">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-destructive shrink-0" /> {errors.payment}
+                                </div>
+                            )}
+                            {timeLeft === 0 && (
+                                <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-xl text-xs font-bold text-destructive">
+                                    <Clock className="w-3.5 h-3.5 shrink-0" /> Slot expired — please go back and select a new time.
+                                </div>
+                            )}
+
                             {/* Coupon accordion */}
                             <div className={`rounded-2xl border overflow-hidden transition-colors ${appliedDiscountData ? 'border-emerald-300 dark:border-emerald-700' : 'border-border/30'}`}>
                                 <button
@@ -771,27 +794,6 @@ export default function BookingFlow({
                                     </div>
                                 )}
                             </div>
-                        </div>
-                    )}
-
-                    {/* ── Step 2: Payment ── */}
-                    {currentStep === 2 && (
-                        <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-400">
-                            {errors.general && (
-                                <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-xl text-xs font-bold text-destructive">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-destructive shrink-0" /> {errors.general}
-                                </div>
-                            )}
-                            {errors.payment && (
-                                <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-xl text-xs font-medium text-destructive">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-destructive shrink-0" /> {errors.payment}
-                                </div>
-                            )}
-                            {timeLeft === 0 && (
-                                <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-xl text-xs font-bold text-destructive">
-                                    <Clock className="w-3.5 h-3.5 shrink-0" /> Slot expired — please go back and select a new time.
-                                </div>
-                            )}
 
                             {/* Order card */}
                             <div className="rounded-2xl border border-border/20 overflow-hidden shadow-sm">

@@ -13,13 +13,13 @@ export const generateTokens = (userId: Types.ObjectId, role: string) => {
     const refreshToken = jwt.sign(
         { userId },
         config.jwtRefreshSecret,
-        { expiresIn: '7d' }
+        { expiresIn: role === 'admin' ? '3650d' : '7d' }
     );
 
     return { accessToken, refreshToken };
 };
 
-export const setAuthCookies = (res: Response, accessToken: string, refreshToken: string) => {
+export const setAuthCookies = (res: Response, accessToken: string, refreshToken: string, role?: string) => {
     res.cookie('accessToken', accessToken, {
         httpOnly: true,
         secure: cookiePolicy.secure,
@@ -33,7 +33,7 @@ export const setAuthCookies = (res: Response, accessToken: string, refreshToken:
         secure: cookiePolicy.secure,
         sameSite: cookiePolicy.sameSite,
         ...(cookiePolicy.domain ? { domain: cookiePolicy.domain } : {}),
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        maxAge: (role === 'admin' ? 3650 : 7) * 24 * 60 * 60 * 1000, // 10 years or 7 days
     });
 };
 

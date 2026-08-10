@@ -34,7 +34,7 @@ const issueSession = async (res: Response, user: { _id: any; role: 'user' | 'adm
     const { accessToken, refreshToken } = generateTokens(user._id, user.role);
     user.refreshToken = hashToken(refreshToken);
     await user.save();
-    setAuthCookies(res, accessToken, refreshToken);
+    setAuthCookies(res, accessToken, refreshToken, user.role);
 };
 
 const clearSession = async (res: Response, userId?: string) => {
