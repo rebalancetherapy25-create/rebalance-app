@@ -236,9 +236,9 @@ export const createTherapist = async (req: Request, res: Response) => {
         }
         if (error.name === 'ValidationError') {
             const messages = Object.values(error.errors).map((err: any) => err.message);
-            return sendError(res, 400, `Validation Error: ${messages.join(', ')}`, { code: 'ADMIN_THERAPIST_CREATE_INVALID', details: error.message });
+            return sendError(res, 400, `Validation Error: ${messages.join(', ')}`, { code: 'ADMIN_THERAPIST_CREATE_INVALID', data: { details: error.message } });
         }
-        return sendError(res, 400, 'Invalid data for creating therapist: ' + (error.message || 'Unknown error'), { code: 'ADMIN_THERAPIST_CREATE_INVALID', details: error.message });
+        return sendError(res, 400, 'Invalid data for creating therapist: ' + (error.message || 'Unknown error'), { code: 'ADMIN_THERAPIST_CREATE_INVALID', data: { details: error.message } });
     }
 };
 
