@@ -232,7 +232,7 @@ export const createTherapist = async (req: Request, res: Response) => {
     } catch (error: any) {
         console.error('Error creating therapist:', error);
         if (error.code === 11000 && error.keyPattern?.email) {
-            if (!payload.email) {
+            if (!req.body.email) {
                 return sendError(res, 400, 'Cannot create another therapist without an email due to a database index issue. Please provide a unique email address.', { code: 'THERAPIST_EMAIL_EXISTS' });
             }
             return sendError(res, 400, 'A therapist with this email already exists.', { code: 'THERAPIST_EMAIL_EXISTS' });
