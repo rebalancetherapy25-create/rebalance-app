@@ -107,19 +107,41 @@ export default function BookingFlow({
         if (typeof codeToApply === 'string') setCouponCode(codeToApply);
         try {
             const csrfToken = await ensureCsrfToken(API_BASE);
-            const res = await fetch(`${API_BASE}/coupons/validate`, {
-                method: 'POST',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json', ...(csrfToken ? { [CSRF_HEADER_NAME]: csrfToken } : {}) },
-                body: JSON.stringify({ code }),
-            });
-            const data = await res.json();
-            if (res.ok) {
-                setAppliedDiscountData({ discountPercentage: data.data.discountPercentage, code: data.data.code });
-                setCouponStatus({ type: 'success', message: `${data.data.discountPercentage}% discount applied!` });
+            if (orderData?.bookingId) {
+                const res = await fetch(`${API_BASE}/bookings/${orderData.bookingId}/apply-coupon`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json', ...(csrfToken ? { [CSRF_HEADER_NAME]: csrfToken } : {}) },
+                    body: JSON.stringify({ code }),
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    setOrderData(data.data);
+                    setAppliedDiscountData({ discountPercentage: data.data.discountPercentage, code: data.data.code });
+                    setCouponStatus({ type: 'success', message: `${data.data.discountPercentage}% discount applied!` });
+                    
+                    if (data.data.amount === 0) {
+                        setCurrentStep(3); // Skip Razorpay for 100% off
+                    }
+                } else {
+                    setAppliedDiscountData(null);
+                    setCouponStatus({ type: 'error', message: data.error || 'Invalid coupon code' });
+                }
             } else {
-                setAppliedDiscountData(null);
-                setCouponStatus({ type: 'error', message: data.error || 'Invalid coupon code' });
+                const res = await fetch(`${API_BASE}/coupons/validate`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json', ...(csrfToken ? { [CSRF_HEADER_NAME]: csrfToken } : {}) },
+                    body: JSON.stringify({ code }),
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    setAppliedDiscountData({ discountPercentage: data.data.discountPercentage, code: data.data.code });
+                    setCouponStatus({ type: 'success', message: `${data.data.discountPercentage}% discount applied!` });
+                } else {
+                    setAppliedDiscountData(null);
+                    setCouponStatus({ type: 'error', message: data.error || 'Invalid coupon code' });
+                }
             }
         } catch {
             setAppliedDiscountData(null);
@@ -127,7 +149,7 @@ export default function BookingFlow({
         } finally {
             setApplyingCoupon(false);
         }
-    }, [couponCode]);
+    }, [couponCode, orderData]);
 
     useEffect(() => {
         const options = buildDateOptions(availability || []);

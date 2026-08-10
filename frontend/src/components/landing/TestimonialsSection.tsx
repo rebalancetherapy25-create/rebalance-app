@@ -232,12 +232,11 @@ export function TestimonialsSection() {
                 className="relative max-w-[1400px] mx-auto px-6"
                 onMouseEnter={() => setIsPaused(true)}
                 onMouseLeave={() => setIsPaused(false)}
-                onTouchStart={() => setIsPaused(true)}
             >
                 <div
                     ref={scrollContainerRef}
                     onScroll={handleScroll}
-                    className="flex gap-6 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-8 pt-2 select-none [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+                    className="flex gap-6 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-8 pt-2 touch-pan-y touch-pan-x select-none [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
                 >
                     {TESTIMONIALS.map((t, idx) => {
                         const gradient = MONOGRAM_GRADIENTS[idx % MONOGRAM_GRADIENTS.length];

@@ -262,6 +262,110 @@ export const createBooking = async (req: AuthRequest, res: Response) => {
     }
 };
 
+export const applyCouponToBooking = async (req: AuthRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { code } = req.body;
+        
+        if (!code) {
+            return sendError(res, 400, 'Coupon code is required', { code: 'COUPON_MISSING_CODE' });
+        }
+
+        const booking = await Booking.findById(id).populate('therapistId');
+        if (!booking) {
+            return sendError(res, 404, 'Booking not found', { code: 'BOOKING_NOT_FOUND' });
+        }
+        
+        if (booking.status !== 'pending') {
+            return sendError(res, 400, 'Coupon can only be applied to pending bookings', { code: 'BOOKING_NOT_PENDING' });
+        }
+
+        const therapist = booking.therapistId as any;
+        let originalAmount = Math.round(Number(therapist.price || 0));
+
+        const coupon = await mongoose.model('Coupon').findOne({ code: String(code).toUpperCase() });
+        if (!coupon || !coupon.isActive || (coupon.expiresAt && new Date() > coupon.expiresAt) || (coupon.maxUsage && coupon.currentUsage >= coupon.maxUsage)) {
+            return sendError(res, 400, 'Invalid or expired coupon code', { code: 'COUPON_INVALID' });
+        }
+
+        const discountAmount = Math.round(originalAmount * (coupon.discountPercentage / 100));
+        const amount = Math.max(0, originalAmount - discountAmount);
+
+        if (amount === 0) {
+            booking.amount = amount;
+            booking.discountAmount = discountAmount;
+            booking.couponCode = coupon.code;
+            booking.originalAmount = originalAmount;
+            booking.status = 'confirmed';
+            await booking.save();
+
+            await Availability.updateOne(
+                { therapistId: booking.therapistId, date: booking.date, 'slots.time': booking.time },
+                {
+                    $set: { 'slots.$.isBooked': true },
+                    $unset: { 'slots.$.reservedUntil': 1, 'slots.$.reservedBookingId': 1 },
+                }
+            );
+            
+            await mongoose.model('Coupon').updateOne({ code: coupon.code }, { $inc: { currentUsage: 1 } });
+
+            let recipientEmail = booking.guestContact?.email;
+            let recipientName = booking.guestContact?.name || 'there';
+            if (booking.userId) {
+                const user = await User.findById(booking.userId);
+                if (user) {
+                    recipientEmail = user.email;
+                    recipientName = user.name;
+                }
+            }
+
+            if (recipientEmail) {
+                const tpl = bookingConfirmedEmail({
+                    recipientName,
+                    therapistName: therapist.name,
+                    date: booking.date,
+                    time: formatSlotTime(booking.time),
+                });
+                await queueEmail(recipientEmail, tpl.subject, tpl.html);
+            }
+
+            return sendData(res, {
+                orderId: `FREE_BOOKING_${booking._id}`,
+                amount: 0,
+                currency: 'INR',
+                bookingId: booking._id,
+                discountPercentage: coupon.discountPercentage,
+                code: coupon.code
+            });
+        }
+
+        const order = await getRazorpay().orders.create({
+            amount: amount * 100,
+            currency: 'INR',
+            receipt: `receipt_order_${booking._id}`,
+        });
+
+        booking.razorpayOrderId = order.id;
+        booking.amount = amount;
+        booking.discountAmount = discountAmount;
+        booking.couponCode = coupon.code;
+        booking.originalAmount = originalAmount;
+        await booking.save();
+
+        return sendData(res, {
+            orderId: order.id,
+            amount: order.amount,
+            currency: order.currency,
+            bookingId: booking._id,
+            discountPercentage: coupon.discountPercentage,
+            code: coupon.code
+        });
+    } catch (error) {
+        console.error('Apply Coupon Error:', error);
+        return sendError(res, 500, 'Server error applying coupon', { code: 'BOOKING_COUPON_FAILED' });
+    }
+};
+
 export const verifyPayment = async (req: AuthRequest, res: Response) => {
     try {
         // Keep hold cleanup, but do not cancel stale pending bookings before payment verification.

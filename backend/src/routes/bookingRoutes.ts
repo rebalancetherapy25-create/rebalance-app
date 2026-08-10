@@ -1,5 +1,5 @@
 import express, { Request, Response, NextFunction } from 'express';
-import { createBooking, verifyPayment, getUserBookings } from '../controllers/bookingController';
+import { createBooking, verifyPayment, getUserBookings, applyCouponToBooking } from '../controllers/bookingController';
 import { protect } from '../middlewares/authMiddleware';
 import jwt from 'jsonwebtoken';
 import config from '../config/env';
@@ -28,6 +28,7 @@ const optionalProtect = async (req: Request, res: Response, next: NextFunction) 
 };
 
 router.post('/create', bookingLimiter, optionalProtect, validate(bookingSchemas.create), createBooking);
+router.post('/:id/apply-coupon', optionalProtect, validate(bookingSchemas.applyCoupon), applyCouponToBooking);
 router.post('/verify', bookingLimiter, optionalProtect, validate(bookingSchemas.verifyPayment), verifyPayment);
 router.get('/my-bookings', protect, getUserBookings);
 

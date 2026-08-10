@@ -83,6 +83,9 @@ export const bookingSchemas = {
         razorpay_signature: z.string().trim().min(1, 'razorpay_signature is required'),
         bookingId: objectId,
     }),
+    applyCoupon: z.object({
+        code: z.string().trim().min(1, 'Coupon code is required'),
+    }),
     lockSlot: z.object({
         date: isoDate,
         time: timeLike,
