@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
+import { NavButton } from '@/components/ui/nav-button';
 import { 
     User, Sparkles, Heart, Search, ChevronDown, 
     ShieldCheck, Lock, Calendar, Video, FileText, 
@@ -291,11 +292,9 @@ export default function TherapistFilters({
                                         <div className="w-2 h-2 rounded-full bg-green-500"></div>
                                         Available Today
                                     </div>
-                                    <Button asChild className="rounded-full bg-primary hover:bg-primary/90">
-                                        <Link href={`/therapists/${featuredTherapist._id}`}>
-                                            <Calendar className="w-4 h-4 mr-2" /> Book Session
-                                        </Link>
-                                    </Button>
+                                    <NavButton href={`/therapists/${featuredTherapist._id}`} className="rounded-full bg-primary hover:bg-primary/90">
+                                        <Calendar className="w-4 h-4 mr-2" /> Book Session
+                                    </NavButton>
                                 </div>
                             </div>
                         </div>
@@ -616,9 +615,9 @@ export default function TherapistFilters({
                                                     <span className="text-lg font-black text-foreground leading-none block">₹{t.price}</span>
                                                     <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wide block mt-0.5">/ session</span>
                                                 </div>
-                                                <Button asChild size="sm" className="rounded-full text-xs font-bold h-9 px-5 bg-primary text-white hover:bg-primary/90 shadow-sm shrink-0">
-                                                    <Link href={`/therapists/${t._id}`}>Book Session</Link>
-                                                </Button>
+                                                <NavButton href={`/therapists/${t._id}`} size="sm" className="rounded-full text-xs font-bold h-9 px-5 bg-primary text-white hover:bg-primary/90 shadow-sm shrink-0">
+                                                    Book Session
+                                                </NavButton>
                                             </div>
                                         </div>
                                     </div>

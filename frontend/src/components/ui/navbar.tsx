@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { LayoutDashboard, LogOut, Menu, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { NavButton } from '@/components/ui/nav-button';
 import { Logo } from '@/components/ui/logo';
 import { cn } from '@/lib/utils';
 import api from '@/lib/api';
@@ -152,19 +153,17 @@ export function Navbar() {
                             </>
                         ) : authStatus === 'authenticated' ? (
                             <>
-                                <Button
-                                    asChild
+                                <NavButton
+                                    href="/dashboard"
                                     variant="ghost"
                                     className={cn(
                                         'rounded-full px-5 font-semibold transition-colors',
                                         pathname.startsWith('/dashboard') ? 'bg-accent/10 text-primary' : 'text-foreground hover:bg-accent/10 hover:text-primary',
                                     )}
                                 >
-                                    <Link href="/dashboard">
-                                        <LayoutDashboard className="h-4 w-4" />
-                                        My Sessions
-                                    </Link>
-                                </Button>
+                                    <LayoutDashboard className="h-4 w-4" />
+                                    My Sessions
+                                </NavButton>
                                 <Link
                                     href="/settings"
                                     className={cn(
@@ -199,12 +198,12 @@ export function Navbar() {
                             </>
                         ) : (
                             <>
-                                <Button asChild variant="ghost" className="rounded-full px-6 font-bold text-foreground hover:bg-accent/10 hover:text-accent">
-                                    <Link href="/login">Log In</Link>
-                                </Button>
-                                <Button asChild className="rounded-full bg-primary px-7 font-bold text-text-inverse shadow-lg shadow-primary/20 transition-all hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-primary/30">
-                                    <Link href="/signup">Get Started</Link>
-                                </Button>
+                                <NavButton href="/login" variant="ghost" className="rounded-full px-6 font-bold text-foreground hover:bg-accent/10 hover:text-accent">
+                                    Log In
+                                </NavButton>
+                                <NavButton href="/signup" className="rounded-full bg-primary px-7 font-bold text-text-inverse shadow-lg shadow-primary/20 transition-all hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-primary/30">
+                                    Get Started
+                                </NavButton>
                             </>
                         )}
                     </div>
@@ -308,16 +307,12 @@ export function Navbar() {
                             </div>
                         ) : (
                             <div className="flex flex-col gap-3">
-                                <Button asChild variant="outline" className="h-12 w-full rounded-2xl text-base font-bold">
-                                    <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
-                                        Log In
-                                    </Link>
-                                </Button>
-                                <Button asChild className="h-12 w-full rounded-2xl bg-primary text-base font-bold text-text-inverse shadow-lg shadow-primary/20">
-                                    <Link href="/signup" onClick={() => setMobileMenuOpen(false)}>
-                                        Get Started
-                                    </Link>
-                                </Button>
+                                <NavButton href="/login" variant="outline" onClick={() => setMobileMenuOpen(false)} className="h-12 w-full rounded-2xl text-base font-bold">
+                                    Log in
+                                </NavButton>
+                                <NavButton href="/signup" onClick={() => setMobileMenuOpen(false)} className="h-12 w-full rounded-2xl bg-primary text-base font-bold text-text-inverse shadow-lg shadow-primary/20">
+                                    Get Started
+                                </NavButton>
                             </div>
                         )}
                     </div>

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { NavButton } from '@/components/ui/nav-button';
 import { FeaturedTherapistsSkeleton } from '@/components/loading/skeletons';
 import { Star, User } from 'lucide-react';
 import api from '@/lib/api';
@@ -117,11 +118,9 @@ export default function FeaturedTherapists() {
                                     <span className="text-xl font-bold text-foreground">₹{t.price}</span>
                                     <span className="text-xs text-muted-foreground ml-1 font-medium">/ session</span>
                                 </div>
-                                <Link href={`/therapists/${t._id}`} className="shrink-0">
-                                    <Button className="rounded-full bg-primary px-5 h-10 text-xs sm:text-sm font-bold text-white hover:bg-primary/90 transition-all duration-200 shadow-sm">
-                                        Book Now
-                                    </Button>
-                                </Link>
+                                <NavButton href={`/therapists/${t._id}`} className="shrink-0 rounded-full bg-primary px-5 h-10 text-xs sm:text-sm font-bold text-white hover:bg-primary/90 transition-all duration-200 shadow-sm">
+                                    Book Now
+                                </NavButton>
                             </div>
                         </CardContent>
                     </Card>
