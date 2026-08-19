@@ -2,6 +2,7 @@
 
 import { useMemo, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { ShieldCheck } from 'lucide-react';
 import api from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -106,7 +107,12 @@ function TherapistLoginContent() {
               <FieldError message={errors.email} />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-semibold">Password</label>
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-semibold">Password</label>
+                <Link href="/forgot-password" className="text-sm text-primary hover:underline">
+                  Forgot password?
+                </Link>
+              </div>
               <Input
                 value={password}
                 onChange={(e) => {

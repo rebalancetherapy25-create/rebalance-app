@@ -59,6 +59,8 @@ export const authSchemas = {
 
 export const therapistAuthSchemas = {
     login: authSchemas.login,
+    forgotPassword: authSchemas.forgotPassword,
+    resetPassword: authSchemas.resetPassword,
     updatePassword: z.object({
         currentPassword: z.string().min(1, 'Current password is required.'),
         newPassword: password,

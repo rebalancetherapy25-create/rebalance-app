@@ -7,6 +7,8 @@ export interface ITherapistAccount extends Document {
     email: string;
     passwordHash: string;
     refreshToken?: string | undefined;
+    passwordResetToken?: string | undefined;
+    passwordResetExpires?: Date | undefined;
     status: TherapistAccountStatus;
     createdAt: Date;
     updatedAt: Date;
@@ -18,6 +20,8 @@ const therapistAccountSchema = new Schema<ITherapistAccount>(
         email: { type: String, required: true, unique: true, index: true, lowercase: true, trim: true },
         passwordHash: { type: String, required: true },
         refreshToken: { type: String },
+        passwordResetToken: { type: String },
+        passwordResetExpires: { type: Date },
         status: { type: String, enum: ['active', 'suspended'], default: 'active' },
     },
     { timestamps: true }

@@ -1,6 +1,7 @@
 import { type Request, type Response } from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 
 import { Therapist, TherapistAccount } from '../models';
 import config from '../config/env';
@@ -13,6 +14,8 @@ import {
 import { type TherapistAuthRequest } from '../middlewares/therapistAuthMiddleware';
 import { sendData, sendError } from '../lib/http';
 import { hashToken, tokenMatchesHash } from '../lib/security';
+import { sendEmail } from '../services/emailService';
+import { therapistPasswordResetLinkEmail } from '../emails/templates/therapistPasswordResetLink';
 
 const normalizeEmail = (value: string) => String(value || '').trim().toLowerCase();
 
@@ -165,5 +168,69 @@ export const therapistUpdatePassword = async (req: TherapistAuthRequest, res: Re
     } catch (error) {
         console.error('Therapist password update error:', error);
         return sendError(res, 500, 'Server error', { code: 'THERAPIST_UPDATE_PASSWORD_FAILED' });
+    }
+};
+
+export const therapistForgotPassword = async (req: Request, res: Response) => {
+    try {
+        const { email } = req.body;
+        const account = await TherapistAccount.findOne({ email: normalizeEmail(email) });
+
+        if (!account) {
+            return sendData(res, { message: 'If that email is registered, a reset link has been sent.' });
+        }
+
+        if (account.status !== 'active') {
+            return sendError(res, 403, 'Account is suspended', { code: 'THERAPIST_ACCOUNT_SUSPENDED' });
+        }
+
+        const resetToken = crypto.randomBytes(32).toString('hex');
+        const tokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+        
+        account.passwordResetToken = tokenHash;
+        account.passwordResetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+        await account.save();
+
+        const resetUrl = `${String(config.therapistUrl || '').replace(/\/$/, '')}/reset-password?token=${resetToken}`;
+        const tpl = therapistPasswordResetLinkEmail({ resetUrl });
+
+        await sendEmail({
+            to: account.email,
+            subject: tpl.subject,
+            html: tpl.html,
+        });
+
+        return sendData(res, { message: 'If that email is registered, a reset link has been sent.' });
+    } catch (error) {
+        console.error('Therapist forgot password error:', error);
+        return sendError(res, 500, 'Server error', { code: 'THERAPIST_FORGOT_PASSWORD_FAILED' });
+    }
+};
+
+export const therapistResetPassword = async (req: Request, res: Response) => {
+    try {
+        const { token, password } = req.body;
+
+        const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+        const account = await TherapistAccount.findOne({
+            passwordResetToken: tokenHash,
+            passwordResetExpires: { $gt: new Date() }
+        });
+
+        if (!account) {
+            return sendError(res, 400, 'Token is invalid or has expired', { code: 'THERAPIST_RESET_TOKEN_INVALID' });
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        account.passwordHash = await bcrypt.hash(String(password), salt);
+        account.passwordResetToken = undefined;
+        account.passwordResetExpires = undefined;
+        account.refreshToken = undefined; // logout everywhere
+        await account.save();
+
+        return sendData(res, { message: 'Password has been reset successfully.' });
+    } catch (error) {
+        console.error('Therapist reset password error:', error);
+        return sendError(res, 500, 'Server error', { code: 'THERAPIST_RESET_PASSWORD_FAILED' });
     }
 };

@@ -1,5 +1,5 @@
 import express from 'express';
-import { therapistLogin, therapistLogout, therapistMe, therapistRefresh, therapistUpdatePassword } from '../controllers/therapistAuthController';
+import { therapistLogin, therapistLogout, therapistMe, therapistRefresh, therapistUpdatePassword, therapistForgotPassword, therapistResetPassword } from '../controllers/therapistAuthController';
 import { protectTherapist } from '../middlewares/therapistAuthMiddleware';
 import { authLimiter } from '../middlewares/rateLimit';
 import { validate } from '../lib/http';
@@ -12,5 +12,7 @@ router.post('/refresh', therapistRefresh);
 router.post('/logout', protectTherapist, therapistLogout);
 router.get('/me', protectTherapist, therapistMe);
 router.put('/password', protectTherapist, validate(therapistAuthSchemas.updatePassword), therapistUpdatePassword);
+router.post('/forgot-password', authLimiter, validate(therapistAuthSchemas.forgotPassword), therapistForgotPassword);
+router.post('/reset-password', authLimiter, validate(therapistAuthSchemas.resetPassword), therapistResetPassword);
 
 export default router;
