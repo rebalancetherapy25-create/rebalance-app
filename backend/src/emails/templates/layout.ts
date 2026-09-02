@@ -140,7 +140,7 @@ export const emailLayout = (options: { title: string; preheader?: string; body: 
       <!-- Footer -->
       <div class="foot">
         If you didn't request this email, you can safely ignore it.&nbsp;&nbsp;·&nbsp;&nbsp;
-        <a href="mailto:support@rebalancetherapy.co.in">support@rebalancetherapy.co.in</a>
+        <a href="mailto:rebalancetherapy25@gmail.com">rebalancetherapy25@gmail.com</a>
       </div>
 
     </div>

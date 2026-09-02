@@ -8,10 +8,9 @@ import { NavButton } from '@/components/ui/nav-button';
 import { 
     User, Sparkles, Heart, Search, ChevronDown, 
     ShieldCheck, Lock, Calendar, Video, FileText, 
-    Users, Clock, ChevronLeft, ChevronRight, X, Filter 
+    Users, Clock, X, Filter, ChevronRight
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Pagination } from '@/components/ui/pagination';
 import { Skeleton } from '@/components/ui/skeleton';
 import api from '@/lib/api';
 
@@ -19,6 +18,7 @@ export interface Therapist {
     _id: string;
     name: string;
     bio: string;
+    credentials?: string;
     specialties: string[];
     price: number;
     profileImage?: string;
@@ -32,6 +32,7 @@ interface TherapistFiltersProps {
     initialTherapists: Therapist[];
     initialTotalPages: number;
     initialTotalItems: number;
+    initialLanguages?: string[];
 }
 
 interface FilterState {
@@ -54,9 +55,11 @@ const priceOptions = [
 export default function TherapistFilters({
     initialTherapists,
     initialTotalPages,
-    initialTotalItems
+    initialTotalItems,
+    initialLanguages = []
 }: TherapistFiltersProps) {
     const [therapists, setTherapists] = useState<Therapist[]>(initialTherapists);
+    const [availableLanguages, setAvailableLanguages] = useState<string[]>(initialLanguages);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -135,7 +138,7 @@ export default function TherapistFilters({
                 setLoading(true);
                 const params: Record<string, string | number> = {
                     page: currentPage,
-                    limit: 10,
+                    limit: 100,
                     ...(debouncedSearch && { search: debouncedSearch }),
                     ...(availabilityMap[filters.availability] && { availability: availabilityMap[filters.availability] }),
                     ...(sortMap[filters.sortBy] && { sort: sortMap[filters.sortBy] }),
@@ -158,6 +161,9 @@ export default function TherapistFilters({
                 setTherapists(response.data.therapists || []);
                 setTotalPages(response.data.totalPages || 1);
                 setTotalItems(response.data.total || 0);
+                if (response.data.allLanguages) {
+                    setAvailableLanguages(response.data.allLanguages);
+                }
                 setError(null);
             } catch (err) {
                 console.error('Failed to fetch therapists:', err);
@@ -191,6 +197,9 @@ export default function TherapistFilters({
     const featuredTherapist = therapists.length > 0 ? therapists[0] : null;
     const displayedTherapists = therapists;
 
+    const baseLanguages = ['English', 'Spanish', 'Hindi', 'Tamil', 'Malayalam', 'Kannada', 'Marathi', 'Bengali', 'Punjabi'];
+    const mergedLanguages = Array.from(new Set([...baseLanguages, ...availableLanguages]));
+
     return (
         <div className="space-y-16">
             {/* HERO SECTION - SPLIT LAYOUT */}
@@ -208,15 +217,15 @@ export default function TherapistFilters({
                     <div className="flex flex-wrap gap-6 pt-2">
                         <div className="flex items-center gap-2">
                             <ShieldCheck className="w-5 h-5 text-primary" />
-                            <span className="text-sm font-semibold text-foreground">Verified<br/>Therapists</span>
+                            <span className="text-sm font-light text-foreground">Verified<br/>Therapists</span>
                         </div>
                         <div className="flex items-center gap-2">
                             <Lock className="w-5 h-5 text-primary" />
-                            <span className="text-sm font-semibold text-foreground">100%<br/>Confidential</span>
+                            <span className="text-sm font-light text-foreground">100%<br/>Confidential</span>
                         </div>
                         <div className="flex items-center gap-2">
                             <Heart className="w-5 h-5 text-primary" />
-                            <span className="text-sm font-semibold text-foreground">Compassionate<br/>Care</span>
+                            <span className="text-sm font-light text-foreground">Compassionate<br/>Care</span>
                         </div>
                     </div>
                 </div>
@@ -224,7 +233,7 @@ export default function TherapistFilters({
                 {/* Right Side: Featured Therapist */}
                 <div className="relative flex flex-col h-full justify-end lg:items-end">
                     <div className="w-full flex justify-end mb-4">
-                        <Link href="#all-therapists" className="text-sm font-semibold text-primary flex items-center gap-1 hover:gap-2 transition-all">
+                        <Link href="#all-therapists" className="text-sm font-light text-primary flex items-center gap-1 hover:gap-2 transition-all">
                             See All {totalItems}+ Therapists <ChevronRight className="w-4 h-4" />
                         </Link>
                     </div>
@@ -246,21 +255,21 @@ export default function TherapistFilters({
                                     </div>
                                 )}
                                 {featuredTherapist.ratingAverage > 0 && (
-                                    <div className="absolute top-3 right-3 bg-white px-2 py-1 rounded-full flex items-center gap-1 text-xs font-bold shadow-sm">
+                                    <div className="absolute top-3 right-3 bg-white px-2 py-1 rounded-full flex items-center gap-1 text-xs font-normal shadow-sm">
                                         <span className="text-yellow-500">★</span> {featuredTherapist.ratingAverage.toFixed(1)}
                                     </div>
                                 )}
                             </div>
                             
                             <div className="flex flex-col justify-center flex-1 space-y-4">
-                                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent/10 text-accent font-bold text-[10px] tracking-widest uppercase w-fit">
+                                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent/10 text-accent font-normal text-[10px] tracking-widest uppercase w-fit">
                                     <Sparkles className="w-3 h-3" />
                                     Featured Therapist
                                 </div>
                                 
                                 <div>
                                     <h3 className="text-2xl font-display font-medium text-foreground">{featuredTherapist.name}</h3>
-                                    <p className="text-sm text-foreground/70">{featuredTherapist.specialties[0] || 'Clinical Psychologist'}</p>
+                                    <p className="text-sm text-foreground/70">{featuredTherapist.credentials || 'Clinical Psychologist'}</p>
                                 </div>
                                 
                                 <div className="flex items-center gap-6 text-sm font-medium text-foreground">
@@ -276,19 +285,19 @@ export default function TherapistFilters({
                                 
                                 <div className="flex flex-wrap gap-2 pt-1">
                                     {featuredTherapist.specialties.slice(0, 2).map(s => (
-                                        <span key={s} className="px-2.5 py-1 rounded-full bg-accent/5 text-accent text-xs font-semibold">
+                                        <span key={s} className="px-2.5 py-1 rounded-full bg-accent/5 text-accent text-xs font-light">
                                             {s}
                                         </span>
                                     ))}
                                     {featuredTherapist.specialties.length > 2 && (
-                                        <span className="px-2.5 py-1 rounded-full bg-accent/5 text-accent text-xs font-semibold">
+                                        <span className="px-2.5 py-1 rounded-full bg-accent/5 text-accent text-xs font-light">
                                             +{featuredTherapist.specialties.length - 2} More
                                         </span>
                                     )}
                                 </div>
                                 
                                 <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-4 pt-2">
-                                    <div className="flex items-center gap-1.5 text-sm font-semibold text-green-600">
+                                    <div className="flex items-center gap-1.5 text-sm font-light text-green-600">
                                         <div className="w-2 h-2 rounded-full bg-green-500"></div>
                                         Available Today
                                     </div>
@@ -330,7 +339,7 @@ export default function TherapistFilters({
                                 <button
                                     key={filter}
                                     onClick={() => updateFilter('availability', filter)}
-                                    className={`px-4 py-2 rounded-full text-xs md:text-sm font-bold transition-all duration-300 whitespace-nowrap ${
+                                    className={`px-4 py-2 rounded-full text-xs md:text-sm font-normal transition-all duration-300 whitespace-nowrap ${
                                         isSelected ? 'bg-primary text-white shadow-xs' : 'text-muted-foreground hover:text-foreground'
                                     }`}
                                 >
@@ -345,7 +354,7 @@ export default function TherapistFilters({
                         <select 
                             value={filters.sessionType}
                             onChange={(e) => updateFilter('sessionType', e.target.value)}
-                            className="appearance-none h-10 pl-4 pr-9 rounded-full border border-border/60 bg-white text-xs md:text-sm font-bold text-foreground shadow-xs cursor-pointer outline-none hover:border-primary/40 transition-colors focus:ring-2 focus:ring-primary/20"
+                            className="appearance-none h-10 pl-4 pr-9 rounded-full border border-border/60 bg-white text-xs md:text-sm font-normal text-foreground shadow-xs cursor-pointer outline-none hover:border-primary/40 transition-colors focus:ring-2 focus:ring-primary/20"
                         >
                             <option value="All Session Types">All Session Types</option>
                             <option value="Video">Video Session</option>
@@ -360,7 +369,7 @@ export default function TherapistFilters({
                         <select 
                             value={filters.gender}
                             onChange={(e) => updateFilter('gender', e.target.value)}
-                            className="appearance-none h-10 pl-4 pr-9 rounded-full border border-border/60 bg-white text-xs md:text-sm font-bold text-foreground shadow-xs cursor-pointer outline-none hover:border-primary/40 transition-colors focus:ring-2 focus:ring-primary/20"
+                            className="appearance-none h-10 pl-4 pr-9 rounded-full border border-border/60 bg-white text-xs md:text-sm font-normal text-foreground shadow-xs cursor-pointer outline-none hover:border-primary/40 transition-colors focus:ring-2 focus:ring-primary/20"
                         >
                             <option value="All Genders">All Genders</option>
                             <option value="Female">Female</option>
@@ -375,17 +384,12 @@ export default function TherapistFilters({
                         <select 
                             value={filters.language}
                             onChange={(e) => updateFilter('language', e.target.value)}
-                            className="appearance-none h-10 pl-4 pr-9 rounded-full border border-border/60 bg-white text-xs md:text-sm font-bold text-foreground shadow-xs cursor-pointer outline-none hover:border-primary/40 transition-colors focus:ring-2 focus:ring-primary/20"
+                            className="appearance-none h-10 pl-4 pr-9 rounded-full border border-border/60 bg-white text-xs md:text-sm font-normal text-foreground shadow-xs cursor-pointer outline-none hover:border-primary/40 transition-colors focus:ring-2 focus:ring-primary/20"
                         >
                             <option value="All Languages">All Languages</option>
-                            <option value="English">English</option>
-                            <option value="Hindi">Hindi</option>
-                            <option value="Tamil">Tamil</option>
-                            <option value="Malayalam">Malayalam</option>
-                            <option value="Kannada">Kannada</option>
-                            <option value="Marathi">Marathi</option>
-                            <option value="Bengali">Bengali</option>
-                            <option value="Punjabi">Punjabi</option>
+                            {mergedLanguages.map(lang => (
+                                <option key={lang} value={lang}>{lang}</option>
+                            ))}
                         </select>
                         <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                     </div>
@@ -395,7 +399,7 @@ export default function TherapistFilters({
                         <select 
                             value={filters.price}
                             onChange={(e) => updateFilter('price', e.target.value)}
-                            className="appearance-none h-10 pl-4 pr-9 rounded-full border border-border/60 bg-white text-xs md:text-sm font-bold text-foreground shadow-xs cursor-pointer outline-none hover:border-primary/40 transition-colors focus:ring-2 focus:ring-primary/20"
+                            className="appearance-none h-10 pl-4 pr-9 rounded-full border border-border/60 bg-white text-xs md:text-sm font-normal text-foreground shadow-xs cursor-pointer outline-none hover:border-primary/40 transition-colors focus:ring-2 focus:ring-primary/20"
                         >
                             {priceOptions.map(opt => (
                                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -409,7 +413,7 @@ export default function TherapistFilters({
                         <select
                             value={filters.sortBy}
                             onChange={(e) => updateFilter('sortBy', e.target.value)}
-                            className="appearance-none h-10 pl-4 pr-9 rounded-full border border-border/60 bg-secondary text-xs md:text-sm font-bold text-foreground outline-none transition-colors hover:border-primary/40 shadow-xs cursor-pointer focus:ring-2 focus:ring-primary/20"
+                            className="appearance-none h-10 pl-4 pr-9 rounded-full border border-border/60 bg-secondary text-xs md:text-sm font-normal text-foreground outline-none transition-colors hover:border-primary/40 shadow-xs cursor-pointer focus:ring-2 focus:ring-primary/20"
                         >
                             <option value="Recommended">Sort: Recommended</option>
                             <option value="Price: Low to High">Price: Low to High</option>
@@ -423,46 +427,46 @@ export default function TherapistFilters({
                 {/* Active Filters Tray */}
                 {hasActiveFilters && (
                     <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-border/40 animate-in fade-in duration-200">
-                        <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider mr-1">Active Filters:</span>
+                        <span className="text-xs font-normal text-muted-foreground uppercase tracking-wider mr-1">Active Filters:</span>
                         {filters.availability !== 'Any time' && (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-normal">
                                 {filters.availability}
                                 <button onClick={() => updateFilter('availability', 'Any time')} className="hover:bg-primary/20 rounded-full p-0.5"><X className="w-3 h-3" /></button>
                             </span>
                         )}
                         {filters.sessionType !== 'All Session Types' && (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-normal">
                                 {filters.sessionType}
                                 <button onClick={() => updateFilter('sessionType', 'All Session Types')} className="hover:bg-primary/20 rounded-full p-0.5"><X className="w-3 h-3" /></button>
                             </span>
                         )}
                         {filters.gender !== 'All Genders' && (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-normal">
                                 {filters.gender}
                                 <button onClick={() => updateFilter('gender', 'All Genders')} className="hover:bg-primary/20 rounded-full p-0.5"><X className="w-3 h-3" /></button>
                             </span>
                         )}
                         {filters.language !== 'All Languages' && (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-normal">
                                 {filters.language}
                                 <button onClick={() => updateFilter('language', 'All Languages')} className="hover:bg-primary/20 rounded-full p-0.5"><X className="w-3 h-3" /></button>
                             </span>
                         )}
                         {filters.price !== 'Any Price Range' && (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-normal">
                                 {priceOptions.find(p => p.value === filters.price)?.label || filters.price}
                                 <button onClick={() => updateFilter('price', 'Any Price Range')} className="hover:bg-primary/20 rounded-full p-0.5"><X className="w-3 h-3" /></button>
                             </span>
                         )}
                         {debouncedSearch.trim() !== '' && (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-normal">
                                 &ldquo;{debouncedSearch}&rdquo;
                                 <button onClick={() => updateFilter('search', '')} className="hover:bg-primary/20 rounded-full p-0.5"><X className="w-3 h-3" /></button>
                             </span>
                         )}
                         <button
                             onClick={resetFilters}
-                            className="text-xs font-bold text-accent hover:text-accent/80 transition-colors ml-2 underline underline-offset-2"
+                            className="text-xs font-normal text-accent hover:text-accent/80 transition-colors ml-2 underline underline-offset-2"
                         >
                             Clear All
                         </button>
@@ -473,31 +477,9 @@ export default function TherapistFilters({
             {/* THERAPISTS GRID */}
             <div id="all-therapists" className="min-h-[50vh]">
                 <div className="flex items-center justify-between mb-8">
-                    <h2 className="text-xl font-bold text-foreground">
+                    <h2 className="text-xl font-normal text-foreground">
                         {hasActiveFilters ? `Matching Therapists (${totalItems})` : 'Top Rated Therapists'}
                     </h2>
-                    {totalPages > 1 && (
-                        <div className="flex gap-2">
-                            <Button 
-                                variant="outline" 
-                                size="icon" 
-                                className="rounded-full w-8 h-8"
-                                onClick={() => currentPage > 1 && handlePageChange(currentPage - 1)}
-                                disabled={currentPage === 1 || loading}
-                            >
-                                <ChevronLeft className="w-4 h-4" />
-                            </Button>
-                            <Button 
-                                variant="outline" 
-                                size="icon" 
-                                className="rounded-full w-8 h-8"
-                                onClick={() => currentPage < totalPages && handlePageChange(currentPage + 1)}
-                                disabled={currentPage === totalPages || loading}
-                            >
-                                <ChevronRight className="w-4 h-4" />
-                            </Button>
-                        </div>
-                    )}
                 </div>
 
                 {loading ? (
@@ -525,13 +507,13 @@ export default function TherapistFilters({
                             <Filter className="w-8 h-8 opacity-60" />
                         </div>
                         <div className="space-y-2">
-                            <h3 className="text-2xl font-display font-bold text-foreground">No therapists found</h3>
+                            <h3 className="text-2xl font-display font-normal text-foreground">No therapists found</h3>
                             <p className="text-sm text-muted-foreground font-medium max-w-md mx-auto leading-relaxed">
                                 We couldn&apos;t find any therapists matching all of your selected criteria. Try broadening your preferences or clearing some filters to explore more professionals.
                             </p>
                         </div>
                         {hasActiveFilters && (
-                            <Button onClick={resetFilters} className="rounded-full px-8 h-12 font-bold shadow-md hover:shadow-lg transition-all bg-primary text-white">
+                            <Button onClick={resetFilters} className="rounded-full px-8 h-12 font-normal shadow-md hover:shadow-lg transition-all bg-primary text-white">
                                 Clear All Filters
                             </Button>
                         )}
@@ -560,33 +542,33 @@ export default function TherapistFilters({
                                     {/* Info Container (65% width) */}
                                     <div className="flex-1 flex flex-col min-w-0 py-0.5">
                                         <div className="mb-2">
-                                            <h3 className="text-lg font-display font-bold text-foreground truncate flex items-center gap-2">
+                                            <h3 className="text-lg font-display font-normal text-foreground truncate flex items-center gap-2">
                                                 {t.name}
                                                 {t.ratingAverage > 0 && (
-                                                    <span className="text-sm font-black text-foreground flex items-center bg-yellow-50 px-1.5 py-0.5 rounded-md border border-yellow-100/50"><span className="text-yellow-500 text-xs mr-0.5">★</span> {t.ratingAverage.toFixed(1)}</span>
+                                                    <span className="text-sm font-light text-foreground flex items-center bg-yellow-50 px-1.5 py-0.5 rounded-md border border-yellow-100/50"><span className="text-yellow-500 text-xs mr-0.5">★</span> {t.ratingAverage.toFixed(1)}</span>
                                                 )}
                                             </h3>
-                                            <p className="text-xs font-bold text-primary truncate">{t.specialties[0] || 'Clinical Psychologist'}</p>
+                                            <p className="text-xs font-normal text-primary truncate">{t.credentials || 'Clinical Psychologist'}</p>
                                         </div>
                                         
                                         <div className="space-y-1.5 mb-3">
                                             {t.gender && (
                                                 <div className="flex items-center gap-2 text-[11px] text-foreground/80 font-medium">
                                                     <div className="w-3.5 h-3.5 rounded-full bg-emerald-100/50 flex items-center justify-center shrink-0">
-                                                        <span className="text-emerald-600 text-[9px] font-black">✓</span>
+                                                        <span className="text-emerald-600 text-[9px] font-light">✓</span>
                                                     </div>
                                                     Gender: {t.gender}
                                                 </div>
                                             )}
                                             <div className="flex items-center gap-2 text-[11px] text-foreground/80 font-medium">
                                                 <div className="w-3.5 h-3.5 rounded-full bg-emerald-100/50 flex items-center justify-center shrink-0">
-                                                    <span className="text-emerald-600 text-[9px] font-black">✓</span>
+                                                    <span className="text-emerald-600 text-[9px] font-light">✓</span>
                                                 </div>
                                                 {t.sessionTypes && t.sessionTypes.length > 0 ? `${t.sessionTypes.join(' & ')} Sessions` : 'Online & Phone Sessions'}
                                             </div>
                                             <div className="flex items-center gap-2 text-[11px] text-foreground/80 font-medium truncate">
                                                 <div className="w-3.5 h-3.5 rounded-full bg-emerald-100/50 flex items-center justify-center shrink-0">
-                                                    <span className="text-emerald-600 text-[9px] font-black">✓</span>
+                                                    <span className="text-emerald-600 text-[9px] font-light">✓</span>
                                                 </div>
                                                 Speaks: {t.languages && t.languages.length > 0 ? t.languages.join(', ') : 'English, Hindi'}
                                             </div>
@@ -594,28 +576,28 @@ export default function TherapistFilters({
 
                                         <div className="flex flex-wrap gap-1 mb-4">
                                             {t.specialties.slice(0, 2).map(s => (
-                                                <span key={s} className="px-2 py-0.5 rounded-md bg-secondary text-primary text-[9px] font-bold border border-primary/10">
+                                                <span key={s} className="px-2 py-0.5 rounded-md bg-secondary text-primary text-[9px] font-normal border border-primary/10">
                                                     {s}
                                                 </span>
                                             ))}
                                             {t.specialties.length > 2 && (
-                                                <span className="px-2 py-0.5 rounded-md bg-secondary text-primary text-[9px] font-bold border border-primary/10">
+                                                <span className="px-2 py-0.5 rounded-md bg-secondary text-primary text-[9px] font-normal border border-primary/10">
                                                     +{t.specialties.length - 2} More
                                                 </span>
                                             )}
                                         </div>
 
                                         <div className="mt-auto pt-3 border-t border-border/40">
-                                            <div className="flex items-center gap-1.5 mb-2.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 w-fit px-2.5 py-1 rounded-md border border-emerald-100 shadow-[0_2px_8px_rgba(16,185,129,0.08)]">
+                                            <div className="flex items-center gap-1.5 mb-2.5 text-[10px] font-normal text-emerald-700 bg-emerald-50 w-fit px-2.5 py-1 rounded-md border border-emerald-100 shadow-[0_2px_8px_rgba(16,185,129,0.08)]">
                                                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                                                 Available this week
                                             </div>
                                             <div className="flex items-center justify-between gap-2">
                                                 <div>
-                                                    <span className="text-lg font-black text-foreground leading-none block">₹{t.price}</span>
-                                                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wide block mt-0.5">/ session</span>
+                                                    <span className="text-lg font-light text-foreground leading-none block">₹{t.price}</span>
+                                                    <span className="text-[9px] font-normal text-muted-foreground uppercase tracking-wide block mt-0.5">/ session</span>
                                                 </div>
-                                                <NavButton href={`/therapists/${t._id}`} size="sm" className="rounded-full text-xs font-bold h-9 px-5 bg-primary text-white hover:bg-primary/90 shadow-sm shrink-0">
+                                                <NavButton href={`/therapists/${t._id}`} size="sm" className="rounded-full text-xs font-normal h-9 px-5 bg-primary text-white hover:bg-primary/90 shadow-sm shrink-0">
                                                     Book Session
                                                 </NavButton>
                                             </div>
@@ -624,13 +606,31 @@ export default function TherapistFilters({
                                 </div>
                             ))}
                         </div>
+
+                        {/* Pagination Controls */}
                         {totalPages > 1 && (
-                            <div className="pt-10 flex justify-center">
-                                <Pagination
-                                    currentPage={currentPage}
-                                    totalPages={totalPages}
-                                    onPageChange={handlePageChange}
-                                />
+                            <div className="flex items-center justify-center gap-3 pt-8 pb-4">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={currentPage <= 1}
+                                    onClick={() => handlePageChange(currentPage - 1)}
+                                    className="rounded-full px-4 h-9 text-xs font-normal"
+                                >
+                                    Previous
+                                </Button>
+                                <span className="text-xs text-muted-foreground font-medium px-2">
+                                    Page {currentPage} of {totalPages}
+                                </span>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={currentPage >= totalPages}
+                                    onClick={() => handlePageChange(currentPage + 1)}
+                                    className="rounded-full px-4 h-9 text-xs font-normal"
+                                >
+                                    Next
+                                </Button>
                             </div>
                         )}
                     </>
@@ -644,7 +644,7 @@ export default function TherapistFilters({
                         <Calendar className="w-5 h-5 text-accent" />
                     </div>
                     <div>
-                        <h4 className="text-sm font-bold text-foreground mb-1">Flexible Scheduling</h4>
+                        <h4 className="text-sm font-normal text-foreground mb-1">Flexible Scheduling</h4>
                         <p className="text-xs text-muted-foreground leading-relaxed">Book sessions at your convenience</p>
                     </div>
                 </div>
@@ -653,7 +653,7 @@ export default function TherapistFilters({
                         <Video className="w-5 h-5 text-accent" />
                     </div>
                     <div>
-                        <h4 className="text-sm font-bold text-foreground mb-1">Online Sessions</h4>
+                        <h4 className="text-sm font-normal text-foreground mb-1">Online Sessions</h4>
                         <p className="text-xs text-muted-foreground leading-relaxed">Secure video sessions from the comfort of your home</p>
                     </div>
                 </div>
@@ -662,7 +662,7 @@ export default function TherapistFilters({
                         <FileText className="w-5 h-5 text-accent" />
                     </div>
                     <div>
-                        <h4 className="text-sm font-bold text-foreground mb-1">Personalized Care</h4>
+                        <h4 className="text-sm font-normal text-foreground mb-1">Personalized Care</h4>
                         <p className="text-xs text-muted-foreground leading-relaxed">Therapy tailored to your unique needs</p>
                     </div>
                 </div>
@@ -671,7 +671,7 @@ export default function TherapistFilters({
                         <ShieldCheck className="w-5 h-5 text-accent" />
                     </div>
                     <div>
-                        <h4 className="text-sm font-bold text-foreground mb-1">Your Privacy Matters</h4>
+                        <h4 className="text-sm font-normal text-foreground mb-1">Your Privacy Matters</h4>
                         <p className="text-xs text-muted-foreground leading-relaxed">Your conversations are 100% confidential</p>
                     </div>
                 </div>

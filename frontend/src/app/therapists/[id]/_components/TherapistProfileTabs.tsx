@@ -159,32 +159,32 @@ export default function TherapistProfileTabs({
                                     <Video className="w-4 h-4 text-accent" /> Available Formats
                                 </h4>
                                 <div className="space-y-3">
-                                    <div className="flex items-center justify-between p-5 bg-white rounded-3xl border border-primary/10 hover:border-primary/20 hover:shadow-md transition-all duration-300 group">
-                                        <div className="flex items-center gap-3.5">
-                                            <div className="w-10 h-10 rounded-xl bg-[#FAF8F8] flex items-center justify-center text-primary border border-primary/5 shadow-xs group-hover:scale-105 transition-transform">
-                                                <Video className="w-5 h-5" />
-                                            </div>
-                                            <div>
-                                                <p className="text-xs sm:text-sm font-bold text-foreground">Video Consultation</p>
-                                                <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">High-definition, secure video call</p>
-                                            </div>
-                                        </div>
-                                        <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center shadow-xs">
-                                            <Check className="w-3.5 h-3.5 text-white stroke-[3]" />
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center justify-between p-5 bg-white rounded-3xl border border-border/40 hover:border-primary/10 hover:shadow-md transition-all duration-300 group">
-                                        <div className="flex items-center gap-3.5">
-                                            <div className="w-10 h-10 rounded-xl bg-[#FAF8F8] flex items-center justify-center text-muted-foreground border border-border/40 shadow-xs group-hover:scale-105 transition-transform">
-                                                <Phone className="w-5 h-5" />
-                                            </div>
-                                            <div>
-                                                <p className="text-xs sm:text-sm font-bold text-foreground/85">Voice Call</p>
-                                                <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">Direct high-quality audio connection</p>
+                                    {bookingProps.sessionTypes?.includes('Video') && (
+                                        <div className="flex items-center justify-between p-5 bg-white rounded-3xl border border-primary/10 hover:border-primary/20 hover:shadow-md transition-all duration-300 group">
+                                            <div className="flex items-center gap-3.5">
+                                                <div className="w-10 h-10 rounded-xl bg-[#FAF8F8] flex items-center justify-center text-primary border border-primary/5 shadow-xs group-hover:scale-105 transition-transform">
+                                                    <Video className="w-5 h-5" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs sm:text-sm font-bold text-foreground">Video Consultation</p>
+                                                    <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">High-definition, secure video call</p>
+                                                </div>
                                             </div>
                                         </div>
-                                        <div className="w-6 h-6 rounded-full border border-border/30" />
-                                    </div>
+                                    )}
+                                    {bookingProps.sessionTypes?.includes('Audio') && (
+                                        <div className="flex items-center justify-between p-5 bg-white rounded-3xl border border-primary/10 hover:border-primary/20 hover:shadow-md transition-all duration-300 group">
+                                            <div className="flex items-center gap-3.5">
+                                                <div className="w-10 h-10 rounded-xl bg-[#FAF8F8] flex items-center justify-center text-primary border border-primary/5 shadow-xs group-hover:scale-105 transition-transform">
+                                                    <Phone className="w-5 h-5" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs sm:text-sm font-bold text-foreground">Voice Call</p>
+                                                    <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">Direct high-quality audio connection</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 

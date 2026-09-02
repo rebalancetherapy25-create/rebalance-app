@@ -306,11 +306,8 @@ export default async function TherapistProfilePage({ params }: { params: { id: s
                                         )}
                                     </div>
 
-                                    {/* Headline & Credentials moved below headline */}
+                                    {/* Credentials moved below headline */}
                                     <div className="space-y-2.5 pt-1">
-                                        <p className="text-sm sm:text-base text-muted-foreground font-extrabold tracking-wide">
-                                            {t.title}
-                                        </p>
                                         
                                         {t.credentials.length > 0 && (
                                             <div className="flex flex-wrap items-center justify-center md:justify-start gap-1.5 pt-0.5">

@@ -124,13 +124,14 @@ export const getTherapists = async (req: Request, res: Response) => {
         const skip = (Number(page) - 1) * Number(limit);
 
         // Run database query and count concurrently for optimal latency
-        const [therapists, total] = await Promise.all([
+        const [therapists, total, allLanguages] = await Promise.all([
             Therapist.find(query)
                 .skip(skip)
                 .limit(Number(limit))
                 .sort(sortObj)
                 .lean(),
-            Therapist.countDocuments(query)
+            Therapist.countDocuments(query),
+            Therapist.distinct('languages')
         ]);
 
         const normalizedTherapists = therapists.map((therapist: any) => ({
@@ -145,6 +146,7 @@ export const getTherapists = async (req: Request, res: Response) => {
             page: Number(page),
             totalPages: Math.ceil(total / Number(limit)) || 1,
             total,
+            allLanguages,
         });
     } catch (error) {
         return sendError(res, 500, 'Server error fetching therapists', { code: 'THERAPIST_LIST_FAILED' });

@@ -1,25 +1,19 @@
 'use client';
 import Link from 'next/link';
-import { motion, useTransform, useSpring } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
-import { useScrollSection } from '@/hooks/useScrollSection';
+
+const EASE = [0.25, 0.46, 0.45, 0.94] as const;
 
 export function BottomCTASection() {
-    const { ref, scrollYProgress, reducedMotion } = useScrollSection(['start 0.9', 'end 0.4']);
-
-    const rawScale = useTransform(scrollYProgress, [0, 0.5], [0.88, 1]);
-    const rawY = useTransform(scrollYProgress, [0, 0.5], [48, 0]);
-    const rawOpacity = useTransform(scrollYProgress, [0, 0.35], [0, 1]);
-    // Heavy spring gives the "stamp down" sensation
-    const scale = useSpring(rawScale, { stiffness: 80, damping: 16, mass: 1.3 });
-    const y = useSpring(rawY, { stiffness: 80, damping: 16, mass: 1.3 });
-
     return (
-        <section ref={ref as React.RefObject<HTMLElement>} className="py-12 md:py-20 px-6 bg-primary text-center">
+        <section className="py-12 md:py-20 px-6 bg-primary text-center">
             <motion.div
-                style={reducedMotion ? {} : { scale, y, opacity: rawOpacity }}
-                {...(reducedMotion ? { initial: { opacity: 0, y: 32 }, whileInView: { opacity: 1, y: 0 }, viewport: { once: true }, transition: { duration: 0.7 } } : {})}
+                initial={{ opacity: 0, y: 28 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: '-30px' }}
+                transition={{ duration: 0.6, ease: EASE }}
                 className="container mx-auto max-w-3xl"
             >
                 <h2 className="text-3xl md:text-5xl lg:text-6xl font-display text-white mb-6 md:mb-8 text-balance">
@@ -42,3 +36,4 @@ export function BottomCTASection() {
         </section>
     );
 }
+

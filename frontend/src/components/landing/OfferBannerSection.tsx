@@ -1,10 +1,9 @@
 'use client';
 import Link from 'next/link';
 import Image from 'next/image';
-import { motion, useTransform, useSpring } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { HeartHandshake, ArrowRight, Tag } from 'lucide-react';
-import { useScrollSection } from '@/hooks/useScrollSection';
 
 type ActiveOffer = {
     type?: 'text' | 'image';
@@ -15,25 +14,12 @@ type ActiveOffer = {
     desktopImageUrl?: string;
 } | null;
 
+const EASE = [0.25, 0.46, 0.45, 0.94] as const;
+
 export function OfferBannerSection({ activeOffer }: { activeOffer: ActiveOffer }) {
-    const { ref, scrollYProgress, reducedMotion } = useScrollSection(['start 0.95', 'end 0.5']);
-
-    const rawY = useTransform(scrollYProgress, [0, 0.4], [60, 0]);
-    const rawRotateX = useTransform(scrollYProgress, [0, 0.4], [12, 0]);
-    const rawOpacity = useTransform(scrollYProgress, [0, 0.25], [0, 1]);
-    const y = useSpring(rawY, { stiffness: 120, damping: 20 });
-    const rotateX = useSpring(rawRotateX, { stiffness: 120, damping: 20 });
-
-    const scrollStyle = reducedMotion ? {} : { y, rotateX, opacity: rawOpacity };
-    const fallbackProps = reducedMotion
-        ? { initial: { opacity: 0, y: 24 }, whileInView: { opacity: 1, y: 0 }, viewport: { once: true }, transition: { duration: 0.5 } }
-        : {};
-
     return (
         <section
-            ref={ref as React.RefObject<HTMLElement>}
             className="py-8 md:py-12 border-t border-b border-primary/10 bg-[#FAF2F5]/45 relative overflow-hidden"
-            style={{ perspective: '1200px' }}
         >
             {!activeOffer?.type || activeOffer.type !== 'image' ? (
                 <div aria-hidden="true" className="absolute top-0 right-0 w-[30vw] h-[30vw] bg-accent/5 rounded-full blur-[80px] pointer-events-none" />
@@ -41,7 +27,12 @@ export function OfferBannerSection({ activeOffer }: { activeOffer: ActiveOffer }
 
             <div className="container mx-auto px-6 max-w-5xl relative z-10">
                 {activeOffer?.type === 'image' ? (
-                    <motion.div style={scrollStyle} {...fallbackProps}>
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true, margin: '-30px' }}
+                        transition={{ duration: 0.6, ease: EASE }}
+                    >
                         <Link href={activeOffer.link || '/therapists'} className="block group">
                             <div className="relative overflow-hidden rounded-[2rem] md:rounded-[2.5rem] border border-primary/10 shadow-lg hover:border-primary/20 hover:shadow-2xl transition-all duration-500 hover:scale-[1.005] bg-neutral-950 aspect-[16/9] md:aspect-[21/6]">
                                 <div className="block md:hidden relative w-full h-full">
@@ -59,7 +50,12 @@ export function OfferBannerSection({ activeOffer }: { activeOffer: ActiveOffer }
                         </Link>
                     </motion.div>
                 ) : (
-                    <motion.div style={scrollStyle} {...fallbackProps}>
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true, margin: '-30px' }}
+                        transition={{ duration: 0.6, ease: EASE }}
+                    >
                         <div className="bg-white rounded-3xl p-6 md:p-8 border border-primary/10 shadow-lg flex flex-col md:flex-row items-center justify-between gap-6 hover:border-primary/20 transition-all duration-300 hover:shadow-xl">
                             <div className="flex items-start gap-4 text-left">
                                 <div className="w-12 h-12 rounded-2xl bg-accent/10 flex items-center justify-center text-accent shrink-0 shadow-xs">
@@ -92,3 +88,4 @@ export function OfferBannerSection({ activeOffer }: { activeOffer: ActiveOffer }
         </section>
     );
 }
+

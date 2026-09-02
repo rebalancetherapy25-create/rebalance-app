@@ -55,7 +55,8 @@ therapistSchema.index({ specialties: 1, ratingAverage: -1 });
 therapistSchema.index({ name: 'text', specialties: 'text', bio: 'text' });
 // Compound indexes for multi-filter search optimization
 therapistSchema.index({ gender: 1, price: 1, ratingAverage: -1 });
-therapistSchema.index({ languages: 1, sessionTypes: 1 });
+therapistSchema.index({ languages: 1 });
+therapistSchema.index({ sessionTypes: 1 });
 therapistSchema.index({ price: 1, ratingAverage: -1 });
 
 export const Therapist = mongoose.model<ITherapist>('Therapist', therapistSchema);

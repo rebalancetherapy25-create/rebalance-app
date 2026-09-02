@@ -47,7 +47,7 @@ const FAQ_LIST: FAQItem[] = [
     { id: 13, category: 'Policies', q: "Can I reschedule my therapy session?", a: "Yes, sessions can be rescheduled if requested at least 24 hours before your scheduled appointment time." },
     { id: 14, category: 'Policies', q: "Can I cancel my session and receive a refund?", a: "No, all bookings made through Rebalance Therapy are non-refundable once confirmed." },
     { id: 15, category: 'Policies', q: "What happens if I miss my session?", a: "Missed sessions or late cancellations may not be eligible for rescheduling or refunds, as your therapist has reserved that time specifically for you." },
-    { id: 16, category: 'Policies', q: "How do I request a reschedule?", a: "To reschedule your session, please contact our support team at least 24 hours in advance via email at rebalancetherpy@gmail.com or call +91 9341210280." },
+    { id: 16, category: 'Policies', q: "How do I request a reschedule?", a: "To reschedule your session, please contact our support team at least 24 hours in advance via email at rebalancetherapy25@gmail.com or call +91 9341210280." },
     { id: 39, category: 'Policies', q: "What happens if my therapist is unavailable?", a: "If a therapist is unexpectedly unavailable, our team will assist you with rescheduling or finding another suitable therapist where possible." },
 
     // Safety
@@ -55,7 +55,7 @@ const FAQ_LIST: FAQItem[] = [
     { id: 22, category: 'Safety', q: "Is my personal information secure?", a: "We take privacy seriously and handle personal information responsibly in line with our privacy practices." },
     { id: 23, category: 'Safety', q: "Will anyone know I’m using therapy?", a: "No. Your sessions and information remain private unless disclosure is legally required for safety reasons." },
     { id: 24, category: 'Safety', q: "Can I contact my therapist outside of sessions?", a: "No. To maintain professional boundaries and ensure the best quality of care, communication with therapists is limited to scheduled sessions only." },
-    { id: 31, category: 'Safety', q: "How can I contact Rebalance Therapy?", a: "You can reach us anytime at [EMAIL_ADDRESS] or call +91 9341210280 for support and guidance." },
+    { id: 31, category: 'Safety', q: "How can I contact Rebalance Therapy?", a: "You can reach us anytime at rebalancetherapy25@gmail.com or call +91 9341210280 for support and guidance." },
     { id: 34, category: 'Safety', q: "What happens if there are technical difficulties during my session?", a: "If technical issues interrupt your session, we’ll do our best to help reconnect you or coordinate with your therapist for the best possible resolution." },
     { id: 35, category: 'Safety', q: "What if my therapist believes I need urgent medical or psychiatric support?", a: "Therapists may recommend additional professional support, including psychiatric consultation or hospitalization, if they believe there is a serious risk to your safety or wellbeing." },
     { id: 36, category: 'Safety', q: "Is Rebalance Therapy a crisis or emergency service?", a: "No. Rebalance Therapy is not designed for emergency mental health situations. If you are experiencing a crisis or immediate danger, please contact local emergency services or a crisis support helpline immediately." },
@@ -97,7 +97,7 @@ export default function FAQPage() {
 
             {/* Back Button Navigation */}
             <div className="mx-auto max-w-4xl px-6 pt-24 sm:pt-28">
-                <Link href="/" className="inline-flex items-center gap-2 text-xs font-bold text-primary hover:underline group">
+                <Link href="/" className="inline-flex items-center gap-2 text-xs font-normal text-primary hover:underline group">
                     <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
                     Back to Home
                 </Link>
@@ -115,7 +115,7 @@ export default function FAQPage() {
                     <h1 className="text-3xl sm:text-4xl lg:text-5xl font-display text-foreground font-medium tracking-tight">
                         Frequently Asked Questions
                     </h1>
-                    <p className="text-xs sm:text-sm text-muted-foreground font-semibold">
+                    <p className="text-xs sm:text-sm text-muted-foreground font-light">
                         Search or filter through our complete database of 39 frequently asked platform questions.
                     </p>
                 </div>
@@ -130,7 +130,7 @@ export default function FAQPage() {
                             placeholder="Type a keyword or question (e.g. refund, reschedule, privacy)..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full h-14 pl-12 pr-6 bg-transparent text-sm sm:text-base font-semibold text-foreground placeholder:text-muted-foreground/60 outline-none border-none focus:ring-0"
+                            className="w-full h-14 pl-12 pr-6 bg-transparent text-sm sm:text-base font-light text-foreground placeholder:text-muted-foreground/60 outline-none border-none focus:ring-0"
                         />
                     </div>
 
@@ -141,7 +141,7 @@ export default function FAQPage() {
                                 key={cat}
                                 onClick={() => setSelectedCategory(cat)}
                                 className={cn(
-                                    "shrink-0 px-5 py-2.5 rounded-full text-xs font-bold transition-all duration-300 shadow-2xs border outline-none",
+                                    "shrink-0 px-5 py-2.5 rounded-full text-xs font-normal transition-all duration-300 shadow-2xs border outline-none",
                                     selectedCategory === cat
                                         ? "bg-primary text-white border-primary shadow-xs"
                                         : "bg-white text-muted-foreground border-primary/15 hover:border-primary/30 hover:text-foreground"
@@ -168,10 +168,10 @@ export default function FAQPage() {
                                         className="w-full flex items-center justify-between text-left select-none outline-none focus:outline-none"
                                     >
                                         <div className="flex items-start gap-3">
-                                            <span className="w-5.5 h-5.5 rounded-md bg-primary/5 text-primary text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">
+                                            <span className="w-5.5 h-5.5 rounded-md bg-primary/5 text-primary text-[10px] font-light flex items-center justify-center shrink-0 mt-0.5">
                                                 Q
                                             </span>
-                                            <h4 className="text-xs sm:text-sm md:text-base font-extrabold text-foreground leading-snug">
+                                            <h4 className="text-xs sm:text-sm md:text-base font-normal text-foreground leading-snug">
                                                 {faq.q}
                                             </h4>
                                         </div>
@@ -188,7 +188,7 @@ export default function FAQPage() {
 
                                     {/* Expanded Answer with smooth entry */}
                                     {isExpanded && (
-                                        <div className="mt-4 border-t border-primary/5 pt-3.5 pl-0 sm:pl-8.5 text-xs sm:text-sm leading-relaxed text-muted-foreground/80 font-semibold animate-in slide-in-from-top-1 duration-200">
+                                        <div className="mt-4 border-t border-primary/5 pt-3.5 pl-0 sm:pl-8.5 text-xs sm:text-sm leading-relaxed text-foreground/90 font-normal animate-in slide-in-from-top-1 duration-200">
                                             {faq.a}
                                         </div>
                                     )}
@@ -199,8 +199,8 @@ export default function FAQPage() {
                         /* Empty Search State */
                         <div className="bg-white rounded-3xl p-10 border border-dashed border-primary/20 text-center space-y-4 shadow-2xs">
                             <ShieldAlert className="w-12 h-12 text-accent mx-auto animate-pulse" />
-                            <h3 className="text-lg font-bold text-foreground">No questions found</h3>
-                            <p className="text-xs sm:text-sm text-muted-foreground font-semibold max-w-md mx-auto">
+                            <h3 className="text-lg font-normal text-foreground">No questions found</h3>
+                            <p className="text-xs sm:text-sm text-muted-foreground font-light max-w-md mx-auto">
                                 We couldn&apos;t find any FAQs matching &ldquo;{searchQuery}&rdquo;. Try browsing a specific category above or search using general keywords.
                             </p>
                         </div>
@@ -214,20 +214,20 @@ export default function FAQPage() {
                             <HeartHandshake className="w-5 h-5 fill-current" />
                         </div>
                         <div>
-                            <h3 className="font-extrabold text-foreground text-sm sm:text-base mb-1">Need personal support or guidance?</h3>
-                            <p className="text-xs text-foreground/80 leading-relaxed font-semibold max-w-xl">
+                            <h3 className="font-medium text-foreground text-sm sm:text-base mb-1">Need personal support or guidance?</h3>
+                            <p className="text-xs text-foreground/80 leading-relaxed font-light max-w-xl">
                                 If you&apos;re unsure where to start, have questions about your billing, or need help matching with the right therapist, please contact our support concierge directly:
                             </p>
                         </div>
                     </div>
                     <div className="grid sm:grid-cols-2 gap-4 pt-2">
-                        <a href="mailto:rebalancetherpy@gmail.com" className="bg-white p-4.5 rounded-2xl border border-accent/15 hover:border-accent hover:shadow-xs transition-all flex items-center gap-4 group">
+                        <a href="mailto:rebalancetherapy25@gmail.com" className="bg-white p-4.5 rounded-2xl border border-accent/15 hover:border-accent hover:shadow-xs transition-all flex items-center gap-4 group">
                             <div className="w-9 h-9 rounded-xl bg-[#FAF8F8] border border-border/40 flex items-center justify-center text-primary group-hover:scale-105 transition-transform shrink-0">
                                 <Mail className="w-4.5 h-4.5" />
                             </div>
                             <div className="min-w-0">
-                                <span className="text-[9px] font-black uppercase text-muted-foreground/60 tracking-wider">Email Concierge</span>
-                                <p className="text-xs sm:text-sm font-extrabold text-foreground mt-0.5 truncate">rebalancetherpy@gmail.com</p>
+                                <span className="text-[9px] font-light uppercase text-muted-foreground/60 tracking-wider">Email Concierge</span>
+                                <p className="text-xs sm:text-sm font-medium text-foreground mt-0.5 truncate">rebalancetherapy25@gmail.com</p>
                             </div>
                         </a>
                         <a href="tel:+919341210280" className="bg-white p-4.5 rounded-2xl border border-accent/15 hover:border-accent hover:shadow-xs transition-all flex items-center gap-4 group">
@@ -235,15 +235,15 @@ export default function FAQPage() {
                                 <Phone className="w-4.5 h-4.5" />
                             </div>
                             <div className="min-w-0">
-                                <span className="text-[9px] font-black uppercase text-muted-foreground/60 tracking-wider">Phone Support</span>
-                                <p className="text-xs sm:text-sm font-extrabold text-foreground mt-0.5 truncate">+91 9341210280</p>
+                                <span className="text-[9px] font-light uppercase text-muted-foreground/60 tracking-wider">Phone Support</span>
+                                <p className="text-xs sm:text-sm font-medium text-foreground mt-0.5 truncate">+91 9341210280</p>
                             </div>
                         </a>
                     </div>
                 </div>
 
                 {/* Footer Back Link */}
-                <div className="pt-8 border-t border-primary/5 flex justify-between items-center text-xs text-muted-foreground font-semibold">
+                <div className="pt-8 border-t border-primary/5 flex justify-between items-center text-xs text-muted-foreground font-light">
                     <Link href="/" className="inline-flex items-center gap-2 text-primary hover:underline group">
                         <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
                         Back to Home

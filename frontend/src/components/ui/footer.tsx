@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Logo } from '@/components/ui/logo';
 import { usePathname } from 'next/navigation';
-import { Twitter, Instagram, Linkedin } from 'lucide-react';
+import { Instagram, Linkedin } from 'lucide-react';
 
 export function Footer() {
     const pathname = usePathname();
@@ -24,20 +24,17 @@ export function Footer() {
                     <div className="lg:col-span-5 space-y-8">
                         <Logo textColorClass="text-primary-foreground" />
                         <div className="flex gap-4">
-                            <a href="#" className="w-12 h-12 rounded-full border border-primary-foreground/20 flex items-center justify-center text-primary-foreground hover:bg-primary-foreground hover:text-primary transition-all duration-300">
+                            <a href="https://www.instagram.com/rebalancetherapy.co?igsi=MXJvNW5uZzZ5MnEweA%3D%3D&utm_source=qr" target="_blank" rel="noopener noreferrer" className="w-12 h-12 rounded-full border border-primary-foreground/20 flex items-center justify-center text-primary-foreground hover:bg-primary-foreground hover:text-primary transition-all duration-300">
                                 <Instagram className="w-5 h-5" />
                             </a>
-                            <a href="#" className="w-12 h-12 rounded-full border border-primary-foreground/20 flex items-center justify-center text-primary-foreground hover:bg-primary-foreground hover:text-primary transition-all duration-300">
-                                <Twitter className="w-5 h-5" />
-                            </a>
-                            <a href="#" className="w-12 h-12 rounded-full border border-primary-foreground/20 flex items-center justify-center text-primary-foreground hover:bg-primary-foreground hover:text-primary transition-all duration-300">
+                            <a href="https://www.linkedin.com/company/rebalancetherapy/" target="_blank" rel="noopener noreferrer" className="w-12 h-12 rounded-full border border-primary-foreground/20 flex items-center justify-center text-primary-foreground hover:bg-primary-foreground hover:text-primary transition-all duration-300">
                                 <Linkedin className="w-5 h-5" />
                             </a>
                         </div>
                     </div>
 
                     <div className="lg:col-span-3 lg:col-start-7 space-y-6">
-                        <h4 className="text-[10px] font-black tracking-[0.2em] uppercase text-primary-foreground/50">Platform</h4>
+                        <h4 className="text-[10px] font-bold tracking-[0.2em] uppercase text-primary-foreground/50">Platform</h4>
                         <ul className="space-y-4">
                             <li><Link href="/therapists" className="text-lg font-medium text-primary-foreground/80 hover:text-accent transition-colors">Find a Therapist</Link></li>
                             <li><Link href="/about" className="text-lg font-medium text-primary-foreground/80 hover:text-accent transition-colors">How it Works</Link></li>
@@ -46,7 +43,7 @@ export function Footer() {
                     </div>
 
                     <div className="lg:col-span-3 space-y-6">
-                        <h4 className="text-[10px] font-black tracking-[0.2em] uppercase text-primary-foreground/50">Legal</h4>
+                        <h4 className="text-[10px] font-bold tracking-[0.2em] uppercase text-primary-foreground/50">Legal</h4>
                         <ul className="space-y-4">
                             <li><Link href="/privacy" className="text-lg font-medium text-primary-foreground/80 hover:text-accent transition-colors">Privacy Policy</Link></li>
                             <li><Link href="/terms" className="text-lg font-medium text-primary-foreground/80 hover:text-accent transition-colors">Terms of Service</Link></li>

@@ -1,10 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
 import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { NavButton } from '@/components/ui/nav-button';
 import { FeaturedTherapistsSkeleton } from '@/components/loading/skeletons';
 import { Star, User } from 'lucide-react';

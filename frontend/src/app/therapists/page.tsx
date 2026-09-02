@@ -16,13 +16,14 @@ export default async function TherapistListingPage() {
     let initialTherapists = [];
     let initialTotalPages = 1;
     let initialTotalItems = 0;
+    let initialLanguages: string[] = [];
 
     try {
         const apiUrl = getApiBaseUrl();
         const shouldSkipOptionalFetch = process.env.NODE_ENV === 'production' && isLocalApiBaseUrl(apiUrl);
 
         if (!shouldSkipOptionalFetch) {
-            const response = await fetch(`${apiUrl}/therapists?page=1&limit=10`, {
+            const response = await fetch(`${apiUrl}/therapists?page=1&limit=100`, {
                 next: { revalidate: 30 } // Cache base list for 30 seconds
             });
         
@@ -31,6 +32,7 @@ export default async function TherapistListingPage() {
                 initialTherapists = data.therapists || [];
                 initialTotalPages = data.totalPages || 1;
                 initialTotalItems = data.total || 0;
+                initialLanguages = data.allLanguages || [];
             }
         }
     } catch (err) {
@@ -46,6 +48,7 @@ export default async function TherapistListingPage() {
                     initialTherapists={initialTherapists}
                     initialTotalPages={initialTotalPages}
                     initialTotalItems={initialTotalItems}
+                    initialLanguages={initialLanguages}
                 />
             </main>
         </div>

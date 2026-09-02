@@ -1,28 +1,21 @@
 'use client';
-import { motion, useTransform, useSpring } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { UserCheck } from 'lucide-react';
-import { useScrollSection } from '@/hooks/useScrollSection';
 
-const SPRING = { stiffness: 90, damping: 18, mass: 1.2 };
+const EASE = [0.25, 0.46, 0.45, 0.94] as const;
 
 export function QualityPromiseSection() {
-    const { ref, scrollYProgress, reducedMotion } = useScrollSection(['start 0.85', 'end 0.45']);
-
-    const rawLeftX = useTransform(scrollYProgress, [0, 0.6], [-80, 0]);
-    const rawRightX = useTransform(scrollYProgress, [0, 0.6], [80, 0]);
-    const rawOpacity = useTransform(scrollYProgress, [0, 0.3], [0, 1]);
-    const leftX = useSpring(rawLeftX, SPRING);
-    const rightX = useSpring(rawRightX, SPRING);
-
     return (
-        <section ref={ref as React.RefObject<HTMLElement>} className="py-20 md:py-28 px-6 bg-[#FDFBFB]">
+        <section className="py-20 md:py-28 px-6 bg-[#FDFBFB]">
             <div className="container mx-auto max-w-5xl">
                 <div className="grid md:grid-cols-12 gap-12 md:gap-16 items-center">
 
                     {/* Left — text */}
                     <motion.div
-                        style={reducedMotion ? {} : { x: leftX, opacity: rawOpacity }}
-                        {...(reducedMotion ? { initial: { opacity: 0, x: -40 }, whileInView: { opacity: 1, x: 0 }, viewport: { once: true }, transition: { duration: 0.7 } } : {})}
+                        initial={{ opacity: 0, y: 24 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true, margin: '-40px' }}
+                        transition={{ duration: 0.7, ease: EASE }}
                         className="md:col-span-6 space-y-6"
                     >
                         <h2 className="text-3xl sm:text-4xl md:text-5xl font-display text-foreground leading-[1.1] text-balance">
@@ -36,8 +29,10 @@ export function QualityPromiseSection() {
 
                     {/* Right — card */}
                     <motion.div
-                        style={reducedMotion ? {} : { x: rightX, opacity: rawOpacity }}
-                        {...(reducedMotion ? { initial: { opacity: 0, x: 40 }, whileInView: { opacity: 1, x: 0 }, viewport: { once: true }, transition: { duration: 0.7, delay: 0.15 } } : {})}
+                        initial={{ opacity: 0, y: 24 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true, margin: '-40px' }}
+                        transition={{ duration: 0.7, ease: EASE, delay: 0.15 }}
                         className="md:col-span-6"
                     >
                         <div className="bg-white rounded-[2.5rem] p-8 md:p-10 border border-primary/10 shadow-xl space-y-6 hover:border-primary/20 hover:shadow-2xl transition-all duration-500 hover:-translate-y-1">
@@ -58,3 +53,4 @@ export function QualityPromiseSection() {
         </section>
     );
 }
+

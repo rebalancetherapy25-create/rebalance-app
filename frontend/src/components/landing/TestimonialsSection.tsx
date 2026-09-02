@@ -1,20 +1,19 @@
 'use client';
 import React, { useRef, useState, useEffect } from 'react';
-import { motion, useTransform, useSpring, useMotionTemplate } from 'framer-motion';
-import { Star, Quote, ArrowLeft, ArrowRight, BadgeCheck, Sparkles } from 'lucide-react';
-import { useScrollSection } from '@/hooks/useScrollSection';
+import { motion } from 'framer-motion';
+import { Quote, ArrowLeft, ArrowRight, Sparkles } from 'lucide-react';
 
 const TESTIMONIALS = [
     {
-        quote: "I've tried three different therapy platforms before this. The professional I found through REBalance actually challenged my perspective instead of just listening passively. I'm finally breaking the 'doom-scrolling' anxiety cycle and sleeping peacefully.",
-        name: "Kavita Iyer",
+        quote: "I've tried three different apps before this. Usually, the therapists feel like they're reading from a script, but the professional I found through ReBalance actually challenged my perspective. I'm finally stopping the 'doom scrolling' cycle and sleeping better.",
+        name: "Kavita I.",
         location: "Mumbai, MH",
         topic: "Anxiety & Sleep Support",
         rating: 5,
         date: "2 weeks ago"
     },
     {
-        quote: "Running a startup is intensely lonely. I needed a confidential space to talk without judgment about founder stress and financial burnout. The platform is straightforward, secure, and makes professional boundaries effortless to maintain.",
+        quote: "Running a startup is lonely. I needed someone to talk to who wouldn't judge me for being stressed about payroll. The platform is straightforward, and easy to use and has really helped me to get better at handling my stress.",
         name: "Rahul Hegde",
         location: "Bangalore, KA",
         topic: "Executive Stress & Burnout",
@@ -22,31 +21,31 @@ const TESTIMONIALS = [
         date: "3 weeks ago"
     },
     {
-        quote: "I used to experience severe physical panic attacks before academic presentations. My therapist walked me through practical Somatic grounding techniques that genuinely work in high-stakes moments. I feel entirely in control of my body now.",
-        name: "Sarah Thomas",
+        quote: "I used to get physical shakes before and I did not know the reasons. My therapist walked me through some grounding techniques that actually works. It's not a 'cure,' but I feel way more in control of my body now.",
+        name: "Sarah T.",
         location: "New Delhi, DL",
         topic: "Performance & Academic Anxiety",
         rating: 5,
         date: "1 month ago"
     },
     {
-        quote: "My hospital shift patterns are unpredictable and exhausting. I deeply appreciate REBalance's transparent scheduling and easy re-booking features because it keeps me accountable to my self-care routines rather than canceling when work gets heavy.",
-        name: "Dr. Vikram Mehta",
+        quote: "My shift patterns are a nightmare. I appreciate that Rebalance has a clear 24 hour reschedule rule because it forces me to commit to my mental health rather than pushing it off for work and other reasons.",
+        name: "Vikram M.",
         location: "Mumbai, MH",
         topic: "Healthcare Worker Support",
         rating: 5,
         date: "1 month ago"
     },
     {
-        quote: "I was someone who foolishly believed seeking counseling was a sign of weakness. After just four CBT sessions, I discovered how much unaddressed grief and defensive anger I was harboring. It has made me a vastly better father and spouse.",
-        name: "Amit Deshpande",
+        quote: "I was the guy who thought therapy was 'soft.' My wife pushed me to join. After four sessions, I've realized how much anger I was carrying from my old job. It's made me a better father, honestly.",
+        name: "Amit D.",
         location: "Pune, MH",
         topic: "Cognitive Behavioral Therapy (CBT)",
         rating: 5,
         date: "2 months ago"
     },
     {
-        quote: "I felt trapped in a corporate career I dreaded. REBalance helped me decouple my identity from my job title and process the underlying anxiety. No gimmicks or tedious questionnaires here—just world-class clinical professionals.",
+        quote: "ReBalance helped me realize it was anxiety, not just boredom. I love that the platform for it is purely for the sessions, no fluff and endless text just high quality professional help.",
         name: "Riya Sen",
         location: "Kolkata, WB",
         topic: "Career Transition & Identity",
@@ -54,23 +53,23 @@ const TESTIMONIALS = [
         date: "2 months ago"
     },
     {
-        quote: "The HD encrypted video quality is flawless, which is essential when you're having an emotionally delicate conversation. I also deeply respect their prominent crisis disclaimers—it proves they prioritize patient ethics and safety above all else.",
-        name: "Marcus D'Souza",
+        quote: "I tried therapy for the first time and it was an amazing and smooth experience. Loved the care shown by my therapists khushi and will keep coming back",
+        name: "Marcus D.",
         location: "Chennai, TN",
         topic: "Online Counseling Privacy",
         rating: 5,
         date: "3 months ago"
     },
     {
-        quote: "Losing my mother last year was completely paralyzing. My therapist didn't attempt to force premature optimism; she created a safe sanctuary for acute grief recovery. That non-judgmental weekly hour is the reason I am functioning again.",
-        name: "Deepa Gopalakrishnan",
+        quote: "Losing my mom last year was paralyzing. My therapist didn't try to fix me or tell me what is right or wrong, she just sat with me and helped me deal with grief my way. Having that weekly hour is the only reason I'm back at work full time now.",
+        name: "Deepa G.",
         location: "Hyderabad, TS",
         topic: "Grief & Trauma Recovery",
         rating: 5,
         date: "3 months ago"
     },
     {
-        quote: "The mere thought of sitting in a busy clinical waiting room triggered severe social withdrawal for me. Being able to connect with a licensed clinical psychologist directly from my home, via a fully confidential link, removed every barrier.",
+        quote: "The thought of walking into a physical clinic made me want to hide. Being able to do this from my room, knowing it's secure and private , made all the difference for me.",
         name: "Karthik Raja",
         location: "Kochi, KL",
         topic: "Social Anxiety & Teletherapy",
@@ -78,8 +77,8 @@ const TESTIMONIALS = [
         date: "4 months ago"
     },
     {
-        quote: "I wanted structured tools, measurable emotional goals, and professional accountability. The psychologist I matched with delivered exactly that from session one. REBalance handles the administrative scheduling so seamlessly that therapy feels effortless.",
-        name: "Simran Kaur",
+        quote: "The therapist I was matched with was super professional and held me accountable. Rebalance makes the process very smooth",
+        name: "Simran K.",
         location: "Gurgaon, HR",
         topic: "Structured Goal & Habit Tracking",
         rating: 5,
@@ -103,17 +102,12 @@ const getInitials = (name: string) => {
         .join('');
 };
 
+const EASE = [0.25, 0.46, 0.45, 0.94] as const;
+
 export function TestimonialsSection() {
-    const { ref, scrollYProgress, reducedMotion } = useScrollSection(['start 0.9', 'end 0.3']);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const [activeIndex, setActiveIndex] = useState(0);
     const [isPaused, setIsPaused] = useState(false);
-
-    const rawHeadingClip = useTransform(scrollYProgress, [0, 0.45], [100, 0]);
-    const rawPillX = useTransform(scrollYProgress, [0.1, 0.55], [40, 0]);
-    const rawPillOpacity = useTransform(scrollYProgress, [0.1, 0.4], [0, 1]);
-    const headingClipPath = useMotionTemplate`inset(0 0 0 ${rawHeadingClip}%)`;
-    const pillX = useSpring(rawPillX, { stiffness: 110, damping: 22 });
 
     const handleScroll = () => {
         if (!scrollContainerRef.current) return;
@@ -154,7 +148,7 @@ export function TestimonialsSection() {
     }, [activeIndex, isPaused]);
 
     return (
-        <section ref={ref as React.RefObject<HTMLElement>} className="py-20 md:py-28 bg-gradient-to-b from-[#FDFBFB] via-neutral-50/70 to-[#FDFBFB] overflow-hidden relative border-y border-neutral-100/80">
+        <section className="py-20 md:py-28 bg-gradient-to-b from-[#FDFBFB] via-neutral-50/70 to-[#FDFBFB] overflow-hidden relative border-y border-neutral-100/80">
 
             {/* Subtle background glow */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[500px] bg-amber-500/5 rounded-full blur-[120px] pointer-events-none" />
@@ -162,49 +156,33 @@ export function TestimonialsSection() {
             {/* Header Section */}
             <div className="max-w-7xl mx-auto px-6 mb-12 flex flex-col lg:flex-row lg:items-end justify-between gap-6">
                 <div className="max-w-2xl">
-                    <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider bg-accent/10 text-accent mb-4 border border-accent/20">
+                    <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-normal uppercase tracking-wider bg-accent/10 text-accent mb-4 border border-accent/20">
                         <Sparkles className="w-3.5 h-3.5" />
                         Patient Reflections & Outcomes
                     </div>
 
-                    {reducedMotion ? (
-                        <motion.h2
-                            initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-                            className="text-3xl sm:text-4xl md:text-5xl font-display text-foreground leading-[1.1] text-balance font-extrabold"
-                        >
-                            Real stories of clinical <span className="text-accent italic font-normal">resilience.</span>
-                        </motion.h2>
-                    ) : (
-                        <motion.h2
-                            style={{ clipPath: headingClipPath }}
-                            className="text-3xl sm:text-4xl md:text-5xl font-display text-foreground leading-[1.1] text-balance font-extrabold"
-                        >
-                            Real stories of clinical <span className="text-accent italic font-normal">resilience.</span>
-                        </motion.h2>
-                    )}
-                    <p className="text-sm md:text-base text-muted-foreground mt-3 font-medium leading-relaxed">
+                    <motion.h2
+                        initial={{ opacity: 0, y: 24 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true, margin: '-30px' }}
+                        transition={{ duration: 0.6, ease: EASE }}
+                        className="text-3xl sm:text-4xl md:text-5xl font-display text-foreground leading-[1.1] text-balance font-medium"
+                    >
+                        Real stories of clinical <span className="text-accent italic font-normal">resilience.</span>
+                    </motion.h2>
+                    <motion.p
+                        initial={{ opacity: 0, y: 16 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true, margin: '-30px' }}
+                        transition={{ duration: 0.6, ease: EASE, delay: 0.15 }}
+                        className="text-sm md:text-base text-muted-foreground mt-3 font-medium leading-relaxed"
+                    >
                         Read unedited experiences and validated outcomes from verified individuals seeking supportive mental healthcare on REBalance.
-                    </p>
+                    </motion.p>
                 </div>
 
-                {/* Controls & Rating summary badge */}
+                {/* Controls */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 shrink-0 self-start lg:self-end">
-                    <motion.div
-                        style={reducedMotion ? {} : { x: pillX, opacity: rawPillOpacity }}
-                        {...(reducedMotion ? { initial: { opacity: 0, x: 24 }, whileInView: { opacity: 1, x: 0 }, viewport: { once: true } } : {})}
-                        className="flex items-center gap-2.5 bg-white px-4.5 py-2.5 rounded-2xl border border-neutral-200/80 shadow-xs"
-                    >
-                        <div className="flex items-center gap-0.5 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200/50">
-                            {[1, 2, 3, 4, 5].map(s => (
-                                <Star key={s} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                            ))}
-                        </div>
-                        <div className="text-left">
-                            <div className="text-xs font-black text-foreground leading-none">4.9 / 5.0 Rating</div>
-                            <div className="text-[10px] font-semibold text-muted-foreground mt-0.5">Over 1,200+ confirmed therapy hours</div>
-                        </div>
-                    </motion.div>
-
                     {/* Left/Right Navigation Buttons */}
                     <div className="flex items-center gap-2">
                         <button
@@ -259,22 +237,8 @@ export function TestimonialsSection() {
                                 </div>
 
                                 <div>
-                                    {/* Star Rating & Verified tag header */}
-                                    <div className="flex items-center justify-between gap-3 mb-6 relative z-10">
-                                        <div className="flex items-center gap-1 bg-amber-50/90 border border-amber-200/60 px-3 py-1.5 rounded-xl">
-                                            {[1, 2, 3, 4, 5].map(star => (
-                                                <Star key={star} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                                            ))}
-                                            <span className="text-xs font-black text-amber-950 ml-1.5">{t.rating}.0</span>
-                                        </div>
-                                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200/60 shadow-2xs">
-                                            <BadgeCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0 fill-emerald-100" />
-                                            Verified Patient
-                                        </span>
-                                    </div>
-
                                     {/* Review text */}
-                                    <blockquote className="text-sm sm:text-[15px] md:text-base text-foreground/85 leading-[1.7] font-serif italic mb-8 relative z-10 font-normal">
+                                    <blockquote className="text-sm sm:text-[15px] md:text-base text-neutral-900 leading-[1.7] font-serif italic mb-8 relative z-10 font-light">
                                         &ldquo;{t.quote}&rdquo;
                                     </blockquote>
                                 </div>
@@ -282,21 +246,15 @@ export function TestimonialsSection() {
                                 {/* Footer (Reviewer details without photo) */}
                                 <div className="flex items-center justify-between gap-4 mt-auto border-t border-neutral-100 pt-5 relative z-10">
                                     <div className="flex items-center gap-3.5">
-                                        <div className={`w-11 h-11 rounded-2xl bg-gradient-to-br ${gradient} border flex items-center justify-center font-extrabold text-xs shadow-xs tracking-wider shrink-0`}>
+                                        <div className={`w-11 h-11 rounded-2xl bg-gradient-to-br ${gradient} border flex items-center justify-center font-medium text-xs shadow-xs tracking-wider shrink-0`}>
                                             {initials}
                                         </div>
                                         <div>
                                             <div className="flex items-center gap-2 flex-wrap">
-                                                <p className="font-bold text-foreground text-sm tracking-tight">{t.name}</p>
-                                                <span className="text-neutral-300">•</span>
-                                                <p className="text-[11px] font-semibold text-neutral-500">{t.location}</p>
+                                                <p className="font-semibold text-foreground text-sm tracking-tight">{t.name}</p>
                                             </div>
-                                            <p className="text-xs font-bold text-accent mt-0.5">{t.topic}</p>
                                         </div>
                                     </div>
-                                    <span className="text-[11px] font-medium text-neutral-400 shrink-0 hidden sm:block">
-                                        {t.date}
-                                    </span>
                                 </div>
                             </div>
                         );
