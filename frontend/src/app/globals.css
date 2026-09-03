@@ -36,6 +36,7 @@
   html {
     overflow-x: clip;
     max-width: 100vw;
+    background-color: #FDFBFB;
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
   }
@@ -43,6 +44,7 @@
   body {
     overflow-x: clip;
     max-width: 100vw;
+    background-color: #FDFBFB;
     -webkit-overflow-scrolling: touch;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;

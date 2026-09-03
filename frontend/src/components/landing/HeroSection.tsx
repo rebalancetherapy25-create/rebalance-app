@@ -1,8 +1,7 @@
 'use client';
-import { useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { motion, useScroll, useTransform } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
 
@@ -23,20 +22,9 @@ interface HeroSectionProps {
 }
 
 export function HeroSection({ bannerImage }: HeroSectionProps) {
-    const sectionRef = useRef<HTMLElement>(null);
-
-    // Parallax: image moves up at 25% of scroll speed as you scroll past
-    const { scrollYProgress } = useScroll({
-        target: sectionRef,
-        offset: ['start start', 'end start'],
-    });
-    const imageY = useTransform(scrollYProgress, [0, 1], ['0%', '22%']);
-    const imageScale = useTransform(scrollYProgress, [0, 1], [1, 1.06]);
-
     return (
         <section
-            ref={sectionRef}
-            className="px-6 pt-24 md:pt-28 pb-12 lg:pt-28 lg:pb-16 max-w-7xl mx-auto overflow-hidden"
+            className="px-6 pt-24 md:pt-28 pb-12 lg:pt-28 lg:pb-16 max-w-7xl mx-auto overflow-hidden bg-[#FDFBFB]"
         >
             <div className="grid lg:grid-cols-2 gap-12 lg:gap-8 items-center">
 
@@ -94,30 +82,22 @@ export function HeroSection({ bannerImage }: HeroSectionProps) {
                     </motion.div>
                 </div>
 
-                {/* Right: parallax image */}
+                {/* Right: image */}
                 <motion.div
-                    initial={{ opacity: 0, x: 60 }}
+                    initial={{ opacity: 0, x: 40 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.9, ease: EASE, delay: 0.2 }}
+                    transition={{ duration: 0.8, ease: EASE, delay: 0.2 }}
                     style={{ WebkitBackfaceVisibility: 'hidden' }}
                     className="relative w-full max-w-md lg:max-w-xl mx-auto aspect-[4/3] lg:aspect-[4/3.5] rounded-3xl lg:rounded-[3rem] overflow-hidden shadow-2xl"
                 >
-                    <motion.div
-                        style={{ y: imageY, scale: imageScale, WebkitBackfaceVisibility: 'hidden' }}
-                        className="absolute inset-0 w-full h-[120%] -top-[10%]"
-                    >
-                        <Image
-                            src={bannerImage}
-                            alt="Therapy session"
-                            fill
-                            className="object-cover"
-                            priority
-                            sizes="(max-width: 1024px) 100vw, 50vw"
-                        />
-                    </motion.div>
-
-                    {/* Stats badge — floats in after image */}
-                   
+                    <Image
+                        src={bannerImage}
+                        alt="Therapy session"
+                        fill
+                        className="object-cover"
+                        priority
+                        sizes="(max-width: 1024px) 100vw, 50vw"
+                    />
                 </motion.div>
 
             </div>

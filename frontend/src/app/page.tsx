@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { AnimateIn } from '@/components/ui/AnimateIn';
 import { HeroSection } from '@/components/landing/HeroSection';
 import { StatementSection } from '@/components/landing/StatementSection';
 import { OfferBannerSection } from '@/components/landing/OfferBannerSection';
@@ -80,31 +79,29 @@ export default async function LandingPage() {
                 {/* Begin Journey — text reveal + image parallax */}
                 <BeginJourneySection />
 
-                {/* Crisis Alert — kept as simple AnimateIn (safety-critical) */}
+                {/* Crisis Alert */}
                 <section className="px-6 pb-12 md:pb-24 bg-[#FDFBFB]">
                     <div className="container mx-auto max-w-3xl">
-                        <AnimateIn direction="up">
-                            <div className="bg-accent/10 border border-accent/20 rounded-3xl p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-sm">
-                                <div className="flex items-start md:items-center gap-4 md:gap-6">
-                                    <div className="w-10 h-10 md:w-14 md:h-14 rounded-full bg-accent/20 flex items-center justify-center shrink-0">
-                                        <Bell className="w-5 h-5 md:w-7 md:h-7 text-accent" />
-                                    </div>
-                                    <div>
-                                        <h3 className="font-bold text-foreground text-sm md:text-lg mb-1 md:mb-2">In crisis? Get immediate help.</h3>
-                                        <p className="text-xs md:text-sm text-foreground/80 leading-relaxed max-w-sm">
-                                            If you are in a crisis or having thoughts of harming yourself, please reach out for help right away.
-                                        </p>
-                                    </div>
+                        <div className="bg-accent/10 border border-accent/20 rounded-3xl p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-sm">
+                            <div className="flex items-start md:items-center gap-4 md:gap-6">
+                                <div className="w-10 h-10 md:w-14 md:h-14 rounded-full bg-accent/20 flex items-center justify-center shrink-0">
+                                    <Bell className="w-5 h-5 md:w-7 md:h-7 text-accent" />
                                 </div>
-                                <div className="ml-14 md:ml-0 shrink-0">
-                                    <Link href="/contact">
-                                        <Button variant="outline" className="rounded-full border-accent/30 text-accent font-medium bg-transparent hover:bg-accent/10 hover:text-accent w-full md:w-auto px-6">
-                                            View Resources
-                                        </Button>
-                                    </Link>
+                                <div>
+                                    <h3 className="font-bold text-foreground text-sm md:text-lg mb-1 md:mb-2">In crisis? Get immediate help.</h3>
+                                    <p className="text-xs md:text-sm text-foreground/80 leading-relaxed max-w-sm">
+                                        If you are in a crisis or having thoughts of harming yourself, please reach out for help right away.
+                                    </p>
                                 </div>
                             </div>
-                        </AnimateIn>
+                            <div className="ml-14 md:ml-0 shrink-0">
+                                <Link href="/contact">
+                                    <Button variant="outline" className="rounded-full border-accent/30 text-accent font-medium bg-transparent hover:bg-accent/10 hover:text-accent w-full md:w-auto px-6">
+                                        View Resources
+                                    </Button>
+                                </Link>
+                            </div>
+                        </div>
                     </div>
                 </section>
 

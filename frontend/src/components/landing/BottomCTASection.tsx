@@ -1,22 +1,11 @@
-'use client';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
-
-const EASE = [0.25, 0.46, 0.45, 0.94] as const;
 
 export function BottomCTASection() {
     return (
         <section className="py-12 md:py-20 px-6 bg-primary text-center">
-            <motion.div
-                initial={{ opacity: 0, y: 28 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: '0px' }}
-                style={{ WebkitBackfaceVisibility: 'hidden' }}
-                transition={{ duration: 0.6, ease: EASE }}
-                className="container mx-auto max-w-3xl"
-            >
+            <div className="container mx-auto max-w-3xl">
                 <h2 className="text-3xl md:text-5xl lg:text-6xl font-display text-white mb-6 md:mb-8 text-balance">
                     Your journey <span className="italic text-accent">starts here.</span>
                 </h2>
@@ -33,7 +22,7 @@ export function BottomCTASection() {
                         View All Therapists <ArrowRight className="w-4 h-4 md:w-5 md:h-5 ml-1 md:ml-2" />
                     </Link>
                 </div>
-            </motion.div>
+            </div>
         </section>
     );
 }

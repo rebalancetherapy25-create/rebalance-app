@@ -1,7 +1,5 @@
-'use client';
 import Link from 'next/link';
 import Image from 'next/image';
-import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { HeartHandshake, ArrowRight, Tag } from 'lucide-react';
 
@@ -14,8 +12,6 @@ type ActiveOffer = {
     desktopImageUrl?: string;
 } | null;
 
-const EASE = [0.25, 0.46, 0.45, 0.94] as const;
-
 export function OfferBannerSection({ activeOffer }: { activeOffer: ActiveOffer }) {
     return (
         <section
@@ -27,13 +23,7 @@ export function OfferBannerSection({ activeOffer }: { activeOffer: ActiveOffer }
 
             <div className="container mx-auto px-6 max-w-5xl relative z-10">
                 {activeOffer?.type === 'image' ? (
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true, margin: '0px' }}
-                        style={{ WebkitBackfaceVisibility: 'hidden' }}
-                        transition={{ duration: 0.6, ease: EASE }}
-                    >
+                    <div>
                         <Link href={activeOffer.link || '/therapists'} className="block group">
                             <div className="relative overflow-hidden rounded-[2rem] md:rounded-[2.5rem] border border-primary/10 shadow-lg hover:border-primary/20 hover:shadow-2xl transition-all duration-500 hover:scale-[1.005] bg-neutral-950 aspect-[16/9] md:aspect-[21/6]">
                                 <div className="block md:hidden relative w-full h-full">
@@ -49,15 +39,9 @@ export function OfferBannerSection({ activeOffer }: { activeOffer: ActiveOffer }
                                 <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                             </div>
                         </Link>
-                    </motion.div>
+                    </div>
                 ) : (
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true, margin: '0px' }}
-                        style={{ WebkitBackfaceVisibility: 'hidden' }}
-                        transition={{ duration: 0.6, ease: EASE }}
-                    >
+                    <div>
                         <div className="bg-white rounded-3xl p-6 md:p-8 border border-primary/10 shadow-lg flex flex-col md:flex-row items-center justify-between gap-6 hover:border-primary/20 transition-all duration-300 hover:shadow-xl">
                             <div className="flex items-start gap-4 text-left">
                                 <div className="w-12 h-12 rounded-2xl bg-accent/10 flex items-center justify-center text-accent shrink-0 shadow-xs">
@@ -84,7 +68,7 @@ export function OfferBannerSection({ activeOffer }: { activeOffer: ActiveOffer }
                                 </Link>
                             </div>
                         </div>
-                    </motion.div>
+                    </div>
                 )}
             </div>
         </section>

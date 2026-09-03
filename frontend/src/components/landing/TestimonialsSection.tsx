@@ -1,6 +1,5 @@
 'use client';
 import React, { useRef, useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import { Quote, ArrowLeft, ArrowRight, Sparkles } from 'lucide-react';
 
 const TESTIMONIALS = [
@@ -102,8 +101,6 @@ const getInitials = (name: string) => {
         .join('');
 };
 
-const EASE = [0.25, 0.46, 0.45, 0.94] as const;
-
 export function TestimonialsSection() {
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const [activeIndex, setActiveIndex] = useState(0);
@@ -161,26 +158,12 @@ export function TestimonialsSection() {
                         Patient Reflections & Outcomes
                     </div>
 
-                    <motion.h2
-                        initial={{ opacity: 0, y: 24 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true, margin: '0px' }}
-                        style={{ WebkitBackfaceVisibility: 'hidden' }}
-                        transition={{ duration: 0.6, ease: EASE }}
-                        className="text-3xl sm:text-4xl md:text-5xl font-display text-foreground leading-[1.1] text-balance font-medium"
-                    >
+                    <h2 className="text-3xl sm:text-4xl md:text-5xl font-display text-foreground leading-[1.1] text-balance font-medium">
                         Real stories of clinical <span className="text-accent italic font-normal">resilience.</span>
-                    </motion.h2>
-                    <motion.p
-                        initial={{ opacity: 0, y: 16 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true, margin: '0px' }}
-                        style={{ WebkitBackfaceVisibility: 'hidden' }}
-                        transition={{ duration: 0.6, ease: EASE, delay: 0.15 }}
-                        className="text-sm md:text-base text-muted-foreground mt-3 font-medium leading-relaxed"
-                    >
+                    </h2>
+                    <p className="text-sm md:text-base text-muted-foreground mt-3 font-medium leading-relaxed">
                         Read unedited experiences and validated outcomes from verified individuals seeking supportive mental healthcare on REBalance.
-                    </motion.p>
+                    </p>
                 </div>
 
                 {/* Controls */}

@@ -1,15 +1,11 @@
-'use client';
 import Link from 'next/link';
 import Image from 'next/image';
-import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Phone, Mail, ArrowRight, HeartHandshake } from 'lucide-react';
 
-const EASE = [0.25, 0.46, 0.45, 0.94] as const;
-
 export function BeginJourneySection() {
     return (
-        <section className="py-24 md:py-32 px-6 relative overflow-hidden bg-white">
+        <section className="py-24 md:py-32 px-6 relative overflow-hidden bg-[#FDFBFB]">
             {/* Soft background accents */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full max-w-7xl pointer-events-none">
                 <div className="absolute top-1/4 -left-64 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[100px] opacity-70" />
@@ -23,14 +19,7 @@ export function BeginJourneySection() {
                     <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-primary/10 to-transparent rounded-bl-full opacity-50 pointer-events-none" />
 
                     {/* Text Content */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 28 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true, margin: '0px' }}
-                        style={{ WebkitBackfaceVisibility: 'hidden' }}
-                        transition={{ duration: 0.6, ease: EASE }}
-                        className="flex-1 text-center lg:text-left w-full space-y-8 z-10"
-                    >
+                    <div className="flex-1 text-center lg:text-left w-full space-y-8 z-10">
                         <div className="space-y-4">
                             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary font-medium text-sm">
                                 <HeartHandshake className="w-4 h-4" />
@@ -76,7 +65,7 @@ export function BeginJourneySection() {
                                 We&apos;ll help match you with the right support.
                             </p>
                         </div>
-                    </motion.div>
+                    </div>
 
                     {/* Images Section */}
                     <div className="flex-1 w-full hidden md:block z-10">
