@@ -99,10 +99,11 @@ export function HeroSection({ bannerImage }: HeroSectionProps) {
                     initial={{ opacity: 0, x: 60 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.9, ease: EASE, delay: 0.2 }}
+                    style={{ WebkitBackfaceVisibility: 'hidden' }}
                     className="relative w-full max-w-md lg:max-w-xl mx-auto aspect-[4/3] lg:aspect-[4/3.5] rounded-3xl lg:rounded-[3rem] overflow-hidden shadow-2xl"
                 >
                     <motion.div
-                        style={{ y: imageY, scale: imageScale }}
+                        style={{ y: imageY, scale: imageScale, WebkitBackfaceVisibility: 'hidden' }}
                         className="absolute inset-0 w-full h-[120%] -top-[10%]"
                     >
                         <Image
@@ -110,7 +111,7 @@ export function HeroSection({ bannerImage }: HeroSectionProps) {
                             alt="Therapy session"
                             fill
                             className="object-cover"
-                            loading="lazy"
+                            priority
                             sizes="(max-width: 1024px) 100vw, 50vw"
                         />
                     </motion.div>

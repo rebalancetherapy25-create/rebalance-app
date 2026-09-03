@@ -34,7 +34,8 @@ export function StaggerContainer({
             variants={variants}
             initial="hidden"
             whileInView="visible"
-            viewport={{ once, margin: '-56px' }}
+            viewport={{ once, margin: '0px' }}
+            style={{ WebkitBackfaceVisibility: 'hidden' }}
             className={cn(className)}
         >
             {children}

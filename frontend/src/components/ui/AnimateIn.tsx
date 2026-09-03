@@ -51,8 +51,9 @@ export function AnimateIn({
             variants={variants}
             initial="hidden"
             whileInView="visible"
-            viewport={{ once, margin: '-56px' }}
+            viewport={{ once, margin: '0px' }}
             transition={{ delay: delay / 1000 }}
+            style={{ WebkitBackfaceVisibility: 'hidden' }}
             className={cn(className)}
         >
             {children}

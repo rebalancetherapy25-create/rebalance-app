@@ -30,7 +30,8 @@ export function OfferBannerSection({ activeOffer }: { activeOffer: ActiveOffer }
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true, margin: '-30px' }}
+                        viewport={{ once: true, margin: '0px' }}
+                        style={{ WebkitBackfaceVisibility: 'hidden' }}
                         transition={{ duration: 0.6, ease: EASE }}
                     >
                         <Link href={activeOffer.link || '/therapists'} className="block group">
@@ -53,7 +54,8 @@ export function OfferBannerSection({ activeOffer }: { activeOffer: ActiveOffer }
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true, margin: '-30px' }}
+                        viewport={{ once: true, margin: '0px' }}
+                        style={{ WebkitBackfaceVisibility: 'hidden' }}
                         transition={{ duration: 0.6, ease: EASE }}
                     >
                         <div className="bg-white rounded-3xl p-6 md:p-8 border border-primary/10 shadow-lg flex flex-col md:flex-row items-center justify-between gap-6 hover:border-primary/20 transition-all duration-300 hover:shadow-xl">

@@ -14,7 +14,8 @@ export function QualityPromiseSection() {
                     <motion.div
                         initial={{ opacity: 0, y: 24 }}
                         whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true, margin: '-40px' }}
+                        viewport={{ once: true, margin: '0px' }}
+                        style={{ WebkitBackfaceVisibility: 'hidden' }}
                         transition={{ duration: 0.7, ease: EASE }}
                         className="md:col-span-6 space-y-6"
                     >
@@ -31,7 +32,8 @@ export function QualityPromiseSection() {
                     <motion.div
                         initial={{ opacity: 0, y: 24 }}
                         whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true, margin: '-40px' }}
+                        viewport={{ once: true, margin: '0px' }}
+                        style={{ WebkitBackfaceVisibility: 'hidden' }}
                         transition={{ duration: 0.7, ease: EASE, delay: 0.15 }}
                         className="md:col-span-6"
                     >

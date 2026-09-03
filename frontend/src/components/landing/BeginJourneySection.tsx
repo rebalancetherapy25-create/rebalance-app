@@ -26,7 +26,8 @@ export function BeginJourneySection() {
                     <motion.div
                         initial={{ opacity: 0, y: 28 }}
                         whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true, margin: '-30px' }}
+                        viewport={{ once: true, margin: '0px' }}
+                        style={{ WebkitBackfaceVisibility: 'hidden' }}
                         transition={{ duration: 0.6, ease: EASE }}
                         className="flex-1 text-center lg:text-left w-full space-y-8 z-10"
                     >

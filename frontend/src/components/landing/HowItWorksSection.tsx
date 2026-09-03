@@ -17,7 +17,8 @@ export function HowItWorksSection() {
                 <motion.h2
                     initial={{ opacity: 0, y: 24 }}
                     whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, margin: '-30px' }}
+                    viewport={{ once: true, margin: '0px' }}
+                    style={{ WebkitBackfaceVisibility: 'hidden' }}
                     transition={{ duration: 0.6 }}
                     className="text-2xl md:text-4xl lg:text-5xl text-center font-display mb-12 md:mb-16 text-white text-balance"
                 >

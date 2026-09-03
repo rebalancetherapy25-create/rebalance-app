@@ -36,7 +36,7 @@ export function AboutStorySection() {
                         <motion.div
                             initial={{ opacity: 0, y: 30 }}
                             whileInView={{ opacity: 1, y: 0 }}
-                            viewport={{ once: true, margin: "-100px" }}
+                            viewport={{ once: true, margin: "0px" }}
                             transition={{ duration: 0.8 }}
                         >
                             <p className="first-letter:text-7xl first-letter:font-display first-letter:text-primary first-letter:mr-3 first-letter:float-left first-letter:leading-[0.8] mb-8">
@@ -48,7 +48,7 @@ export function AboutStorySection() {
                         <motion.div
                             initial={{ opacity: 0, y: 30 }}
                             whileInView={{ opacity: 1, y: 0 }}
-                            viewport={{ once: true, margin: "-100px" }}
+                            viewport={{ once: true, margin: "0px" }}
                             transition={{ duration: 0.8 }}
                             className="pt-8 border-t border-border/40"
                         >

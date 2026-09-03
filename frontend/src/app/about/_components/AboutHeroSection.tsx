@@ -16,11 +16,11 @@ export function AboutHeroSection() {
     const logoRotate = useTransform(scrollYProgress, [0, 1], [0, -15]);
 
     return (
-        <section ref={ref} className="relative min-h-[100vh] flex flex-col justify-center overflow-hidden bg-[#FDFBFB] pt-32 pb-24 px-6">
+        <section ref={ref} className="relative min-h-[100dvh] min-h-screen flex flex-col justify-center overflow-hidden bg-[#FDFBFB] pt-32 pb-24 px-6">
             
             {/* Massive Abstract Background Logo */}
             <motion.div 
-                style={{ y: logoY, rotate: logoRotate }}
+                style={{ y: logoY, rotate: logoRotate, WebkitBackfaceVisibility: 'hidden' }}
                 className="absolute right-[-15%] top-[-5%] w-[100vw] h-[100vw] md:w-[70vw] md:h-[70vw] opacity-[0.02] pointer-events-none"
             >
                 <Image
@@ -31,7 +31,7 @@ export function AboutHeroSection() {
                 />
             </motion.div>
 
-            <motion.div style={{ y, opacity }} className="absolute inset-0 z-0 pointer-events-none opacity-40">
+            <motion.div style={{ y, opacity, WebkitBackfaceVisibility: 'hidden' }} className="absolute inset-0 z-0 pointer-events-none opacity-40">
                 <div className="absolute top-1/4 left-1/4 w-[40vw] h-[40vw] bg-accent/10 rounded-full blur-[100px] mix-blend-multiply" />
                 <div className="absolute bottom-1/4 right-1/4 w-[50vw] h-[50vw] bg-primary/5 rounded-full blur-[120px] mix-blend-multiply" />
             </motion.div>
@@ -46,7 +46,7 @@ export function AboutHeroSection() {
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
                             className="relative w-full max-w-[28rem] sm:max-w-xl lg:max-w-[40rem] group cursor-default"
-                            style={{ perspective: '1200px', transformStyle: 'preserve-3d' }}
+                            style={{ WebkitBackfaceVisibility: 'hidden' }}
                         >
                             {/* Glass Plate */}
                             <div className="absolute inset-0 bg-white/40 backdrop-blur-3xl rounded-[3rem] border border-white shadow-2xl shadow-primary/10 transition-transform duration-700 ease-out group-hover:[transform:rotateY(10deg)_rotateX(5deg)_scale(1.02)] origin-center" />

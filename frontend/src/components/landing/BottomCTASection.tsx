@@ -12,7 +12,8 @@ export function BottomCTASection() {
             <motion.div
                 initial={{ opacity: 0, y: 28 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: '-30px' }}
+                viewport={{ once: true, margin: '0px' }}
+                style={{ WebkitBackfaceVisibility: 'hidden' }}
                 transition={{ duration: 0.6, ease: EASE }}
                 className="container mx-auto max-w-3xl"
             >

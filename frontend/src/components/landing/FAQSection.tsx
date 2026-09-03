@@ -24,7 +24,8 @@ export function FAQSection() {
                 <motion.div
                     initial={{ opacity: 0, y: 24 }}
                     whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, margin: '-30px' }}
+                    viewport={{ once: true, margin: '0px' }}
+                    style={{ WebkitBackfaceVisibility: 'hidden' }}
                     transition={{ duration: 0.6, ease: EASE }}
                     className="text-center space-y-4"
                 >
@@ -59,7 +60,8 @@ export function FAQSection() {
                 <motion.div
                     initial={{ opacity: 0, y: 16 }}
                     whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, margin: '-20px' }}
+                    viewport={{ once: true, margin: '0px' }}
+                    style={{ WebkitBackfaceVisibility: 'hidden' }}
                     transition={{ duration: 0.6, ease: EASE }}
                     className="text-center pt-4"
                 >

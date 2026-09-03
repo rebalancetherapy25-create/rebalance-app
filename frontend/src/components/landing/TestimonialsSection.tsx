@@ -164,7 +164,8 @@ export function TestimonialsSection() {
                     <motion.h2
                         initial={{ opacity: 0, y: 24 }}
                         whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true, margin: '-30px' }}
+                        viewport={{ once: true, margin: '0px' }}
+                        style={{ WebkitBackfaceVisibility: 'hidden' }}
                         transition={{ duration: 0.6, ease: EASE }}
                         className="text-3xl sm:text-4xl md:text-5xl font-display text-foreground leading-[1.1] text-balance font-medium"
                     >
@@ -173,7 +174,8 @@ export function TestimonialsSection() {
                     <motion.p
                         initial={{ opacity: 0, y: 16 }}
                         whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true, margin: '-30px' }}
+                        viewport={{ once: true, margin: '0px' }}
+                        style={{ WebkitBackfaceVisibility: 'hidden' }}
                         transition={{ duration: 0.6, ease: EASE, delay: 0.15 }}
                         className="text-sm md:text-base text-muted-foreground mt-3 font-medium leading-relaxed"
                     >
