@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,7 @@ import { NavButton } from '@/components/ui/nav-button';
 import { 
     User, Sparkles, Heart, Search, ChevronDown, 
     ShieldCheck, Lock, Calendar, Video, FileText, 
-    Users, Clock, X, Filter, ChevronRight
+    Users, Clock, X, Filter, ChevronRight, Loader2
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -45,6 +45,8 @@ interface FilterState {
     sortBy: string;
 }
 
+const PAGE_SIZE = 12;
+
 const priceOptions = [
     { label: 'Any Price Range', value: 'Any Price Range' },
     { label: 'Under ₹1500 / session', value: '0-1500' },
@@ -61,6 +63,7 @@ export default function TherapistFilters({
     const [therapists, setTherapists] = useState<Therapist[]>(initialTherapists);
     const [availableLanguages, setAvailableLanguages] = useState<string[]>(initialLanguages);
     const [loading, setLoading] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     // Unified Filter State
@@ -80,16 +83,10 @@ export default function TherapistFilters({
     const [totalItems, setTotalItems] = useState(initialTotalItems);
     const [isInitialMount, setIsInitialMount] = useState(true);
 
-    const handlePageChange = (page: number) => {
-        setCurrentPage(page);
-        window.scrollTo({ top: 350, behavior: 'smooth' });
-    };
+    const sentinelRef = useRef<HTMLDivElement>(null);
 
     const updateFilter = (key: keyof FilterState, value: string) => {
         setFilters(prev => ({ ...prev, [key]: value }));
-        if (!isInitialMount) {
-            setCurrentPage(1);
-        }
     };
 
     const resetFilters = () => {
@@ -103,26 +100,17 @@ export default function TherapistFilters({
             sortBy: 'Recommended'
         });
         setDebouncedSearch('');
-        setCurrentPage(1);
     };
 
     // Debounce search input
     useEffect(() => {
         const timer = setTimeout(() => {
             setDebouncedSearch(filters.search);
-            if (!isInitialMount) {
-                setCurrentPage(1);
-            }
         }, 400);
         return () => clearTimeout(timer);
-    }, [filters.search, isInitialMount]);
+    }, [filters.search]);
 
-    useEffect(() => {
-        if (isInitialMount) {
-            setIsInitialMount(false);
-            return;
-        }
-
+    const getFilterParams = useCallback((pageNumber: number) => {
         const sortMap: Record<string, string> = {
             'Price: Low to High': 'price_asc',
             'Price: High to Low': 'price_desc',
@@ -133,31 +121,47 @@ export default function TherapistFilters({
             'This Week': 'this_week',
         };
 
-        const fetchTherapists = async () => {
+        const params: Record<string, string | number> = {
+            page: pageNumber,
+            limit: PAGE_SIZE,
+            ...(debouncedSearch && { search: debouncedSearch }),
+            ...(availabilityMap[filters.availability] && { availability: availabilityMap[filters.availability] }),
+            ...(sortMap[filters.sortBy] && { sort: sortMap[filters.sortBy] }),
+        };
+
+        if (filters.sessionType && filters.sessionType !== 'All Session Types') {
+            params.sessionType = filters.sessionType;
+        }
+        if (filters.gender && filters.gender !== 'All Genders') {
+            params.gender = filters.gender;
+        }
+        if (filters.language && filters.language !== 'All Languages') {
+            params.language = filters.language;
+        }
+        if (filters.price && filters.price !== 'Any Price Range') {
+            params.price = filters.price;
+        }
+
+        return params;
+    }, [debouncedSearch, filters]);
+
+    // Fetch Page 1 whenever filters change
+    useEffect(() => {
+        if (isInitialMount) {
+            setIsInitialMount(false);
+            return;
+        }
+
+        let isMounted = true;
+
+        const fetchFirstPage = async () => {
             try {
                 setLoading(true);
-                const params: Record<string, string | number> = {
-                    page: currentPage,
-                    limit: 100,
-                    ...(debouncedSearch && { search: debouncedSearch }),
-                    ...(availabilityMap[filters.availability] && { availability: availabilityMap[filters.availability] }),
-                    ...(sortMap[filters.sortBy] && { sort: sortMap[filters.sortBy] }),
-                };
-
-                if (filters.sessionType && filters.sessionType !== 'All Session Types') {
-                    params.sessionType = filters.sessionType;
-                }
-                if (filters.gender && filters.gender !== 'All Genders') {
-                    params.gender = filters.gender;
-                }
-                if (filters.language && filters.language !== 'All Languages') {
-                    params.language = filters.language;
-                }
-                if (filters.price && filters.price !== 'Any Price Range') {
-                    params.price = filters.price;
-                }
-
+                setCurrentPage(1);
+                const params = getFilterParams(1);
                 const response = await api.get('/therapists', { params });
+                if (!isMounted) return;
+
                 setTherapists(response.data.therapists || []);
                 setTotalPages(response.data.totalPages || 1);
                 setTotalItems(response.data.total || 0);
@@ -166,25 +170,68 @@ export default function TherapistFilters({
                 }
                 setError(null);
             } catch (err) {
+                if (!isMounted) return;
                 console.error('Failed to fetch therapists:', err);
                 setError("Failed to load therapists. Take your time - we'll be here when you're ready.");
             } finally {
-                setLoading(false);
+                if (isMounted) setLoading(false);
             }
         };
 
-        fetchTherapists();
-    }, [
-        currentPage, 
-        debouncedSearch, 
-        filters.availability, 
-        filters.sessionType, 
-        filters.gender, 
-        filters.language, 
-        filters.price, 
-        filters.sortBy, 
-        isInitialMount
-    ]);
+        fetchFirstPage();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [getFilterParams, isInitialMount]);
+
+    // Load next page on scroll
+    const loadMore = useCallback(async () => {
+        if (loading || loadingMore || currentPage >= totalPages) return;
+
+        try {
+            setLoadingMore(true);
+            const nextPage = currentPage + 1;
+            const params = getFilterParams(nextPage);
+            const response = await api.get('/therapists', { params });
+
+            const newItems: Therapist[] = response.data.therapists || [];
+            setTherapists(prev => {
+                const existingIds = new Set(prev.map(t => t._id));
+                const uniqueNew = newItems.filter(t => !existingIds.has(t._id));
+                return [...prev, ...uniqueNew];
+            });
+            setCurrentPage(nextPage);
+            setTotalPages(response.data.totalPages || nextPage);
+            setTotalItems(response.data.total || 0);
+        } catch (err) {
+            console.error('Failed to load more therapists:', err);
+        } finally {
+            setLoadingMore(false);
+        }
+    }, [loading, loadingMore, currentPage, totalPages, getFilterParams]);
+
+    // Infinite scroll observer
+    useEffect(() => {
+        const sentinel = sentinelRef.current;
+        if (!sentinel) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                const first = entries[0];
+                if (first.isIntersecting && !loading && !loadingMore && currentPage < totalPages) {
+                    loadMore();
+                }
+            },
+            { rootMargin: '300px' }
+        );
+
+        observer.observe(sentinel);
+
+        return () => {
+            observer.disconnect();
+        };
+    }, [loadMore, loading, loadingMore, currentPage, totalPages]);
 
     const hasActiveFilters = 
         filters.availability !== 'Any time' ||
@@ -607,30 +654,23 @@ export default function TherapistFilters({
                             ))}
                         </div>
 
-                        {/* Pagination Controls */}
-                        {totalPages > 1 && (
-                            <div className="flex items-center justify-center gap-3 pt-8 pb-4">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={currentPage <= 1}
-                                    onClick={() => handlePageChange(currentPage - 1)}
-                                    className="rounded-full px-4 h-9 text-xs font-normal"
-                                >
-                                    Previous
-                                </Button>
-                                <span className="text-xs text-muted-foreground font-medium px-2">
-                                    Page {currentPage} of {totalPages}
-                                </span>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={currentPage >= totalPages}
-                                    onClick={() => handlePageChange(currentPage + 1)}
-                                    className="rounded-full px-4 h-9 text-xs font-normal"
-                                >
-                                    Next
-                                </Button>
+                        {/* Sentinel element for infinite scroll */}
+                        <div ref={sentinelRef} className="h-6 w-full pointer-events-none" />
+
+                        {/* Loading more spinner */}
+                        {loadingMore && (
+                            <div className="flex flex-col items-center justify-center py-10 gap-3">
+                                <Loader2 className="w-7 h-7 text-primary animate-spin" />
+                                <p className="text-xs font-normal text-muted-foreground">Finding more specialists...</p>
+                            </div>
+                        )}
+
+                        {/* End of results message */}
+                        {!loading && !loadingMore && displayedTherapists.length > 0 && currentPage >= totalPages && (
+                            <div className="text-center py-10 border-t border-border/30 mt-8">
+                                <p className="text-xs font-normal text-muted-foreground">
+                                    You&apos;ve viewed all {totalItems} available specialists
+                                </p>
                             </div>
                         )}
                     </>

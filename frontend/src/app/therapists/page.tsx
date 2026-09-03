@@ -23,7 +23,7 @@ export default async function TherapistListingPage() {
         const shouldSkipOptionalFetch = process.env.NODE_ENV === 'production' && isLocalApiBaseUrl(apiUrl);
 
         if (!shouldSkipOptionalFetch) {
-            const response = await fetch(`${apiUrl}/therapists?page=1&limit=100`, {
+            const response = await fetch(`${apiUrl}/therapists?page=1&limit=12`, {
                 next: { revalidate: 30 } // Cache base list for 30 seconds
             });
         
