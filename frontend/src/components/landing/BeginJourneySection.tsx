@@ -67,33 +67,54 @@ export function BeginJourneySection() {
                         </div>
                     </div>
 
-                    {/* Images Section */}
-                    <div className="flex-1 w-full hidden md:block z-10">
-                        <div className="relative w-full aspect-[4/5] lg:aspect-square">
-                            {/* Main Image */}
-                            <div className="absolute top-0 right-0 w-[85%] h-[85%] rounded-[2rem] overflow-hidden shadow-2xl border-4 border-white z-10">
-                                <div className="absolute inset-0 w-full h-full">
-                                    <Image
-                                        src="https://images.unsplash.com/photo-1544027993-37db48d17a10?q=80&w=1000&auto=format&fit=crop"
-                                        alt="Peaceful and calming therapy environment"
-                                        fill
-                                        className="object-cover"
-                                    />
+                    {/* Visual Section: Single Hero Image with Rebalance Logo Overlay */}
+                    <div className="flex-1 w-full max-w-md lg:max-w-none z-10">
+                        <div className="relative w-full aspect-[4/3] sm:aspect-[5/4] lg:aspect-square max-w-md mx-auto">
+                            {/* Ambient Glow */}
+                            <div className="absolute -inset-4 bg-gradient-to-tr from-accent/20 via-primary/10 to-transparent rounded-[3rem] blur-2xl pointer-events-none" />
+
+                            {/* Single Hero Image Card */}
+                            <div className="relative w-full h-full rounded-[2.5rem] md:rounded-[3rem] overflow-hidden shadow-2xl border-4 border-white z-10 group">
+                                <Image
+                                    src="https://images.unsplash.com/photo-1499209974431-9dddcece7f88?q=80&w=1000&auto=format&fit=crop"
+                                    alt="Finding peace and emotional balance with Rebalance Therapy"
+                                    fill
+                                    className="object-cover transition-transform duration-700 group-hover:scale-105"
+                                    priority
+                                />
+                                {/* Subtle inner gradient overlay for depth */}
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/10 pointer-events-none" />
+
+                                {/* Top Floating Status Tag */}
+                                <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-20 bg-white/90 backdrop-blur-md rounded-full px-4 py-1.5 shadow-md border border-white/60 flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                    <span className="text-xs font-bold text-foreground">Verified Care</span>
+                                </div>
+
+                                {/* Floating Rebalance Brand Emblem Card with Logo */}
+                                <div className="absolute bottom-4 left-4 sm:bottom-6 sm:left-6 right-4 sm:right-auto z-20 bg-white/95 backdrop-blur-md rounded-2xl sm:rounded-3xl p-3 sm:p-4 shadow-xl border border-white/80 flex items-center gap-3.5">
+                                    <div className="w-11 h-11 rounded-2xl bg-[#FAF0F2] flex items-center justify-center p-2 border border-[#EED7DC] shrink-0 shadow-2xs">
+                                        <Image
+                                            src="/images/logo.svg"
+                                            alt="Rebalance Therapy Logo"
+                                            width={36}
+                                            height={36}
+                                            className="w-full h-full object-contain"
+                                        />
+                                    </div>
+                                    <div className="min-w-0 pr-2">
+                                        <p className="text-sm font-bold text-[#581C2B] tracking-tight leading-tight">
+                                            Rebalance Therapy
+                                        </p>
+                                        <p className="text-[11px] text-muted-foreground font-semibold truncate">
+                                            Your space to heal &amp; grow
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
-                            
-                            {/* Secondary Image offset */}
-                            <div className="absolute bottom-0 left-0 w-[55%] h-[55%] rounded-[2rem] overflow-hidden shadow-xl border-4 border-white z-20">
-                                <Image
-                                    src="https://images.unsplash.com/photo-1499209974431-9dddcece7f88?q=80&w=800&auto=format&fit=crop"
-                                    alt="Calming nature view"
-                                    fill
-                                    className="object-cover"
-                                />
-                            </div>
-                            
-                            {/* Decorative dots */}
-                            <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-[radial-gradient(#d1d5db_2px,transparent_2px)] [background-size:16px_16px] opacity-50 z-0" />
+
+                            {/* Decorative dots pattern */}
+                            <div className="absolute -bottom-6 -right-6 w-36 h-36 bg-[radial-gradient(#d1d5db_2px,transparent_2px)] [background-size:16px_16px] opacity-40 z-0 pointer-events-none" />
                         </div>
                     </div>
 

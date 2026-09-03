@@ -106,8 +106,8 @@ export default function TherapistProfileTabs({
 
     return (
         <div id="therapist-tabs-content" className="space-y-8 w-full">
-            {/* Desktop Horizontal Tabs Bar */}
-            <div className="border-b border-[#EBE6E7] flex items-center gap-8 sm:gap-10 pt-2">
+            {/* Horizontal Tabs Bar */}
+            <div className="border-b border-[#EBE6E7] flex items-center gap-6 sm:gap-10 pt-2 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden flex-nowrap">
                 {tabs.map(tab => {
                     const Icon = getTabIcon(tab);
                     const isActive = activeTab === tab;
@@ -116,7 +116,7 @@ export default function TherapistProfileTabs({
                             key={tab}
                             onClick={() => setActiveTab(tab as Tab)}
                             className={cn(
-                                'flex items-center gap-2 pb-3.5 text-sm sm:text-base font-bold transition-all border-b-2 outline-none cursor-pointer select-none',
+                                'flex items-center gap-2 pb-3.5 text-sm sm:text-base font-bold transition-all border-b-2 outline-none cursor-pointer select-none shrink-0',
                                 isActive
                                     ? 'border-[#581C2B] text-[#581C2B]'
                                     : 'border-transparent text-muted-foreground/70 hover:text-foreground'
@@ -531,36 +531,32 @@ export default function TherapistProfileTabs({
                 )}
             </div>
 
-            {/* Mobile Fixed Bottom Navigation Bar */}
-            <div className="fixed inset-x-0 bottom-0 z-40 bg-white/95 backdrop-blur-md border-t border-[#EBE6E7] py-2 px-6 flex justify-around items-center lg:hidden shadow-[0_-4px_24px_rgba(0,0,0,0.06)] pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
-                {tabs.map(tab => {
-                    const Icon = getTabIcon(tab);
-                    const isActive = activeTab === tab;
-                    return (
-                        <button
-                            key={tab}
-                            onClick={() => {
-                                setActiveTab(tab as Tab);
-                                const el = document.getElementById('therapist-tabs-content');
-                                if (el) {
-                                    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                                }
-                            }}
-                            className={cn(
-                                'flex flex-col items-center gap-1 text-[11px] font-bold transition-all relative py-1 px-3',
-                                isActive
-                                    ? 'text-[#581C2B]'
-                                    : 'text-muted-foreground/60 hover:text-foreground'
-                            )}
-                        >
-                            <Icon className={cn("w-5 h-5", isActive ? "text-[#581C2B]" : "text-muted-foreground/60")} />
-                            <span>{tab}</span>
-                            {isActive && (
-                                <span className="w-5 h-0.5 bg-[#581C2B] rounded-full" />
-                            )}
-                        </button>
-                    );
-                })}
+            {/* Persistent Sticky Mobile Booking CTA Bar */}
+            <div className="fixed inset-x-0 bottom-0 z-40 bg-white/95 backdrop-blur-md border-t border-[#EBE6E7] px-5 py-3 lg:hidden shadow-[0_-4px_24px_rgba(0,0,0,0.08)] pb-[calc(0.85rem+env(safe-area-inset-bottom))] flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                    <div className="flex items-baseline gap-1">
+                        <span className="text-2xl font-display font-bold text-foreground">
+                            ₹{bookingProps.price}
+                        </span>
+                        <span className="text-xs font-semibold text-muted-foreground">/ hour</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                        <span className="text-[10px] text-muted-foreground font-semibold truncate">
+                            Complimentary 15-min call
+                        </span>
+                    </div>
+                </div>
+
+                <BookingModal
+                    {...bookingProps}
+                    trigger={
+                        <Button className="h-12 rounded-full bg-[#581C2B] hover:bg-[#461521] text-xs sm:text-sm font-bold text-white px-6 shadow-md active:scale-[0.98] transition-all shrink-0 flex items-center gap-1.5">
+                            <span>Schedule Session</span>
+                            <ChevronRight className="w-4 h-4 opacity-80" />
+                        </Button>
+                    }
+                />
             </div>
         </div>
     );
