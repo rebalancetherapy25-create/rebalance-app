@@ -169,13 +169,13 @@ export default async function TherapistProfilePage({ params }: { params: { id: s
                 name: data.name,
                 title: data.specialties?.[0] || 'Clinical Psychologist',
                 quote: data.quote || 'Guiding you towards emotional balance & mindful living.',
-                gender: data.gender || 'Female',
+                gender: data.gender || 'Not Specified',
                 rating: Number(data.ratingAverage) || 0,
                 ratingCount: Number(data.ratingCount) || mappedReviews.length,
                 price: data.price,
                 tags: data.specialties || [],
                 languages: data.languages || ['English'],
-                sessionTypes: data.sessionTypes || ['Video'],
+                sessionTypes: data.sessionTypes && data.sessionTypes.length > 0 ? data.sessionTypes : ['Video'],
                 responseRate: data.responseRate || 100,
                 totalSessions: data.totalSessions || 0,
                 exp: `${data.experienceYears} yrs`,
@@ -346,7 +346,7 @@ export default async function TherapistProfilePage({ params }: { params: { id: s
                                             <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground flex items-center justify-center md:justify-start gap-1">
                                                 <User className="w-2.5 h-2.5 text-accent" /> Gender
                                             </p>
-                                            <p className="text-sm sm:text-base font-extrabold text-foreground capitalize">{t.gender || 'Female'}</p>
+                                            <p className="text-sm sm:text-base font-extrabold text-foreground capitalize">{t.gender}</p>
                                             <p className="text-[10px] text-muted-foreground font-bold">Verified Profile</p>
                                         </div>
 
@@ -385,7 +385,7 @@ export default async function TherapistProfilePage({ params }: { params: { id: s
                                     <span className="text-xs font-sans font-bold text-muted-foreground ml-1">/ hour</span>
                                 </h3>
                                 <div className="space-y-0.5 text-right">
-                                    <p className="text-[10px] sm:text-xs text-muted-foreground font-semibold">Formats: <span className="font-bold text-foreground">Video & Audio</span></p>
+                                    <p className="text-[10px] sm:text-xs text-muted-foreground font-semibold">Formats: <span className="font-bold text-foreground">{t.sessionTypes.join(' & ')} Calls</span></p>
                                 </div>
                             </div>
                             
@@ -442,7 +442,7 @@ export default async function TherapistProfilePage({ params }: { params: { id: s
                                     </div>
                                     <div className="flex justify-between items-center text-xs font-semibold">
                                         <span className="text-muted-foreground">Formats</span>
-                                        <span className="font-bold text-foreground">Video & Audio Calls</span>
+                                        <span className="font-bold text-foreground">{t.sessionTypes.join(' & ')} Calls</span>
                                     </div>
                                 </div>
 

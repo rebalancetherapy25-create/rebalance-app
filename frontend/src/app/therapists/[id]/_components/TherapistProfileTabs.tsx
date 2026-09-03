@@ -4,7 +4,7 @@ import { useState } from 'react';
 import {
     Video, Phone, Globe, Award, GraduationCap,
     ShieldCheck, Sparkles, Star, Check, ChevronRight,
-    HelpCircle, Heart, Quote, Calendar, Lock, Info
+    HelpCircle, Heart, Quote, Calendar, Lock, Info, Users, MessageSquare
 } from 'lucide-react';
 import BookingModal from '@/components/booking/BookingModal';
 import { cn } from '@/lib/utils';
@@ -159,7 +159,7 @@ export default function TherapistProfileTabs({
                                     <Video className="w-4 h-4 text-accent" /> Available Formats
                                 </h4>
                                 <div className="space-y-3">
-                                    {bookingProps.sessionTypes?.includes('Video') && (
+                                    {bookingProps.sessionTypes?.some(s => s.toLowerCase() === 'video') && (
                                         <div className="flex items-center justify-between p-5 bg-white rounded-3xl border border-primary/10 hover:border-primary/20 hover:shadow-md transition-all duration-300 group">
                                             <div className="flex items-center gap-3.5">
                                                 <div className="w-10 h-10 rounded-xl bg-[#FAF8F8] flex items-center justify-center text-primary border border-primary/5 shadow-xs group-hover:scale-105 transition-transform">
@@ -172,15 +172,43 @@ export default function TherapistProfileTabs({
                                             </div>
                                         </div>
                                     )}
-                                    {bookingProps.sessionTypes?.includes('Audio') && (
+                                    {bookingProps.sessionTypes?.some(s => s.toLowerCase() === 'audio' || s.toLowerCase() === 'phone') && (
                                         <div className="flex items-center justify-between p-5 bg-white rounded-3xl border border-primary/10 hover:border-primary/20 hover:shadow-md transition-all duration-300 group">
                                             <div className="flex items-center gap-3.5">
                                                 <div className="w-10 h-10 rounded-xl bg-[#FAF8F8] flex items-center justify-center text-primary border border-primary/5 shadow-xs group-hover:scale-105 transition-transform">
                                                     <Phone className="w-5 h-5" />
                                                 </div>
                                                 <div>
-                                                    <p className="text-xs sm:text-sm font-bold text-foreground">Voice Call</p>
+                                                    <p className="text-xs sm:text-sm font-bold text-foreground">
+                                                        {bookingProps.sessionTypes?.some(s => s.toLowerCase() === 'phone') ? 'Phone Consultation' : 'Voice Call'}
+                                                    </p>
                                                     <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">Direct high-quality audio connection</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                    {bookingProps.sessionTypes?.some(s => s.toLowerCase() === 'in-person') && (
+                                        <div className="flex items-center justify-between p-5 bg-white rounded-3xl border border-primary/10 hover:border-primary/20 hover:shadow-md transition-all duration-300 group">
+                                            <div className="flex items-center gap-3.5">
+                                                <div className="w-10 h-10 rounded-xl bg-[#FAF8F8] flex items-center justify-center text-primary border border-primary/5 shadow-xs group-hover:scale-105 transition-transform">
+                                                    <Users className="w-5 h-5" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs sm:text-sm font-bold text-foreground">In-Person Session</p>
+                                                    <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">Face-to-face clinic consultation</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                    {bookingProps.sessionTypes?.some(s => s.toLowerCase() === 'chat') && (
+                                        <div className="flex items-center justify-between p-5 bg-white rounded-3xl border border-primary/10 hover:border-primary/20 hover:shadow-md transition-all duration-300 group">
+                                            <div className="flex items-center gap-3.5">
+                                                <div className="w-10 h-10 rounded-xl bg-[#FAF8F8] flex items-center justify-center text-primary border border-primary/5 shadow-xs group-hover:scale-105 transition-transform">
+                                                    <MessageSquare className="w-5 h-5" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs sm:text-sm font-bold text-foreground">Chat Consultation</p>
+                                                    <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">Secure real-time messaging</p>
                                                 </div>
                                             </div>
                                         </div>
