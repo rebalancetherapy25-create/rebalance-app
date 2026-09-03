@@ -113,11 +113,14 @@ export default function FeaturedTherapists() {
                             {/* Bottom CTA & Price */}
                             <div className="mt-6 pt-5 border-t border-border/10 flex items-center justify-between gap-3">
                                 <div className="shrink-0">
-                                    <span className="text-xl font-bold text-foreground">₹{t.price}</span>
-                                    <span className="text-xs text-muted-foreground ml-1 font-medium">/ session</span>
+                                    <div className="flex items-baseline gap-0.5">
+                                        <span className="text-sm font-bold text-[#581C2B]">₹</span>
+                                        <span className="text-xl sm:text-[22px] font-bold font-display text-foreground leading-none">{t.price}</span>
+                                    </div>
+                                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mt-0.5">/ session</span>
                                 </div>
-                                <NavButton href={`/therapists/${t._id}`} className="shrink-0 rounded-full bg-primary px-5 h-10 text-xs sm:text-sm font-bold text-white hover:bg-primary/90 transition-all duration-200 shadow-sm">
-                                    Book Now
+                                <NavButton href={`/therapists/${t._id}`} className="shrink-0 rounded-full bg-[#581C2B] hover:bg-[#461521] px-5 h-10 text-xs sm:text-sm font-bold text-white shadow-sm hover:shadow-md transition-all active:scale-[0.98]">
+                                    Book Session
                                 </NavButton>
                             </div>
                         </CardContent>

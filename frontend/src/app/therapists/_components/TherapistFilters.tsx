@@ -641,10 +641,13 @@ export default function TherapistFilters({
                                             </div>
                                             <div className="flex items-center justify-between gap-2">
                                                 <div>
-                                                    <span className="text-lg font-light text-foreground leading-none block">₹{t.price}</span>
-                                                    <span className="text-[9px] font-normal text-muted-foreground uppercase tracking-wide block mt-0.5">/ session</span>
+                                                    <div className="flex items-baseline gap-0.5">
+                                                        <span className="text-sm font-bold text-[#581C2B]">₹</span>
+                                                        <span className="text-xl sm:text-[22px] font-bold font-display text-foreground leading-none">{t.price}</span>
+                                                    </div>
+                                                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mt-0.5">/ session</span>
                                                 </div>
-                                                <NavButton href={`/therapists/${t._id}`} size="sm" className="rounded-full text-xs font-normal h-9 px-5 bg-primary text-white hover:bg-primary/90 shadow-sm shrink-0">
+                                                <NavButton href={`/therapists/${t._id}`} size="sm" className="rounded-full text-xs sm:text-sm font-bold h-10 px-5 bg-[#581C2B] text-white hover:bg-[#461521] shadow-sm hover:shadow-md transition-all active:scale-[0.98] shrink-0">
                                                     Book Session
                                                 </NavButton>
                                             </div>
