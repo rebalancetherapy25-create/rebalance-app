@@ -162,7 +162,7 @@ export function TestimonialsSection() {
                         Real stories of clinical <span className="text-accent italic font-normal">resilience.</span>
                     </h2>
                     <p className="text-sm md:text-base text-muted-foreground mt-3 font-medium leading-relaxed">
-                        Read unedited experiences and validated outcomes from verified individuals seeking supportive mental healthcare on REBalance.
+                        Read unedited experiences and validated outcomes from verified individuals seeking supportive mental healthcare on ReBalance.
                     </p>
                 </div>
 

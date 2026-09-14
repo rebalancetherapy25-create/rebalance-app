@@ -92,7 +92,7 @@ export function AboutHeroSection() {
                             transition={{ duration: 0.8, delay: 0.6 }}
                             className="w-full max-w-xl text-lg sm:text-xl text-muted-foreground font-medium leading-relaxed"
                         >
-                            We believe mental health support should be approachable, calming, and human from the very first interaction. No clinical jargon, no endless directories—just a clear path forward.
+                            We believe mental health support should be approachable, calming, and human from the very first interaction. No clinical jargon, no endless directories just a clear path forward.
                         </motion.p>
                     </div>
 

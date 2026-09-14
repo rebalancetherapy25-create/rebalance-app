@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { AboutHeroSection } from './_components/AboutHeroSection';
 import { AboutStorySection } from './_components/AboutStorySection';
+import { AboutNameStorySection } from './_components/AboutNameStorySection';
 import { AboutValuesSection } from './_components/AboutValuesSection';
 import { AboutCTASection } from './_components/AboutCTASection';
 
@@ -41,6 +42,7 @@ export default function AboutPage() {
 
             <AboutHeroSection />
             <AboutStorySection />
+            <AboutNameStorySection />
             <AboutValuesSection />
             <AboutCTASection />
         </main>

@@ -3,20 +3,14 @@ import { motion } from 'framer-motion';
 import { Mail, Phone } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import Image from 'next/image';
 
 export function AboutCTASection() {
     return (
         <section className="py-24 sm:py-32 md:py-40 px-6 bg-background relative overflow-hidden">
-            {/* Elegant Background Image with Parallax or just fixed */}
-            <div className="absolute inset-0 z-0">
-                <Image
-                    src="https://images.unsplash.com/photo-1542385151-efd9000785a0?q=80&w=2500&auto=format&fit=crop"
-                    alt="Calm background"
-                    fill
-                    className="object-cover opacity-20 sepia-[.3] hue-rotate-[-30deg]"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-transparent" />
+            {/* Soft Ambient Background Glow */}
+            <div className="absolute inset-0 z-0 pointer-events-none">
+                <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-[600px] sm:w-[800px] h-[400px] bg-accent/10 rounded-full blur-[120px]" />
+                <div className="absolute -bottom-24 right-1/4 w-[400px] sm:w-[600px] h-[350px] bg-primary/5 rounded-full blur-[100px]" />
             </div>
 
             <div className="container mx-auto max-w-5xl relative z-10 flex flex-col items-center">

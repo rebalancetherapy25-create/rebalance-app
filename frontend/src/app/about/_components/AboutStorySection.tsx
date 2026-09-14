@@ -40,9 +40,8 @@ export function AboutStorySection() {
                             transition={{ duration: 0.8 }}
                         >
                             <p className="first-letter:text-7xl first-letter:font-display first-letter:text-primary first-letter:mr-3 first-letter:float-left first-letter:leading-[0.8] mb-8">
-                          Rebalance Therapy was born from a simple but powerful realisation that seeking mental health support should never feel overwhelming, complicated, or intimidating.
+                                ReBalance Therapy was born from a simple but powerful realisation that seeking mental health support should never feel overwhelming, complicated, or intimidating. Our founders, two therapists who spent years working closely with individuals from different walks of life, noticed a recurring pattern where many people delayed or completely avoided therapy, not because they didn’t need help, but because the process of finding the right support felt emotionally exhausting. Endless directories, clinical terminology, complicated booking systems, and websites overloaded with information often created more anxiety instead of comfort.
                             </p>
-                           
                         </motion.div>
                         
                         <motion.div
@@ -50,13 +49,13 @@ export function AboutStorySection() {
                             whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true, margin: "0px" }}
                             transition={{ duration: 0.8 }}
-                            className="pt-8 border-t border-border/40"
+                            className="pt-8 border-t border-border/40 space-y-6"
                         >
-                            <p className="mb-8">
-                                That observation became the foundation of ReBalance Therapy. We wanted to create a space where mental health support feels approachable, calming, and human from the very first interaction. 
+                            <p className="font-semibold text-foreground border-l-2 border-accent/60 pl-4 py-1">
+                                People who were already vulnerable were expected to navigate a confusing system at one of the most difficult moments in their lives.
                             </p>
                             <p>
-                                Our vision was to design an experience that feels as seamless and elegant as booking any premium wellness service — simple navigation, clear communication, and an environment that immediately makes people feel safe and understood. We believe therapy should not feel clinical or transactional; it should feel welcoming, personal, and empowering. Every detail of our platform is intentionally built to reduce stress and make reaching out for support feel like a positive first step rather than a daunting task.
+                                That observation became the foundation of ReBalance Therapy. We wanted to create a space where mental health support feels approachable, calming, and human from the very first interaction. Our vision was to design an experience that feels as seamless and elegant as booking any premium wellness service simple navigation, clear communication, and an environment that immediately makes people feel safe and understood. We believe therapy should not feel clinical or transactional, it should feel welcoming, personal, and empowering. Every detail of our platform, from the design to the booking journey, is intentionally built to reduce stress and make reaching out for support feel like a positive first step rather than a daunting task.
                             </p>
                         </motion.div>
                     </div>

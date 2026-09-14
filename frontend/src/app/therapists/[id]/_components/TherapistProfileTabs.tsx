@@ -289,10 +289,7 @@ export default function TherapistProfileTabs({
                                             </Button>
                                         }
                                     />
-                                    <span className="text-[10px] text-muted-foreground font-medium flex items-center gap-1.5">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                        Complimentary 15-min call
-                                    </span>
+                                   
                                 </div>
                             </div>
                         </div>
@@ -529,34 +526,6 @@ export default function TherapistProfileTabs({
                         )}
                     </div>
                 )}
-            </div>
-
-            {/* Persistent Sticky Mobile Booking CTA Bar */}
-            <div className="fixed inset-x-0 bottom-0 z-40 bg-white/95 backdrop-blur-md border-t border-[#EBE6E7] px-5 py-3 lg:hidden shadow-[0_-4px_24px_rgba(0,0,0,0.08)] pb-[calc(0.85rem+env(safe-area-inset-bottom))] flex items-center justify-between gap-4">
-                <div className="min-w-0">
-                    <div className="flex items-baseline gap-1">
-                        <span className="text-2xl font-display font-bold text-foreground">
-                            ₹{bookingProps.price}
-                        </span>
-                        <span className="text-xs font-semibold text-muted-foreground">/ hour</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                        <span className="text-[10px] text-muted-foreground font-semibold truncate">
-                            Complimentary 15-min call
-                        </span>
-                    </div>
-                </div>
-
-                <BookingModal
-                    {...bookingProps}
-                    trigger={
-                        <Button className="h-12 rounded-full bg-[#581C2B] hover:bg-[#461521] text-xs sm:text-sm font-bold text-white px-6 shadow-md active:scale-[0.98] transition-all shrink-0 flex items-center gap-1.5">
-                            <span>Schedule Session</span>
-                            <ChevronRight className="w-4 h-4 opacity-80" />
-                        </Button>
-                    }
-                />
             </div>
         </div>
     );

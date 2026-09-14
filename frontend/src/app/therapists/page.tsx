@@ -42,8 +42,8 @@ export default async function TherapistListingPage() {
     }
 
     return (
-        <div className="min-h-[100dvh] flex flex-col font-sans bg-background">
-            <main className="flex-1 w-full px-4 py-8 pt-24 sm:px-6 sm:py-16 sm:pt-32 lg:px-8 max-w-[1400px] mx-auto">
+        <div className="min-h-[100dvh] flex flex-col font-sans bg-background overflow-x-hidden">
+            <main className="flex-1 w-full px-3.5 sm:px-6 py-8 pt-24 sm:py-16 sm:pt-32 lg:px-8 max-w-[1400px] mx-auto overflow-x-hidden">
                 <TherapistFilters 
                     initialTherapists={initialTherapists}
                     initialTotalPages={initialTotalPages}

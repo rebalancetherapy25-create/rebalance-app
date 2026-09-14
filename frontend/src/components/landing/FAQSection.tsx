@@ -3,9 +3,9 @@ import { Button } from '@/components/ui/button';
 import { ArrowRight, ChevronRight } from 'lucide-react';
 
 const FAQS = [
-    { q: 'What is REBalance Therapy?', a: 'REBalance Therapy is a modern therapy platform designed to make finding mental health support simple, approachable, and comfortable through carefully selected therapists and seamless online booking.' },
-    { q: 'How does REBalance Therapy work?', a: 'You can browse our network of therapists, choose the professional that feels right for you, and book sessions directly through our platform.' },
-    { q: 'Are all therapists verified?', a: 'Yes, every therapist on REBalance Therapy is carefully reviewed and verified before joining our platform.' },
+    { q: 'What is ReBalance Therapy?', a: 'ReBalance Therapy is a modern therapy platform designed to make finding mental health support simple, approachable, and comfortable through carefully selected therapists and seamless online booking.' },
+    { q: 'How does ReBalance Therapy work?', a: 'You can browse our network of therapists, choose the professional that feels right for you, and book sessions directly through our platform.' },
+    { q: 'Are all therapists verified?', a: 'Yes, every therapist on ReBalance Therapy is carefully reviewed and verified before joining our platform.' },
     { q: 'Can I reschedule my therapy session?', a: 'Yes, sessions can be rescheduled if requested at least 24 hours before your scheduled appointment time.' },
     { q: 'Are my sessions confidential?', a: 'Yes, confidentiality and emotional safety are extremely important to us and our therapists.' },
 ];

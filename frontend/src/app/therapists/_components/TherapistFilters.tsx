@@ -567,11 +567,11 @@ export default function TherapistFilters({
                     </div>
                 ) : (
                     <>
-                        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+                        <div className="grid gap-4 sm:gap-6 md:grid-cols-2 xl:grid-cols-3 max-w-full">
                             {displayedTherapists.map((t) => (
-                                <div key={t._id} className="bg-white rounded-[2rem] p-5 border border-border/40 shadow-[0_12px_30px_rgba(0,0,0,0.06)] flex flex-row gap-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_16px_40px_rgba(0,0,0,0.08)] hover:border-primary/20 items-stretch group">
-                                    {/* Image Container (35% width) */}
-                                    <div className="relative w-[35%] max-w-[180px] shrink-0 rounded-2xl overflow-hidden bg-accent/5 aspect-[4/5] self-start">
+                                <div key={t._id} className="bg-white rounded-[1.75rem] sm:rounded-[2rem] p-4 sm:p-5 border border-border/40 shadow-[0_12px_30px_rgba(0,0,0,0.06)] flex flex-row gap-3.5 sm:gap-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_16px_40px_rgba(0,0,0,0.08)] hover:border-primary/20 items-stretch group overflow-hidden max-w-full">
+                                    {/* Image Container */}
+                                    <div className="relative w-[100px] xs:w-[110px] sm:w-[130px] md:w-[35%] max-w-[170px] shrink-0 rounded-xl sm:rounded-2xl overflow-hidden bg-accent/5 aspect-[3/4] sm:aspect-[4/5] self-start">
                                         {t.profileImage ? (
                                             <Image 
                                                 src={t.profileImage} 
@@ -586,68 +586,68 @@ export default function TherapistFilters({
                                         )}
                                     </div>
                                     
-                                    {/* Info Container (65% width) */}
-                                    <div className="flex-1 flex flex-col min-w-0 py-0.5">
+                                    {/* Info Container */}
+                                    <div className="flex-1 flex flex-col min-w-0 py-0.5 overflow-hidden">
                                         <div className="mb-2">
-                                            <h3 className="text-lg font-display font-normal text-foreground truncate flex items-center gap-2">
-                                                {t.name}
+                                            <h3 className="text-base sm:text-lg font-display font-bold text-foreground truncate flex items-center gap-1.5 sm:gap-2">
+                                                <span className="truncate">{t.name}</span>
                                                 {t.ratingAverage > 0 && (
-                                                    <span className="text-sm font-light text-foreground flex items-center bg-yellow-50 px-1.5 py-0.5 rounded-md border border-yellow-100/50"><span className="text-yellow-500 text-xs mr-0.5">★</span> {t.ratingAverage.toFixed(1)}</span>
+                                                    <span className="text-xs sm:text-sm font-semibold text-foreground flex items-center bg-yellow-50 px-1.5 py-0.5 rounded-md border border-yellow-100/50 shrink-0"><span className="text-yellow-500 text-xs mr-0.5">★</span> {t.ratingAverage.toFixed(1)}</span>
                                                 )}
                                             </h3>
                                             <p className="text-xs font-normal text-primary truncate">{t.credentials || 'Clinical Psychologist'}</p>
                                         </div>
                                         
-                                        <div className="space-y-1.5 mb-3">
+                                        <div className="space-y-1 sm:space-y-1.5 mb-2.5 sm:mb-3">
                                             {t.gender && (
-                                                <div className="flex items-center gap-2 text-[11px] text-foreground/80 font-medium">
+                                                <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] text-foreground/80 font-medium truncate">
                                                     <div className="w-3.5 h-3.5 rounded-full bg-emerald-100/50 flex items-center justify-center shrink-0">
                                                         <span className="text-emerald-600 text-[9px] font-light">✓</span>
                                                     </div>
-                                                    Gender: {t.gender}
+                                                    <span className="truncate">Gender: {t.gender}</span>
                                                 </div>
                                             )}
-                                            <div className="flex items-center gap-2 text-[11px] text-foreground/80 font-medium">
+                                            <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] text-foreground/80 font-medium truncate">
                                                 <div className="w-3.5 h-3.5 rounded-full bg-emerald-100/50 flex items-center justify-center shrink-0">
                                                     <span className="text-emerald-600 text-[9px] font-light">✓</span>
                                                 </div>
-                                                {t.sessionTypes && t.sessionTypes.length > 0 ? `${t.sessionTypes.join(' & ')} Sessions` : 'Online & Phone Sessions'}
+                                                <span className="truncate">{t.sessionTypes && t.sessionTypes.length > 0 ? `${t.sessionTypes.join(' & ')} Sessions` : 'Online & Phone Sessions'}</span>
                                             </div>
-                                            <div className="flex items-center gap-2 text-[11px] text-foreground/80 font-medium truncate">
+                                            <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] text-foreground/80 font-medium truncate">
                                                 <div className="w-3.5 h-3.5 rounded-full bg-emerald-100/50 flex items-center justify-center shrink-0">
                                                     <span className="text-emerald-600 text-[9px] font-light">✓</span>
                                                 </div>
-                                                Speaks: {t.languages && t.languages.length > 0 ? t.languages.join(', ') : 'English, Hindi'}
+                                                <span className="truncate">Speaks: {t.languages && t.languages.length > 0 ? t.languages.join(', ') : 'English, Hindi'}</span>
                                             </div>
                                         </div>
 
-                                        <div className="flex flex-wrap gap-1 mb-4">
+                                        <div className="flex flex-wrap gap-1 mb-3 sm:mb-4">
                                             {t.specialties.slice(0, 2).map(s => (
-                                                <span key={s} className="px-2 py-0.5 rounded-md bg-secondary text-primary text-[9px] font-normal border border-primary/10">
+                                                <span key={s} className="px-2 py-0.5 rounded-md bg-secondary text-primary text-[9px] font-normal border border-primary/10 truncate max-w-[120px]">
                                                     {s}
                                                 </span>
                                             ))}
                                             {t.specialties.length > 2 && (
-                                                <span className="px-2 py-0.5 rounded-md bg-secondary text-primary text-[9px] font-normal border border-primary/10">
-                                                    +{t.specialties.length - 2} More
+                                                <span className="px-1.5 py-0.5 rounded-md bg-secondary text-primary text-[9px] font-normal border border-primary/10 shrink-0">
+                                                    +{t.specialties.length - 2}
                                                 </span>
                                             )}
                                         </div>
 
-                                        <div className="mt-auto pt-3 border-t border-border/40">
-                                            <div className="flex items-center gap-1.5 mb-2.5 text-[10px] font-normal text-emerald-700 bg-emerald-50 w-fit px-2.5 py-1 rounded-md border border-emerald-100 shadow-[0_2px_8px_rgba(16,185,129,0.08)]">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                                        <div className="mt-auto pt-2.5 sm:pt-3 border-t border-border/40">
+                                            <div className="flex items-center gap-1.5 mb-2 text-[9px] sm:text-[10px] font-normal text-emerald-700 bg-emerald-50 w-fit px-2 py-0.5 rounded-md border border-emerald-100 shadow-[0_2px_8px_rgba(16,185,129,0.08)]">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                                                 Available this week
                                             </div>
                                             <div className="flex items-center justify-between gap-2">
-                                                <div>
+                                                <div className="min-w-0 shrink-0">
                                                     <div className="flex items-baseline gap-0.5">
-                                                        <span className="text-sm font-bold text-[#581C2B]">₹</span>
-                                                        <span className="text-xl sm:text-[22px] font-bold font-display text-foreground leading-none">{t.price}</span>
+                                                        <span className="text-xs sm:text-sm font-bold text-[#581C2B]">₹</span>
+                                                        <span className="text-lg sm:text-xl md:text-[22px] font-bold font-display text-foreground leading-none">{t.price}</span>
                                                     </div>
-                                                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mt-0.5">/ session</span>
+                                                    <span className="text-[9px] sm:text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mt-0.5">/ session</span>
                                                 </div>
-                                                <NavButton href={`/therapists/${t._id}`} size="sm" className="rounded-full text-xs sm:text-sm font-bold h-10 px-5 bg-[#581C2B] text-white hover:bg-[#461521] shadow-sm hover:shadow-md transition-all active:scale-[0.98] shrink-0">
+                                                <NavButton href={`/therapists/${t._id}`} size="sm" className="rounded-full text-xs sm:text-sm font-bold h-9 sm:h-10 px-3.5 sm:px-5 bg-[#581C2B] text-white hover:bg-[#461521] shadow-sm hover:shadow-md transition-all active:scale-[0.98] shrink-0">
                                                     Book Session
                                                 </NavButton>
                                             </div>
