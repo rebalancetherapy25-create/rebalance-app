@@ -8,3 +8,4 @@ export { TherapistAccount } from './TherapistAccount';
 export { OfferBanner } from './OfferBanner';
 export { EmailOutbox } from './EmailOutbox';
 export * from './Coupon';
+export { ContactInquiry } from './ContactInquiry';

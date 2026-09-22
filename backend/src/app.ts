@@ -16,6 +16,7 @@ import therapistAuthRoutes from './routes/therapistAuthRoutes';
 import therapistPortalRoutes from './routes/therapistPortalRoutes';
 import adminRoutes from './routes/adminRoutes';
 import paymentRoutes from './routes/paymentRoutes';
+import contactRoutes from './routes/contactRoutes';
 import config from './config/env';
 import { apiLimiter } from './middlewares/rateLimit';
 import { ApiError, errorHandler, notFoundHandler, requestContext, requestLogger, sendData } from './lib/http';
@@ -127,6 +128,7 @@ export const createApp = (): Express => {
     app.use('/api/admin', adminRoutes);
     app.use('/api/therapist-auth', therapistAuthRoutes);
     app.use('/api/therapist', therapistPortalRoutes);
+    app.use('/api/contact', contactRoutes);
 
     app.use(notFoundHandler);
     app.use(errorHandler);

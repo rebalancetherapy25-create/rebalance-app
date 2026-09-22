@@ -13,3 +13,5 @@ export const apiLimiter = buildLimiter(15 * 60 * 1000, 400, 'RATE_LIMIT_API', 'T
 export const authLimiter = buildLimiter(15 * 60 * 1000, 20, 'RATE_LIMIT_AUTH', 'Too many authentication attempts. Please wait before trying again.');
 export const otpLimiter = buildLimiter(10 * 60 * 1000, 8, 'RATE_LIMIT_OTP', 'Too many verification attempts. Please wait before requesting another code.');
 export const bookingLimiter = buildLimiter(10 * 60 * 1000, 30, 'RATE_LIMIT_BOOKING', 'Too many booking requests. Please slow down and try again.');
+export const contactLimiter = buildLimiter(15 * 60 * 1000, 10, 'RATE_LIMIT_CONTACT', 'Too many contact submissions. Please wait a few minutes before trying again.');
+

@@ -38,6 +38,7 @@ export const ensureCsrfCookie: RequestHandler = (req, res, next) => {
 const CSRF_EXEMPT_PATHS = new Set([
     '/api/bookings/verify',
     '/api/payments/razorpay/webhook',
+    '/api/contact',
 ]);
 
 export const csrfProtection: RequestHandler = (req, res, next) => {

@@ -82,7 +82,6 @@ export const sendBookingConfirmedNotification = async (bookingOrId: any): Promis
             const therapistTpl = therapistBookingConfirmedEmail({
                 therapistName,
                 clientName,
-                clientEmail,
                 date: booking.date,
                 time: formatSlotTime(booking.time),
                 sessionType: booking.sessionType,

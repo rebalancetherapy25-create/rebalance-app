@@ -6,14 +6,16 @@ import { FieldError } from '@/components/ui/field-error';
 import { emailPattern, getErrorMessages } from '@/lib/form-validation';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/components/ui/toaster';
+import { getApiBaseUrl } from '@/lib/runtime';
 import { motion } from 'framer-motion';
 
 export default function ContactForm() {
     const { toast } = useToast();
     const [formData, setFormData] = useState({ name: '', email: '', message: '' });
     const [errors, setErrors] = useState<{ name?: string; email?: string; message?: string }>({});
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const nextErrors: { name?: string; email?: string; message?: string } = {};
 
@@ -46,11 +48,49 @@ export default function ContactForm() {
         }
 
         setErrors({});
-        toast({
-            title: 'Message sent successfully',
-            description: 'We will get back to you as soon as possible.',
-        });
-        setFormData({ name: '', email: '', message: '' });
+        setIsSubmitting(true);
+
+        try {
+            const apiBase = getApiBaseUrl();
+            const response = await fetch(`${apiBase}/contact`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    name: formData.name.trim(),
+                    email: formData.email.trim(),
+                    message: formData.message.trim(),
+                }),
+            });
+
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                const message = data?.error || data?.message || 'Failed to send your message. Please try again later.';
+                toast({
+                    variant: 'error',
+                    title: 'Submission failed',
+                    description: message,
+                });
+                return;
+            }
+
+            toast({
+                title: 'Message sent successfully!',
+                description: 'We have received your message and sent a confirmation to your email. We will get back to you shortly.',
+            });
+            setFormData({ name: '', email: '', message: '' });
+        } catch (err) {
+            console.error('Contact form submission error:', err);
+            toast({
+                variant: 'error',
+                title: 'Network error',
+                description: 'Unable to reach the server. Please check your connection or email us directly at rebalancetherapy25@gmail.com.',
+            });
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -130,7 +170,13 @@ export default function ContactForm() {
                 </div>
 
                 <div className="pt-4">
-                    <Button type="submit" className="w-full h-14 rounded-2xl text-lg font-normal bg-primary text-text-inverse hover:bg-primary/90 hover:scale-[1.02] shadow-xl hover:shadow-2xl transition-all duration-300">
+                    <Button
+                        type="submit"
+                        disabled={isSubmitting}
+                        loading={isSubmitting}
+                        loadingText="Sending..."
+                        className="w-full h-14 rounded-2xl text-lg font-normal bg-primary text-text-inverse hover:bg-primary/90 hover:scale-[1.02] shadow-xl hover:shadow-2xl transition-all duration-300 disabled:opacity-60"
+                    >
                         Send Message
                     </Button>
                 </div>

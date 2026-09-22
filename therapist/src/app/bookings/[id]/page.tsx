@@ -43,8 +43,7 @@ export default function BookingDetailPage() {
 
   const client = useMemo(() => {
     const name = booking?.userId?.name || booking?.guestContact?.name || 'Client';
-    const email = booking?.userId?.email || booking?.guestContact?.email || '';
-    return { name, email };
+    return { name };
   }, [booking]);
 
   const refresh = async () => {
@@ -115,7 +114,7 @@ export default function BookingDetailPage() {
             <div className="rounded-xl border bg-white px-4 py-3">
               <div className="text-sm font-semibold flex items-center gap-2">
                 <User className="w-4 h-4 text-muted-foreground" />
-                {client.name} {client.email && <span className="text-xs text-muted-foreground">({client.email})</span>}
+                {client.name}
               </div>
               <div className="text-xs text-muted-foreground mt-1 flex items-center gap-3">
                 <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> {new Date(`${booking.date}T00:00:00`).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}</span>

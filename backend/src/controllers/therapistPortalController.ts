@@ -203,10 +203,21 @@ export const getTherapistBookings = async (req: TherapistAuthRequest, res: Respo
         }
 
         const bookings = await Booking.find(query)
-            .populate('userId', 'name email')
+            .populate('userId', 'name')
             .sort({ createdAt: -1 });
 
-        return sendData(res, bookings);
+        const sanitized = bookings.map((b) => {
+            const doc: any = b.toObject ? b.toObject() : { ...b };
+            if (doc.guestContact?.email) {
+                doc.guestContact = { name: doc.guestContact.name };
+            }
+            if (doc.userId && typeof doc.userId === 'object') {
+                delete doc.userId.email;
+            }
+            return doc;
+        });
+
+        return sendData(res, sanitized);
     } catch (error) {
         console.error('Therapist bookings error:', error);
         return sendError(res, 500, 'Server error', { code: 'THERAPIST_BOOKINGS_LIST_FAILED' });
@@ -218,10 +229,19 @@ export const getTherapistBookingById = async (req: TherapistAuthRequest, res: Re
         const therapistId = req.therapist?.therapistId;
         if (!therapistId) return sendError(res, 401, 'Unauthorized', { code: 'THERAPIST_UNAUTHORIZED' });
 
-        const booking = await Booking.findById(req.params.id).populate('userId', 'name email');
+        const booking = await Booking.findById(req.params.id).populate('userId', 'name');
         if (!booking) return sendError(res, 404, 'Booking not found', { code: 'BOOKING_NOT_FOUND' });
         if (String(booking.therapistId) !== String(therapistId)) return sendError(res, 403, 'Forbidden', { code: 'THERAPIST_FORBIDDEN' });
-        return sendData(res, booking);
+
+        const doc: any = booking.toObject ? booking.toObject() : { ...booking };
+        if (doc.guestContact?.email) {
+            doc.guestContact = { name: doc.guestContact.name };
+        }
+        if (doc.userId && typeof doc.userId === 'object') {
+            delete doc.userId.email;
+        }
+
+        return sendData(res, doc);
     } catch (error) {
         console.error('Therapist booking get error:', error);
         return sendError(res, 500, 'Server error', { code: 'THERAPIST_BOOKING_GET_FAILED' });

@@ -194,3 +194,12 @@ export const adminSchemas = {
         maxUsage: z.number().optional(),
     }),
 };
+
+export const contactSchemas = {
+    submit: z.object({
+        name: z.string().trim().min(2, 'Full name must be at least 2 characters long.').max(100),
+        email,
+        message: z.string().trim().min(10, 'Message must be at least 10 characters long.').max(3000),
+    }),
+};
+

@@ -117,7 +117,6 @@ export default function BookingsPage() {
           ) : (
             bookings.map((b) => {
               const name = b.userId?.name || b.guestContact?.name || 'Client';
-              const email = b.userId?.email || b.guestContact?.email || '';
               return (
                 <Link key={b._id} href={`/bookings/${b._id}`} className="block">
                   <div className="rounded-xl border bg-white hover:bg-accent/10 transition-colors px-4 py-3 flex items-start justify-between gap-4">
@@ -125,7 +124,6 @@ export default function BookingsPage() {
                       <div className="flex items-center gap-2 text-sm font-semibold">
                         <User className="w-4 h-4 text-muted-foreground" />
                         <span className="truncate">{name}</span>
-                        {email && <span className="text-xs text-muted-foreground truncate">({email})</span>}
                       </div>
                       <div className="text-xs text-muted-foreground mt-1 flex items-center gap-3">
                         <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> {new Date(`${b.date}T00:00:00`).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
