@@ -26,7 +26,7 @@ export default function AboutPage() {
         description: "Modern, approachable mental health support and online psychotherapy services designed to feel personal, calming, and empowering.",
         contactPoint: {
             "@type": "ContactPoint",
-            telephone: "+91-9341210280",
+            telephone: "+91-9483900043",
             contactType: "customer support",
             email: "rebalancetherapy25@gmail.com"
         }

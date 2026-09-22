@@ -34,13 +34,13 @@ export function BeginJourneySection() {
                         </div>
 
                         <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center justify-center lg:justify-start">
-                            <a href="tel:+919341210280" className="group flex items-center justify-center gap-3 rounded-2xl bg-white px-6 py-4 shadow-sm border border-border/50 hover:border-primary/30 hover:shadow-md transition-all duration-300">
+                            <a href="tel:+919483900043" className="group flex items-center justify-center gap-3 rounded-2xl bg-white px-6 py-4 shadow-sm border border-border/50 hover:border-primary/30 hover:shadow-md transition-all duration-300">
                                 <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform">
                                     <Phone className="w-4 h-4 text-primary" />
                                 </div>
                                 <div className="text-left">
                                     <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-0.5">Call Us</p>
-                                    <p className="text-sm font-bold text-foreground">+91 9341210280</p>
+                                    <p className="text-sm font-bold text-foreground">+91 94839 00043</p>
                                 </div>
                             </a>
                             <a href="mailto:rebalancetherapy25@gmail.com" className="group flex items-center justify-center gap-3 rounded-2xl bg-white px-6 py-4 shadow-sm border border-border/50 hover:border-primary/30 hover:shadow-md transition-all duration-300">
@@ -76,7 +76,7 @@ export function BeginJourneySection() {
                             {/* Single Hero Image Card */}
                             <div className="relative w-full h-full rounded-[2.5rem] md:rounded-[3rem] overflow-hidden shadow-2xl border-4 border-white z-10 group">
                                 <Image
-                                    src="https://images.unsplash.com/photo-1499209974431-9dddcece7f88?q=80&w=1000&auto=format&fit=crop"
+                                    src="/images/logo.svg"
                                     alt="Finding peace and emotional balance with Rebalance Therapy"
                                     fill
                                     className="object-cover transition-transform duration-700 group-hover:scale-105"

@@ -226,13 +226,13 @@ export default function TermsPage() {
                                     <p className="text-sm font-extrabold text-foreground mt-0.5 truncate">rebalancetherapy25@gmail.com</p>
                                 </div>
                             </a>
-                            <a href="tel:+919341210280" className="bg-[#FAF8F8] p-5 rounded-2xl border border-primary/5 hover:border-primary/20 hover:shadow-xs transition-all flex items-center gap-4 group">
+                            <a href="tel:+919483900043" className="bg-[#FAF8F8] p-5 rounded-2xl border border-primary/5 hover:border-primary/20 hover:shadow-xs transition-all flex items-center gap-4 group">
                                 <div className="w-10 h-10 rounded-xl bg-white border border-primary/10 flex items-center justify-center text-primary group-hover:scale-105 transition-transform shrink-0">
                                     <Phone className="w-5 h-5" />
                                 </div>
                                 <div className="min-w-0">
                                     <span className="text-[10px] font-black uppercase text-muted-foreground/60 tracking-wider">Direct Dial</span>
-                                    <p className="text-sm font-extrabold text-foreground mt-0.5 truncate">+91 9341210280</p>
+                                    <p className="text-sm font-extrabold text-foreground mt-0.5 truncate">+91 94839 00043</p>
                                 </div>
                             </a>
                         </div>

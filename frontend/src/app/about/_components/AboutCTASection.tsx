@@ -49,11 +49,11 @@ export function AboutCTASection() {
 
                         <div className="flex flex-col sm:flex-row gap-6 items-center justify-center">
                             <a 
-                                href="tel:+919341210280" 
+                                href="tel:+919483900043" 
                                 className="group flex items-center justify-center gap-3 rounded-full bg-white px-8 py-4 border border-primary/10 shadow-lg font-normal text-primary hover:shadow-xl hover:border-primary/20 transition-all duration-500 hover:-translate-y-1 w-full sm:w-auto"
                             >
                                 <Phone className="w-5 h-5 text-accent group-hover:scale-110 transition-transform duration-300" />
-                                <span>+91 9341210280</span>
+                                <span>+91 94839 00043</span>
                             </a>
                             <a 
                                 href="mailto:rebalancetherapy25@gmail.com" 

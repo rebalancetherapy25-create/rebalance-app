@@ -26,6 +26,7 @@ export interface Therapist {
     gender?: string;
     languages?: string[];
     sessionTypes?: string[];
+    isAvailableThisWeek?: boolean;
 }
 
 interface TherapistFiltersProps {
@@ -385,7 +386,7 @@ export default function TherapistFilters({
                             return (
                                 <button
                                     key={filter}
-                                    onClick={() => updateFilter('availability', filter)}
+                                    onClick={() => updateFilter('availability', isSelected && filter !== 'Any time' ? 'Any time' : filter)}
                                     className={`px-4 py-2 rounded-full text-xs md:text-sm font-normal transition-all duration-300 whitespace-nowrap ${
                                         isSelected ? 'bg-primary text-white shadow-xs' : 'text-muted-foreground hover:text-foreground'
                                     }`}
@@ -635,10 +636,12 @@ export default function TherapistFilters({
                                         </div>
 
                                         <div className="mt-auto pt-2.5 sm:pt-3 border-t border-border/40">
-                                            <div className="flex items-center gap-1.5 mb-2 text-[9px] sm:text-[10px] font-normal text-emerald-700 bg-emerald-50 w-fit px-2 py-0.5 rounded-md border border-emerald-100 shadow-[0_2px_8px_rgba(16,185,129,0.08)]">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                                Available this week
-                                            </div>
+                                            {t.isAvailableThisWeek !== false && (
+                                                <div className="flex items-center gap-1.5 mb-2 text-[9px] sm:text-[10px] font-normal text-emerald-700 bg-emerald-50 w-fit px-2 py-0.5 rounded-md border border-emerald-100 shadow-[0_2px_8px_rgba(16,185,129,0.08)]">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                                    Available this week
+                                                </div>
+                                            )}
                                             <div className="flex items-center justify-between gap-2">
                                                 <div className="min-w-0 shrink-0">
                                                     <div className="flex items-baseline gap-0.5">

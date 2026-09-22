@@ -47,7 +47,7 @@ const FAQ_LIST: FAQItem[] = [
     { id: 13, category: 'Policies', q: "Can I reschedule my therapy session?", a: "Yes, sessions can be rescheduled if requested at least 24 hours before your scheduled appointment time." },
     { id: 14, category: 'Policies', q: "Can I cancel my session and receive a refund?", a: "No, all bookings made through Rebalance Therapy are non-refundable once confirmed." },
     { id: 15, category: 'Policies', q: "What happens if I miss my session?", a: "Missed sessions or late cancellations may not be eligible for rescheduling or refunds, as your therapist has reserved that time specifically for you." },
-    { id: 16, category: 'Policies', q: "How do I request a reschedule?", a: "To reschedule your session, please contact our support team at least 24 hours in advance via email at rebalancetherapy25@gmail.com or call +91 9341210280." },
+    { id: 16, category: 'Policies', q: "How do I request a reschedule?", a: "To reschedule your session, please contact our support team at least 24 hours in advance via email at rebalancetherapy25@gmail.com or call +91 94839 00043." },
     { id: 39, category: 'Policies', q: "What happens if my therapist is unavailable?", a: "If a therapist is unexpectedly unavailable, our team will assist you with rescheduling or finding another suitable therapist where possible." },
 
     // Safety
@@ -55,7 +55,7 @@ const FAQ_LIST: FAQItem[] = [
     { id: 22, category: 'Safety', q: "Is my personal information secure?", a: "We take privacy seriously and handle personal information responsibly in line with our privacy practices." },
     { id: 23, category: 'Safety', q: "Will anyone know I’m using therapy?", a: "No. Your sessions and information remain private unless disclosure is legally required for safety reasons." },
     { id: 24, category: 'Safety', q: "Can I contact my therapist outside of sessions?", a: "No. To maintain professional boundaries and ensure the best quality of care, communication with therapists is limited to scheduled sessions only." },
-    { id: 31, category: 'Safety', q: "How can I contact Rebalance Therapy?", a: "You can reach us anytime at rebalancetherapy25@gmail.com or call +91 9341210280 for support and guidance." },
+    { id: 31, category: 'Safety', q: "How can I contact Rebalance Therapy?", a: "You can reach us anytime at rebalancetherapy25@gmail.com or call +91 94839 00043 for support and guidance." },
     { id: 34, category: 'Safety', q: "What happens if there are technical difficulties during my session?", a: "If technical issues interrupt your session, we’ll do our best to help reconnect you or coordinate with your therapist for the best possible resolution." },
     { id: 35, category: 'Safety', q: "What if my therapist believes I need urgent medical or psychiatric support?", a: "Therapists may recommend additional professional support, including psychiatric consultation or hospitalization, if they believe there is a serious risk to your safety or wellbeing." },
     { id: 36, category: 'Safety', q: "Is Rebalance Therapy a crisis or emergency service?", a: "No. Rebalance Therapy is not designed for emergency mental health situations. If you are experiencing a crisis or immediate danger, please contact local emergency services or a crisis support helpline immediately." },
@@ -230,13 +230,13 @@ export default function FAQPage() {
                                 <p className="text-xs sm:text-sm font-medium text-foreground mt-0.5 truncate">rebalancetherapy25@gmail.com</p>
                             </div>
                         </a>
-                        <a href="tel:+919341210280" className="bg-white p-4.5 rounded-2xl border border-accent/15 hover:border-accent hover:shadow-xs transition-all flex items-center gap-4 group">
+                        <a href="tel:+919483900043" className="bg-white p-4.5 rounded-2xl border border-accent/15 hover:border-accent hover:shadow-xs transition-all flex items-center gap-4 group">
                             <div className="w-9 h-9 rounded-xl bg-[#FAF8F8] border border-border/40 flex items-center justify-center text-primary group-hover:scale-105 transition-transform shrink-0">
                                 <Phone className="w-4.5 h-4.5" />
                             </div>
                             <div className="min-w-0">
                                 <span className="text-[9px] font-light uppercase text-muted-foreground/60 tracking-wider">Phone Support</span>
-                                <p className="text-xs sm:text-sm font-medium text-foreground mt-0.5 truncate">+91 9341210280</p>
+                                <p className="text-xs sm:text-sm font-medium text-foreground mt-0.5 truncate">+91 94839 00043</p>
                             </div>
                         </a>
                     </div>

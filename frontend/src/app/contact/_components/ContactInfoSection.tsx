@@ -13,9 +13,9 @@ const CONTACT_INFO = [
     {
         icon: Phone,
         title: "Call Us",
-        detail: "+1 (800) 123-4567",
+        detail: "+91 94839 00043",
         subtext: "Mon-Fri from 8am to 6pm.",
-        link: "tel:+18001234567"
+        link: "tel:+919483900043"
     },
     {
         icon: MapPin,
