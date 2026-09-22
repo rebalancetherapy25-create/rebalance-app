@@ -34,22 +34,22 @@ export function BeginJourneySection() {
                         </div>
 
                         <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center justify-center lg:justify-start">
-                            <a href="tel:+919483900043" className="group flex items-center justify-center gap-3 rounded-2xl bg-white px-6 py-4 shadow-sm border border-border/50 hover:border-primary/30 hover:shadow-md transition-all duration-300">
-                                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                            <a href="tel:+919483900043" className="group flex items-center justify-center sm:justify-start gap-3 rounded-2xl bg-white px-6 py-4 shadow-sm border border-border/50 hover:border-primary/30 hover:shadow-md transition-all duration-300 shrink-0">
+                                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
                                     <Phone className="w-4 h-4 text-primary" />
                                 </div>
-                                <div className="text-left">
+                                <div className="text-left whitespace-nowrap">
                                     <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-0.5">Call Us</p>
-                                    <p className="text-sm font-bold text-foreground">+91 94839 00043</p>
+                                    <p className="text-sm font-bold text-foreground whitespace-nowrap">+91 94839 00043</p>
                                 </div>
                             </a>
-                            <a href="mailto:rebalancetherapy25@gmail.com" className="group flex items-center justify-center gap-3 rounded-2xl bg-white px-6 py-4 shadow-sm border border-border/50 hover:border-primary/30 hover:shadow-md transition-all duration-300">
-                                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                            <a href="mailto:rebalancetherapy25@gmail.com" className="group flex items-center justify-center sm:justify-start gap-3 rounded-2xl bg-white px-6 py-4 shadow-sm border border-border/50 hover:border-primary/30 hover:shadow-md transition-all duration-300 shrink-0">
+                                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
                                     <Mail className="w-4 h-4 text-primary" />
                                 </div>
-                                <div className="text-left">
+                                <div className="text-left whitespace-nowrap">
                                     <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-0.5">Email Us</p>
-                                    <p className="text-sm font-bold text-foreground">rebalancetherapy25@gmail.com</p>
+                                    <p className="text-sm font-bold text-foreground whitespace-nowrap">rebalancetherapy25@gmail.com</p>
                                 </div>
                             </a>
                         </div>

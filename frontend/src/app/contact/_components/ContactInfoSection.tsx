@@ -55,7 +55,7 @@ export function ContactInfoSection() {
                             </div>
                             
                             <h3 className="text-xl font-normal text-foreground mb-2 font-display">{info.title}</h3>
-                            <p className="text-lg text-foreground font-medium mb-1">{info.detail}</p>
+                            <p className="text-lg text-foreground font-medium mb-1 whitespace-nowrap">{info.detail}</p>
                             <p className="text-sm text-muted-foreground">{info.subtext}</p>
                         </div>
                     </motion.a>
