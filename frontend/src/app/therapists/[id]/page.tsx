@@ -581,7 +581,7 @@ export default async function TherapistProfilePage({ params }: { params: { id: s
                     <div className="flex items-center gap-1.5 mt-0.5">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
                         <span className="text-[10px] text-muted-foreground font-semibold truncate">
-                            Complimentary 15-min call
+                            Book your session now!
                         </span>
                     </div>
                 </div>
