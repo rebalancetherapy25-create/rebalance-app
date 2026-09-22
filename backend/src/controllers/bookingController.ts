@@ -9,6 +9,8 @@ import { formatSlotTime, getTemplateSlotsForDate, normalizeDate, normalizeTime, 
 import { bookingConfirmedEmail } from '../emails/templates/bookingConfirmed';
 import { sendData, sendError } from '../lib/http';
 import { assertRazorpayConfig, confirmBookingPaymentByOrderId, verifyRazorpayPaymentSignature } from '../services/paymentService';
+import { sendBookingConfirmedNotification } from '../services/bookingNotificationService';
+import config from '../config/env';
 
 const LOCK_DURATION_MS = 5 * 60 * 1000;
 const VALID_SESSION_TYPES = new Set(['video', 'phone', 'chat', 'audio']);
@@ -214,25 +216,7 @@ export const createBooking = async (req: AuthRequest, res: Response) => {
                 await mongoose.model('Coupon').updateOne({ code: appliedCouponCode }, { $inc: { currentUsage: 1 }, $push: { usedBy: bookingEmail } });
             }
 
-            let recipientEmail = guestEmail;
-            let recipientName = guestName || 'there';
-            if (userId) {
-                const user = await User.findById(userId);
-                if (user) {
-                    recipientEmail = user.email;
-                    recipientName = user.name;
-                }
-            }
-
-            if (recipientEmail) {
-                const tpl = bookingConfirmedEmail({
-                    recipientName,
-                    therapistName: therapist.name,
-                    date: normalizedDate,
-                    time: formatSlotTime(normalizedTime),
-                });
-                await queueEmail(recipientEmail, tpl.subject, tpl.html);
-            }
+            await sendBookingConfirmedNotification(booking);
 
             return sendData(res, {
                 orderId: `FREE_BOOKING_${booking._id}`,
@@ -257,6 +241,7 @@ export const createBooking = async (req: AuthRequest, res: Response) => {
                 amount: order.amount,
                 currency: order.currency,
                 bookingId: booking._id,
+                keyId: config.razorpayKeyId,
             });
         } catch (orderError) {
             await Booking.findByIdAndDelete(booking._id);
@@ -388,20 +373,25 @@ export const applyCouponToBooking = async (req: AuthRequest, res: Response) => {
 
 export const verifyPayment = async (req: AuthRequest, res: Response) => {
     try {
-        // Keep hold cleanup, but do not cancel stale pending bookings before payment verification.
-        await releaseExpiredSlotHolds();
-
         const { razorpay_order_id, razorpay_payment_id, razorpay_signature, bookingId } = req.body;
         if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !bookingId) {
             return sendError(res, 400, 'Missing payment verification details', { code: 'PAYMENT_VERIFY_MISSING_FIELDS' });
         }
+
+        const cleanOrderId = String(razorpay_order_id).trim();
+        const cleanPaymentId = String(razorpay_payment_id).trim();
+        const cleanSignature = String(razorpay_signature).trim();
 
         const booking = await Booking.findById(bookingId).populate('userId', 'name email').populate('therapistId', 'name');
         if (!booking) {
             return sendError(res, 404, 'Booking record not found', { code: 'BOOKING_NOT_FOUND' });
         }
 
-        if (booking.status === 'confirmed' && booking.razorpayPaymentId === razorpay_payment_id) {
+        if (booking.status === 'confirmed') {
+            if (!booking.razorpayPaymentId && cleanPaymentId) {
+                await Booking.updateOne({ _id: booking._id }, { $set: { razorpayPaymentId: cleanPaymentId } });
+                booking.razorpayPaymentId = cleanPaymentId;
+            }
             return sendData(res, { success: true, booking, idempotent: true });
         }
 
@@ -409,21 +399,44 @@ export const verifyPayment = async (req: AuthRequest, res: Response) => {
             return sendError(res, 409, `Booking is already ${booking.status}`, { code: 'BOOKING_STATUS_INVALID' });
         }
 
-        if (!booking.razorpayOrderId || booking.razorpayOrderId !== razorpay_order_id) {
+        if (!booking.razorpayOrderId || booking.razorpayOrderId !== cleanOrderId) {
             return sendError(res, 400, 'Order does not match booking', { code: 'PAYMENT_ORDER_MISMATCH' });
         }
 
-        if (!verifyRazorpayPaymentSignature({
-            orderId: razorpay_order_id,
-            paymentId: razorpay_payment_id,
-            signature: razorpay_signature,
-        })) {
+        let isSignatureValid = verifyRazorpayPaymentSignature({
+            orderId: cleanOrderId,
+            paymentId: cleanPaymentId,
+            signature: cleanSignature,
+        });
+
+        if (!isSignatureValid) {
+            try {
+                const razorpay = getRazorpay();
+                const fetchedPayment = await razorpay.payments.fetch(cleanPaymentId);
+                if (
+                    fetchedPayment &&
+                    fetchedPayment.order_id === cleanOrderId &&
+                    (fetchedPayment.status === 'captured' || fetchedPayment.status === 'authorized')
+                ) {
+                    console.log(`[PaymentVerify] Verified payment ${cleanPaymentId} directly via Razorpay API fallback`);
+                    isSignatureValid = true;
+                }
+            } catch (fetchErr) {
+                console.error('[PaymentVerify] Fallback check to Razorpay API failed:', fetchErr);
+            }
+        }
+
+        if (!isSignatureValid) {
+            console.error('[PaymentVerify] Payment signature verification failed:', {
+                orderId: cleanOrderId,
+                paymentId: cleanPaymentId,
+            });
             return sendError(res, 400, 'Invalid payment signature', { code: 'PAYMENT_SIGNATURE_INVALID' });
         }
 
         const confirmationResult = await confirmBookingPaymentByOrderId({
-            orderId: razorpay_order_id,
-            paymentId: razorpay_payment_id,
+            orderId: cleanOrderId,
+            paymentId: cleanPaymentId,
         });
 
         if (!confirmationResult.ok) {
@@ -431,21 +444,7 @@ export const verifyPayment = async (req: AuthRequest, res: Response) => {
         }
 
         const confirmedBooking = confirmationResult.booking;
-        const therapistFromRef = confirmedBooking.therapistId as any;
-        const userFromRef = confirmedBooking.userId as any;
-        const recipientEmail = userFromRef?.email || confirmedBooking.guestContact?.email;
-        const recipientName = userFromRef?.name || confirmedBooking.guestContact?.name || 'there';
-
-        if (recipientEmail) {
-            const tpl = bookingConfirmedEmail({
-                recipientName,
-                therapistName: therapistFromRef?.name || 'your therapist',
-                date: confirmedBooking.date,
-                time: formatSlotTime(confirmedBooking.time),
-                ...(confirmedBooking.meetingLink ? { meetingLink: confirmedBooking.meetingLink } : {}),
-            });
-            await queueEmail(recipientEmail, tpl.subject, tpl.html);
-        }
+        await sendBookingConfirmedNotification(confirmedBooking);
 
         return sendData(res, { success: true, booking: confirmedBooking });
     } catch (error) {

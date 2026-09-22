@@ -6,6 +6,7 @@ import {
     markBookingPaymentFailed,
     verifyRazorpayWebhookSignature,
 } from '../services/paymentService';
+import { sendBookingConfirmedNotification } from '../services/bookingNotificationService';
 
 type RazorpayWebhookEvent = {
     event?: string;
@@ -40,9 +41,14 @@ const getWebhookEntity = (event: RazorpayWebhookEvent) => {
 export const handleRazorpayWebhook = async (req: Request, res: Response) => {
     try {
         const signature = req.get('x-razorpay-signature');
-        const payload = Buffer.isBuffer(req.body) ? req.body : Buffer.from('');
+        const payload = Buffer.isBuffer(req.body)
+            ? req.body
+            : typeof req.body === 'string'
+            ? Buffer.from(req.body, 'utf8')
+            : Buffer.from(JSON.stringify(req.body || {}), 'utf8');
 
         if (!verifyRazorpayWebhookSignature(payload, signature)) {
+            console.warn('[Webhook] Invalid webhook signature or secret not configured');
             return sendError(res, 401, 'Invalid webhook signature', { code: 'PAYMENT_WEBHOOK_INVALID_SIGNATURE' });
         }
 
@@ -52,13 +58,20 @@ export const handleRazorpayWebhook = async (req: Request, res: Response) => {
         switch (event.event) {
             case 'payment.captured':
             case 'order.paid': {
-                if (!orderId || !paymentId) {
-                    return sendError(res, 400, 'Webhook payload is missing payment identifiers', { code: 'PAYMENT_WEBHOOK_INVALID_PAYLOAD' });
+                if (!orderId) {
+                    return sendError(res, 400, 'Webhook payload is missing orderId', { code: 'PAYMENT_WEBHOOK_INVALID_PAYLOAD' });
                 }
 
-                const result = await confirmBookingPaymentByOrderId({ orderId, paymentId });
+                const result = await confirmBookingPaymentByOrderId({
+                    orderId,
+                    ...(paymentId ? { paymentId } : {}),
+                });
                 if (!result.ok && result.status !== 404) {
                     return sendError(res, result.status, result.error, { code: 'PAYMENT_WEBHOOK_CONFIRM_FAILED' });
+                }
+
+                if (result.ok && result.booking) {
+                    await sendBookingConfirmedNotification(result.booking);
                 }
 
                 return sendData(res, {

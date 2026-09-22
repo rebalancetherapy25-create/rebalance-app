@@ -5,6 +5,8 @@ import { extractWeeklyTemplate, formatSlotTime, normalizeDate, normalizeTime, sy
 import { runBookingMaintenance } from '../services/bookingMaintenanceService';
 import { createTherapistAccountAndInvite } from '../services/therapistInviteService';
 import { sendEmail } from '../services/emailService';
+import { queueEmail } from '../services/emailOutboxService';
+import { sendBookingConfirmedNotification, sendMeetingLinkAddedNotification } from '../services/bookingNotificationService';
 import { bookingRescheduledEmail } from '../emails/templates/bookingRescheduled';
 import { bookingCancelledEmail } from '../emails/templates/bookingCancelled';
 import { sendData, sendError } from '../lib/http';
@@ -490,8 +492,11 @@ export const updateBookingStatus = async (req: Request, res: Response) => {
         const therapistName = (booking.therapistId as any)?.name || 'your therapist';
         const previousDate = booking.date;
         const previousTime = booking.time;
+        const previousMeetingLink = booking.meetingLink;
         let didReschedule = false;
         let didCancel = false;
+        let didConfirm = false;
+        let didAddOrUpdateMeetingLink = false;
 
         // Reject combined reschedule+status — reschedule saves to DB first; if status sync
         // then fails the booking ends up with new date/time but old status (inconsistent state).
@@ -531,7 +536,11 @@ export const updateBookingStatus = async (req: Request, res: Response) => {
 
         // Meeting link update
         if (req.body?.meetingLink !== undefined) {
-            booking.meetingLink = String(req.body.meetingLink || '').trim() || undefined;
+            const nextLink = String(req.body.meetingLink || '').trim() || undefined;
+            if (nextLink && nextLink !== previousMeetingLink) {
+                didAddOrUpdateMeetingLink = true;
+            }
+            booking.meetingLink = nextLink;
             await booking.save();
         }
 
@@ -580,30 +589,40 @@ export const updateBookingStatus = async (req: Request, res: Response) => {
                 }
                 if (status === 'cancelled') {
                     didCancel = true;
+                } else if (status === 'confirmed' && previousStatus !== 'confirmed') {
+                    didConfirm = true;
                 }
             }
         }
 
         if (recipientEmail) {
-            if (didReschedule) {
-                const tpl = bookingRescheduledEmail({
-                    recipientName,
-                    therapistName,
-                    previousDate,
-                    previousTime: formatSlotTime(previousTime),
-                    nextDate: booking.date,
-                    nextTime: formatSlotTime(booking.time),
-                    ...(booking.meetingLink ? { meetingLink: booking.meetingLink } : {}),
-                });
-                await sendEmail({ to: recipientEmail, subject: tpl.subject, html: tpl.html });
-            } else if (didCancel) {
-                const tpl = bookingCancelledEmail({
-                    recipientName,
-                    therapistName,
-                    date: booking.date,
-                    time: formatSlotTime(booking.time),
-                });
-                await sendEmail({ to: recipientEmail, subject: tpl.subject, html: tpl.html });
+            try {
+                if (didReschedule) {
+                    const tpl = bookingRescheduledEmail({
+                        recipientName,
+                        therapistName,
+                        previousDate,
+                        previousTime: formatSlotTime(previousTime),
+                        nextDate: booking.date,
+                        nextTime: formatSlotTime(booking.time),
+                        ...(booking.meetingLink ? { meetingLink: booking.meetingLink } : {}),
+                    });
+                    await queueEmail(recipientEmail, tpl.subject, tpl.html);
+                } else if (didCancel) {
+                    const tpl = bookingCancelledEmail({
+                        recipientName,
+                        therapistName,
+                        date: booking.date,
+                        time: formatSlotTime(booking.time),
+                    });
+                    await queueEmail(recipientEmail, tpl.subject, tpl.html);
+                } else if (didConfirm) {
+                    await sendBookingConfirmedNotification(booking);
+                } else if (didAddOrUpdateMeetingLink && booking.meetingLink) {
+                    await sendMeetingLinkAddedNotification(booking);
+                }
+            } catch (emailErr) {
+                console.error('[AdminBookingUpdate] Non-fatal error sending email:', emailErr);
             }
         }
 

@@ -16,6 +16,8 @@ export interface IBooking extends Document {
     razorpayPaymentId?: string;
     meetingLink?: string | undefined;
     reminderSent?: boolean;
+    confirmationEmailSent?: boolean;
+    paymentFailedEmailSent?: boolean;
     couponCode?: string;
     discountAmount?: number;
     originalAmount?: number;
@@ -42,6 +44,8 @@ const bookingSchema = new Schema<IBooking>(
         razorpayPaymentId: { type: String },
         meetingLink: { type: String },
         reminderSent: { type: Boolean, default: false },
+        confirmationEmailSent: { type: Boolean, default: false },
+        paymentFailedEmailSent: { type: Boolean, default: false },
         couponCode: { type: String },
         discountAmount: { type: Number },
         originalAmount: { type: Number },

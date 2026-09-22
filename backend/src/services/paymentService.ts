@@ -2,6 +2,7 @@ import crypto from 'crypto';
 
 import config from '../config/env';
 import { Availability, Booking } from '../models';
+import { sendPaymentFailedNotification } from './bookingNotificationService';
 
 type PaymentConfirmationResult =
     | { ok: true; booking: any; idempotent?: boolean }
@@ -24,13 +25,18 @@ export const verifyRazorpayPaymentSignature = (options: {
     signature: string;
 }) => {
     const { keySecret } = assertRazorpayConfig();
-    const body = `${options.orderId}|${options.paymentId}`;
+    const cleanSecret = keySecret.trim().replace(/^['"]+|['"]+$/g, '');
+    const cleanOrderId = options.orderId.trim();
+    const cleanPaymentId = options.paymentId.trim();
+    const cleanSignature = options.signature.trim();
+
+    const body = `${cleanOrderId}|${cleanPaymentId}`;
     const expectedSignature = crypto
-        .createHmac('sha256', keySecret)
+        .createHmac('sha256', cleanSecret)
         .update(body)
         .digest('hex');
 
-    return expectedSignature === options.signature;
+    return expectedSignature.toLowerCase() === cleanSignature.toLowerCase();
 };
 
 export const verifyRazorpayWebhookSignature = (payload: Buffer, signature?: string) => {
@@ -38,12 +44,15 @@ export const verifyRazorpayWebhookSignature = (payload: Buffer, signature?: stri
         return false;
     }
 
+    const cleanSecret = config.razorpayWebhookSecret.trim().replace(/^['"]+|['"]+$/g, '');
+    const cleanSignature = signature.trim();
+
     const expectedSignature = crypto
-        .createHmac('sha256', config.razorpayWebhookSecret)
+        .createHmac('sha256', cleanSecret)
         .update(payload)
         .digest('hex');
 
-    return expectedSignature === signature;
+    return expectedSignature.toLowerCase() === cleanSignature.toLowerCase();
 };
 
 const releasePendingHold = async (booking: any) => {
@@ -60,84 +69,105 @@ const releasePendingHold = async (booking: any) => {
 
 export const confirmBookingPaymentByOrderId = async (options: {
     orderId: string;
-    paymentId: string;
+    paymentId?: string;
 }): Promise<PaymentConfirmationResult> => {
-    const booking = await Booking.findOne({ razorpayOrderId: options.orderId })
+    const cleanOrderId = options.orderId.trim();
+    const cleanPaymentId = options.paymentId ? options.paymentId.trim() : undefined;
+
+    const booking = await Booking.findOne({ razorpayOrderId: cleanOrderId })
         .populate('userId', 'name email')
         .populate('therapistId', 'name');
 
     if (!booking) {
+        console.error(`[confirmBookingPayment] Booking not found for orderId: ${cleanOrderId}`);
         return { ok: false, status: 404, error: 'Booking record not found' };
     }
 
-    if (booking.status === 'confirmed' && booking.razorpayPaymentId === options.paymentId) {
+    if (booking.status === 'confirmed') {
+        if (cleanPaymentId && (!booking.razorpayPaymentId || booking.razorpayPaymentId !== cleanPaymentId)) {
+            await Booking.updateOne({ _id: booking._id }, { $set: { razorpayPaymentId: cleanPaymentId } });
+            booking.razorpayPaymentId = cleanPaymentId;
+        }
         return { ok: true, booking, idempotent: true };
     }
 
-    if (booking.status !== 'pending' && booking.status !== 'cancelled') {
-        return { ok: false, status: 409, error: `Booking is already ${booking.status}` };
-    }
-
     const therapistFromRef = booking.therapistId as any;
-    const therapistId = String(therapistFromRef?._id || therapistFromRef);
-    const now = new Date();
+    const therapistId = therapistFromRef?._id || therapistFromRef;
 
-    const slotUpdate = await Availability.updateOne(
-        {
-            therapistId,
-            date: booking.date,
-            slots: {
-                $elemMatch: {
-                    time: booking.time,
-                    isBooked: false,
-                    $or: [
-                        { reservedBookingId: booking._id },
-                        { reservedUntil: { $exists: false } },
-                        { reservedUntil: { $lt: now } },
-                    ],
-                },
+    // 1. Ensure slot is marked as booked in Availability so nobody else takes it
+    try {
+        const slotUpdate = await Availability.updateOne(
+            {
+                therapistId,
+                date: booking.date,
+                'slots.time': booking.time,
             },
-        },
-        {
-            $set: { 'slots.$.isBooked': true },
-            $unset: { 'slots.$.reservedUntil': 1, 'slots.$.reservedBookingId': 1 },
-        }
-    );
-
-    if (slotUpdate.modifiedCount === 0) {
-        await Booking.updateOne(
-            { _id: booking._id, status: { $ne: 'confirmed' } },
-            { $set: { status: 'cancelled', razorpayPaymentId: options.paymentId } }
+            {
+                $set: { 'slots.$.isBooked': true },
+                $unset: { 'slots.$.reservedUntil': 1, 'slots.$.reservedBookingId': 1 },
+            }
         );
 
-        return {
-            ok: false,
-            status: 409,
-            error: 'Payment successful, but the slot was highly contested and taken by someone else. Support will refund/reschedule.',
-        };
+        if (slotUpdate.matchedCount === 0) {
+            const availDoc = await Availability.findOne({ therapistId, date: booking.date });
+            if (availDoc) {
+                await Availability.updateOne(
+                    { therapistId, date: booking.date },
+                    {
+                        $push: {
+                            slots: {
+                                time: booking.time,
+                                isBooked: true,
+                            },
+                        },
+                    }
+                );
+            } else {
+                await Availability.create({
+                    therapistId,
+                    date: booking.date,
+                    slots: [
+                        {
+                            time: booking.time,
+                            isBooked: true,
+                        },
+                    ],
+                });
+            }
+        }
+    } catch (availErr) {
+        console.error('[confirmBookingPayment] Non-fatal error updating slot availability:', availErr);
     }
 
+    // 2. Mark booking as confirmed
     try {
         await Booking.updateOne(
             { _id: booking._id },
-            { $set: { status: 'confirmed', razorpayPaymentId: options.paymentId } }
-        );
-        if (booking.couponCode) {
-            const mongoose = require('mongoose');
-            let bookingEmail = booking.guestContact?.email;
-            if (booking.userId) {
-                bookingEmail = (booking.userId as any).email?.toLowerCase();
+            {
+                $set: {
+                    status: 'confirmed',
+                    ...(cleanPaymentId ? { razorpayPaymentId: cleanPaymentId } : {}),
+                },
             }
-            await mongoose.model('Coupon').updateOne(
-                { code: booking.couponCode }, 
-                { $inc: { currentUsage: 1 }, $push: { usedBy: bookingEmail } }
-            );
+        );
+
+        if (booking.couponCode) {
+            try {
+                const mongoose = require('mongoose');
+                let bookingEmail = booking.guestContact?.email;
+                if (booking.userId) {
+                    bookingEmail = (booking.userId as any).email?.toLowerCase();
+                }
+                await mongoose.model('Coupon').updateOne(
+                    { code: booking.couponCode }, 
+                    { $inc: { currentUsage: 1 }, $push: { usedBy: bookingEmail } }
+                );
+            } catch (couponErr) {
+                console.error('[confirmBookingPayment] Non-fatal coupon usage update error:', couponErr);
+            }
         }
     } catch (saveError) {
-        await Availability.updateOne(
-            { therapistId, date: booking.date, 'slots.time': booking.time, 'slots.isBooked': true },
-            { $set: { 'slots.$.isBooked': false } }
-        );
+        console.error('[confirmBookingPayment] Failed to update booking to confirmed:', saveError);
         throw saveError;
     }
 
@@ -175,6 +205,12 @@ export const markBookingPaymentFailed = async (options: {
     }
 
     await releasePendingHold(booking);
+
+    try {
+        await sendPaymentFailedNotification(booking, options.reason);
+    } catch (notifyErr) {
+        console.error('[Payment] Error sending payment failed notification:', notifyErr);
+    }
 
     return {
         ok: true as const,

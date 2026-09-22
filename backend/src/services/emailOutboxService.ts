@@ -6,15 +6,28 @@ const MAX_RETRIES = 5;
 
 export const queueEmail = async (to: string, subject: string, html: string) => {
     try {
-        await EmailOutbox.create({
+        const outboxRecord = await EmailOutbox.create({
             to,
             subject,
             html,
             status: 'pending'
         });
         console.log(`[EmailOutbox] Queued email for ${to}`);
+
+        // Immediate background send attempt so recipient does not have to wait for cron interval
+        sendEmail({ to, subject, html }).then(async (success) => {
+            if (success) {
+                outboxRecord.status = 'sent';
+                await outboxRecord.save();
+                console.log(`[EmailOutbox] Dispatched immediately to ${to}`);
+            }
+        }).catch((err) => {
+            console.warn(`[EmailOutbox] Immediate dispatch failed for ${to}, will retry via outbox worker:`, err);
+        });
     } catch (error) {
         console.error('[EmailOutbox] Failed to queue email:', error);
+        // Fallback to direct send if outbox table insert failed
+        await sendEmail({ to, subject, html }).catch(() => {});
     }
 };
 

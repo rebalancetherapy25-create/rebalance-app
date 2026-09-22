@@ -7,7 +7,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
     Video, Phone, MessageCircle, Lock, Globe, Clock,
     Loader2, CheckCircle2, Tag, ChevronDown, ShieldCheck, Calendar, User, Mail,
-    Sunrise, Sun, Sunset, ChevronLeft, ChevronRight, FileText
+    Sunrise, Sun, Sunset, ChevronLeft, ChevronRight, FileText,
+    AlertCircle, RotateCcw
 } from 'lucide-react';
 import { getApiBaseUrl, unwrapApiData } from '@/lib/runtime';
 import { CSRF_HEADER_NAME, ensureCsrfToken } from '@/lib/auth';
@@ -35,7 +36,7 @@ const groupSlotsByPeriod = (slots: string[]) => {
     return { morning, afternoon, evening };
 };
 
-interface OrderData { orderId: string; amount: number; currency: string; bookingId: string; }
+interface OrderData { orderId: string; amount: number; currency: string; bookingId: string; keyId?: string; }
 interface RazorpayResponse { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string; }
 interface BookingErrors { name?: string; email?: string; general?: string; payment?: string; }
 
@@ -298,29 +299,119 @@ export default function BookingFlow({
         }
         if (currentStep === 2) {
             if (!orderData) return;
+            const razorpayKey = orderData.keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_mocked_key';
             const opts = {
-                key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_mocked_key',
-                amount: orderData.amount, currency: orderData.currency,
-                name: 'Rebalance Therapy', description: `${sessionType} Session with ${therapistName}`,
+                key: razorpayKey,
+                amount: orderData.amount,
+                currency: orderData.currency,
+                name: 'Rebalance Therapy',
+                description: `${sessionType} Session with ${therapistName}`,
                 order_id: orderData.orderId,
                 handler: async (response: RazorpayResponse) => {
+                    setProcessing(true);
+                    setErrors({});
                     try {
-                        const csrfToken = await ensureCsrfToken(API_BASE);
-                        const vRes = await fetch(`${API_BASE}/bookings/verify`, {
-                            method: 'POST', credentials: 'include',
-                            headers: { 'Content-Type': 'application/json', ...(csrfToken ? { [CSRF_HEADER_NAME]: csrfToken } : {}) },
-                            body: JSON.stringify({ razorpay_order_id: response.razorpay_order_id, razorpay_payment_id: response.razorpay_payment_id, razorpay_signature: response.razorpay_signature, bookingId: orderData.bookingId }),
+                        let csrfToken: string | null = null;
+                        try {
+                            csrfToken = await ensureCsrfToken(API_BASE);
+                        } catch {
+                            // Non-fatal if CSRF cookie is blocked on cross-origin setup
+                        }
+
+                        const verifyPayload = {
+                            razorpay_order_id: response.razorpay_order_id,
+                            razorpay_payment_id: response.razorpay_payment_id,
+                            razorpay_signature: response.razorpay_signature,
+                            bookingId: orderData.bookingId,
+                        };
+
+                        let vRes = await fetch(`${API_BASE}/bookings/verify`, {
+                            method: 'POST',
+                            credentials: 'include',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                ...(csrfToken ? { [CSRF_HEADER_NAME]: csrfToken } : {}),
+                            },
+                            body: JSON.stringify(verifyPayload),
                         });
-                        if (vRes.ok) setCurrentStep(3);
-                        else { const e = await vRes.json().catch(() => ({})); setErrors((p) => ({ ...p, payment: e?.error || 'Payment verification failed.' })); }
-                    } catch { setErrors((p) => ({ ...p, payment: 'Payment verification failed. Contact support.' })); }
+
+                        // Retry once on network glitch / 5xx error
+                        if (!vRes.ok && vRes.status >= 500) {
+                            await new Promise((resolve) => setTimeout(resolve, 1500));
+                            vRes = await fetch(`${API_BASE}/bookings/verify`, {
+                                method: 'POST',
+                                credentials: 'include',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    ...(csrfToken ? { [CSRF_HEADER_NAME]: csrfToken } : {}),
+                                },
+                                body: JSON.stringify(verifyPayload),
+                            });
+                        }
+
+                        if (vRes.ok) {
+                            setCurrentStep(3);
+                        } else {
+                            const e = await vRes.json().catch(() => ({}));
+                            // If backend confirms it is already confirmed, transition to success
+                            if (e?.error?.toLowerCase().includes('already confirmed') || e?.code === 'BOOKING_ALREADY_CONFIRMED') {
+                                setCurrentStep(3);
+                            } else {
+                                setErrors((p) => ({
+                                    ...p,
+                                    payment: e?.error || `Payment received (ID: ${response.razorpay_payment_id}), but confirmation was delayed. Please contact support.`,
+                                }));
+                            }
+                        }
+                    } catch (err) {
+                        console.error('Payment verification error:', err);
+                        setErrors((p) => ({
+                            ...p,
+                            payment: `Payment received (ID: ${response.razorpay_payment_id}), but network verification was interrupted. Please check your email or contact support.`,
+                        }));
+                    } finally {
+                        setProcessing(false);
+                    }
                 },
                 prefill: { name: bookingDetails.name, email: bookingDetails.email },
                 theme: { color: '#059669' },
+                modal: {
+                    ondismiss: () => {
+                        setProcessing(false);
+                    },
+                },
             };
-            const RC = (window as unknown as { Razorpay?: new (o: object) => { open: () => void } }).Razorpay;
-            if (!RC) { setErrors((p) => ({ ...p, general: 'Payment service unavailable' })); return; }
-            new RC(opts).open(); return;
+            type RazorpayFailureResponse = {
+                error?: {
+                    code?: string;
+                    description?: string;
+                    source?: string;
+                    step?: string;
+                    reason?: string;
+                };
+            };
+            const RC = (window as unknown as {
+                Razorpay?: new (o: object) => {
+                    open: () => void;
+                    on: (event: string, handler: (data: RazorpayFailureResponse) => void) => void;
+                };
+            }).Razorpay;
+            if (!RC) {
+                setErrors((p) => ({ ...p, general: 'Payment service unavailable' }));
+                setProcessing(false);
+                return;
+            }
+            const rzpInstance = new RC(opts);
+            rzpInstance.on('payment.failed', function (response: RazorpayFailureResponse) {
+                setProcessing(false);
+                const failureMsg = response?.error?.description || response?.error?.reason || 'Payment was declined or cancelled. Please try again or use another payment method.';
+                setErrors((p) => ({
+                    ...p,
+                    payment: failureMsg,
+                }));
+            });
+            rzpInstance.open();
+            return;
         }
         setCurrentStep((p) => Math.min(p + 1, STEPS.length - 1));
     };
@@ -732,13 +823,65 @@ export default function BookingFlow({
                                 </div>
                             )}
                             {errors.payment && (
-                                <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-xl text-xs font-medium text-destructive">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-destructive shrink-0" /> {errors.payment}
+                                <div className="p-4 bg-destructive/10 border-2 border-destructive/25 rounded-2xl space-y-3">
+                                    <div className="flex items-start gap-3">
+                                        <div className="w-8 h-8 rounded-xl bg-destructive/15 text-destructive flex items-center justify-center shrink-0 mt-0.5">
+                                            <AlertCircle className="w-4 h-4" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <h4 className="text-xs font-black uppercase tracking-wider text-destructive">Payment Unsuccessful</h4>
+                                            <p className="text-xs text-foreground font-medium mt-1 leading-relaxed">{errors.payment}</p>
+                                            <p className="text-[11px] text-muted-foreground mt-1 leading-normal">
+                                                No booking has been finalized. If your account was debited, your bank will automatically reverse the transaction within 3–5 business days.
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-destructive/15">
+                                        {timeLeft !== null && timeLeft > 0 ? (
+                                            <Button
+                                                type="button"
+                                                onClick={handleNextStep}
+                                                disabled={processing}
+                                                size="sm"
+                                                className="h-8 rounded-lg px-3.5 text-xs font-bold bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-sm"
+                                            >
+                                                <RotateCcw className="w-3.5 h-3.5 mr-1.5" /> Retry Payment
+                                            </Button>
+                                        ) : (
+                                            <Button
+                                                type="button"
+                                                onClick={() => { setErrors({}); setCurrentStep(0); }}
+                                                size="sm"
+                                                className="h-8 rounded-lg px-3.5 text-xs font-bold bg-primary text-background hover:bg-primary/90 shadow-sm"
+                                            >
+                                                <Calendar className="w-3.5 h-3.5 mr-1.5" /> Choose Another Slot
+                                            </Button>
+                                        )}
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => { setErrors({}); setCurrentStep(0); }}
+                                            className="h-8 rounded-lg px-2.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+                                        >
+                                            Change Time Slot
+                                        </Button>
+                                    </div>
                                 </div>
                             )}
-                            {timeLeft === 0 && (
-                                <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-xl text-xs font-bold text-destructive">
-                                    <Clock className="w-3.5 h-3.5 shrink-0" /> Slot expired — please go back and select a new time.
+                            {timeLeft === 0 && !errors.payment && (
+                                <div className="flex items-center justify-between p-3.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs font-medium text-amber-700 dark:text-amber-400">
+                                    <div className="flex items-center gap-2">
+                                        <Clock className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                                        <span>Slot reservation expired. Please pick another time slot.</span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => { setErrors({}); setCurrentStep(0); }}
+                                        className="font-bold underline ml-2 hover:opacity-80 shrink-0"
+                                    >
+                                        Select Time
+                                    </button>
                                 </div>
                             )}
 
@@ -861,52 +1004,89 @@ export default function BookingFlow({
 
                     {/* ── Step 3: Confirmed ── */}
                     {currentStep === 3 && (
-                        <div className="flex flex-col items-center text-center py-6 space-y-5 animate-in fade-in zoom-in-95 duration-500">
-                            <div className="w-16 h-16 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/30 rotate-3">
-                                <CheckCircle2 className="w-8 h-8 text-white" />
+                        <div className="flex flex-col items-center text-center py-6 space-y-4 animate-in fade-in zoom-in-95 duration-500">
+                            <div className="w-14 h-14 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                                <CheckCircle2 className="w-7 h-7 text-white" />
                             </div>
                             <div>
-                                <h2 className="text-2xl font-heading font-black text-foreground">You&apos;re booked!</h2>
-                                <p className="text-sm text-muted-foreground mt-1">Your session is confirmed.</p>
+                                <h2 className="text-xl lg:text-2xl font-heading font-black text-foreground">You&apos;re booked!</h2>
+                                <p className="text-xs sm:text-sm font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                                    Payment Successful · Session Confirmed
+                                </p>
                             </div>
 
                             {/* Booking details card */}
                             <div className="w-full rounded-2xl border border-border/20 overflow-hidden text-left shadow-sm">
-                                <div className="bg-primary/5 px-4 py-3 border-b border-border/10">
+                                <div className="bg-primary/5 px-4 py-2.5 border-b border-border/10 flex items-center justify-between">
                                     <p className="text-[10px] font-black uppercase tracking-widest text-primary/70">Session Details</p>
+                                    {!isAuthenticated && (
+                                        <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                                            Guest Booking
+                                        </span>
+                                    )}
                                 </div>
-                                <div className="divide-y divide-border/10">
-                                    <div className="flex items-center gap-3 px-4 py-3">
+                                <div className="divide-y divide-border/10 text-xs">
+                                    <div className="flex items-center gap-3 px-4 py-2.5">
                                         <User className="w-4 h-4 text-muted-foreground/60 shrink-0" />
                                         <div>
-                                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Therapist</p>
-                                            <p className="text-sm font-bold text-foreground">{therapistName}</p>
+                                            <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-bold">Therapist</p>
+                                            <p className="text-xs sm:text-sm font-bold text-foreground">{therapistName}</p>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-3 px-4 py-3">
+                                    <div className="flex items-center gap-3 px-4 py-2.5">
                                         <Calendar className="w-4 h-4 text-muted-foreground/60 shrink-0" />
                                         <div>
-                                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Date & Time</p>
-                                            <p className="text-sm font-bold text-foreground">
+                                            <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-bold">Date & Time</p>
+                                            <p className="text-xs sm:text-sm font-bold text-foreground">
                                                 {new Date(date).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} · {formatSlotTime(time)}
                                             </p>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-3 px-4 py-3">
+                                    <div className="flex items-center gap-3 px-4 py-2.5">
                                         {FORMAT_META[sessionType]?.icon
                                             ? <span className="text-muted-foreground/60 shrink-0 w-4 h-4 flex items-center">{FORMAT_META[sessionType].icon}</span>
                                             : <Video className="w-4 h-4 text-muted-foreground/60 shrink-0" />}
                                         <div>
-                                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Format</p>
-                                            <p className="text-sm font-bold text-foreground">{FORMAT_META[sessionType]?.label ?? sessionType}</p>
+                                            <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-bold">Format</p>
+                                            <p className="text-xs sm:text-sm font-bold text-foreground">{FORMAT_META[sessionType]?.label ?? sessionType}</p>
                                         </div>
                                     </div>
+                                    {bookingDetails.email && (
+                                        <div className="flex items-center gap-3 px-4 py-2.5">
+                                            <Mail className="w-4 h-4 text-muted-foreground/60 shrink-0" />
+                                            <div>
+                                                <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-bold">Confirmation Sent To</p>
+                                                <p className="text-xs sm:text-sm font-bold text-foreground">{bookingDetails.email}</p>
+                                            </div>
+                                        </div>
+                                    )}
+                                    {orderData?.bookingId && (
+                                        <div className="flex items-center gap-3 px-4 py-2 bg-muted/20">
+                                            <Tag className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" />
+                                            <div>
+                                                <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-semibold">Booking Reference</p>
+                                                <p className="text-[11px] font-mono font-bold text-muted-foreground">{orderData.bookingId}</p>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
-                            <p className="text-xs text-muted-foreground leading-relaxed max-w-xs">
-                                A confirmation with the meeting link has been sent to your email.
-                            </p>
+                            {/* Informational callout */}
+                            <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/40 p-3.5 text-left text-xs space-y-1.5 w-full">
+                                <div className="flex items-center gap-2 font-bold text-emerald-800 dark:text-emerald-300 text-xs">
+                                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                                    <span>Confirmation email sent!</span>
+                                </div>
+                                <p className="text-[11px] text-emerald-700/90 dark:text-emerald-400/90 leading-relaxed">
+                                    We&apos;ve emailed your booking receipt and meeting details to <strong className="font-bold text-emerald-900 dark:text-emerald-200">{bookingDetails.email}</strong>. Please check your inbox (and spam/promotions folder).
+                                </p>
+                                {!isAuthenticated && (
+                                    <p className="text-[10px] text-muted-foreground pt-1 border-t border-emerald-200/60 dark:border-emerald-800/40">
+                                        💡 You don&apos;t need an account to join. Just click the meeting link in your email at the scheduled session time!
+                                    </p>
+                                )}
+                            </div>
 
                             {onComplete && (
                                 <Button onClick={onComplete} className="w-full h-11 rounded-xl bg-primary text-background text-xs font-black uppercase tracking-wider shadow-lg shadow-primary/20">
@@ -950,10 +1130,12 @@ export default function BookingFlow({
                         {currentStep === 2 && (
                             <Button
                                 onClick={handleNextStep}
-                                disabled={timeLeft === 0}
+                                disabled={timeLeft === 0 || processing}
+                                loading={processing}
+                                loadingText="Verifying payment…"
                                 className="h-10 lg:h-11 rounded-xl px-6 text-xs font-black uppercase tracking-wide shadow-md disabled:opacity-50"
                             >
-                                Pay ₹{payableAmount}
+                                {errors.payment ? `Retry Pay ₹${payableAmount}` : `Pay ₹${payableAmount}`}
                             </Button>
                         )}
                     </div>

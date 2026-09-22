@@ -409,10 +409,7 @@ export default async function TherapistProfilePage({ params }: { params: { id: s
                                             Formats: {t.sessionTypes.join(' & ')} Calls
                                         </p>
                                     </div>
-                                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                        15-min free intro
-                                    </span>
+                                  
                                 </div>
 
                                 <BookingModal
