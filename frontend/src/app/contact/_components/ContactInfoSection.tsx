@@ -1,6 +1,6 @@
 'use client';
 import { motion } from 'framer-motion';
-import { Mail, MapPin, Phone, Clock } from 'lucide-react';
+import { Mail, Phone } from 'lucide-react';
 
 const CONTACT_INFO = [
     {
@@ -14,22 +14,7 @@ const CONTACT_INFO = [
         icon: Phone,
         title: "Call Us",
         detail: "+91 94839 00043",
-        subtext: "Mon-Fri from 8am to 6pm.",
         link: "tel:+919483900043"
-    },
-    {
-        icon: MapPin,
-        title: "Visit Us",
-        detail: "123 Therapy Lane, Suite 100",
-        subtext: "New York, NY 10001",
-        link: "#"
-    },
-    {
-        icon: Clock,
-        title: "Office Hours",
-        detail: "Monday – Friday",
-        subtext: "8:00 AM – 8:00 PM EST",
-        link: "#"
     }
 ];
 
@@ -56,7 +41,7 @@ export function ContactInfoSection() {
                             
                             <h3 className="text-xl font-normal text-foreground mb-2 font-display">{info.title}</h3>
                             <p className="text-lg text-foreground font-medium mb-1 whitespace-nowrap">{info.detail}</p>
-                            <p className="text-sm text-muted-foreground">{info.subtext}</p>
+                            {info.subtext && <p className="text-sm text-muted-foreground">{info.subtext}</p>}
                         </div>
                     </motion.a>
                 );

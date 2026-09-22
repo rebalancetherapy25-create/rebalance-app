@@ -97,7 +97,8 @@ export default function TermsPage() {
                     </section>
 
                     {/* Section 5 (styled as an eye-catching warning block) */}
-                    <section className="bg-accent/10 border border-accent/20 rounded-[2rem] p-6 sm:p-8 space-y-4 shadow-xs">
+                    <section id="medical-crisis-disclaimer" className="scroll-mt-28 sm:scroll-mt-32 bg-accent/10 border border-accent/20 rounded-[2rem] p-6 sm:p-8 space-y-4 shadow-xs relative">
+                        <span id="crisis-disclaimer" className="absolute -top-28 pointer-events-none" />
                         <h2 className="text-lg sm:text-xl font-extrabold text-foreground flex items-center gap-3">
                             <span className="w-7 h-7 rounded-full bg-accent text-white text-xs font-black flex items-center justify-center shrink-0">5</span>
                             MEDICAL & CRISIS DISCLAIMER

@@ -95,7 +95,7 @@ export default async function LandingPage() {
                                 </div>
                             </div>
                             <div className="ml-14 md:ml-0 shrink-0">
-                                <Link href="/contact">
+                                <Link href="/terms#medical-crisis-disclaimer">
                                     <Button variant="outline" className="rounded-full border-accent/30 text-accent font-medium bg-transparent hover:bg-accent/10 hover:text-accent w-full md:w-auto px-6">
                                         View Resources
                                     </Button>

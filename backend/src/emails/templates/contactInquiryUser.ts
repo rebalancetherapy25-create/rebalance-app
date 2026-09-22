@@ -12,7 +12,7 @@ export const contactInquiryUserEmail = (options: {
       <p class="p">One of our specialists will review your inquiry and get back to you within 24 hours.</p>
       <div style="background: rgba(107,44,71,0.05); border: 1px solid rgba(107,44,71,0.15); border-radius: 12px; padding: 18px 22px; margin: 20px 0;">
         <p class="p" style="margin: 0 0 6px 0;"><strong>Need immediate assistance?</strong></p>
-        <p class="p" style="margin: 0; font-size: 14px;">You can call us directly at <strong>+91 94839 00043</strong> (Mon–Fri, 8 AM – 6 PM) or write to <a href="mailto:rebalancetherapy25@gmail.com" style="color: #6B2C47;">rebalancetherapy25@gmail.com</a>.</p>
+        <p class="p" style="margin: 0; font-size: 14px;">You can call us directly at <strong>+91 94839 00043</strong> or write to <a href="mailto:rebalancetherapy25@gmail.com" style="color: #6B2C47;">rebalancetherapy25@gmail.com</a>.</p>
       </div>
       <p class="p muted">Warm regards,<br/>The ReBalance Therapy Team</p>
     `;
