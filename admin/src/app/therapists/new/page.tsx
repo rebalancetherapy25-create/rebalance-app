@@ -172,9 +172,7 @@ export default function NewTherapistPage() {
             if (profileImageFile) {
                 const formData = new FormData();
                 formData.append('image', profileImageFile);
-                await api.post(`/admin/therapists/${res.data._id}/image`, formData, {
-                    headers: { 'Content-Type': 'multipart/form-data' },
-                });
+                await api.post(`/admin/therapists/${res.data._id}/image`, formData);
             }
 
             toast({ title: 'Therapist created', description: 'Profile created successfully.' });

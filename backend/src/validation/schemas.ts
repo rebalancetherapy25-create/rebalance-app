@@ -149,12 +149,12 @@ export const adminSchemas = {
     bannerCreate: z.object({
         title: z.string().trim().min(2, 'Banner title is required.'),
         isActive: z.union([z.boolean(), z.string()]).optional(),
-        imageUrl: z.string().trim().url('Banner image URL must be valid.').optional(),
+        imageUrl: z.string().trim().optional(),
     }),
     bannerUpdate: z.object({
         title: z.string().trim().min(2, 'Banner title is required.').optional(),
         isActive: z.union([z.boolean(), z.string()]).optional(),
-        imageUrl: z.string().trim().url('Banner image URL must be valid.').optional(),
+        imageUrl: z.string().trim().optional(),
     }),
     offerBannerCreate: z.object({
         type: z.enum(['text', 'image']).default('text'),

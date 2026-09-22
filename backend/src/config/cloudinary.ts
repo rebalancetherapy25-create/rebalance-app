@@ -4,6 +4,7 @@ import multer from 'multer';
 import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
+import { ApiError } from '../lib/http';
 dotenv.config();
 
 const isProduction = process.env.NODE_ENV === 'production';
@@ -16,7 +17,19 @@ if (isProduction && !isCloudinaryConfigured) {
     console.warn('[cloudinary] Cloudinary is not fully configured in production. Upload routes will fail until env vars are set.');
 }
 
-const allowedMimeTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const allowedMimeTypes = new Set([
+    'image/jpeg',
+    'image/jpg',
+    'image/pjpeg',
+    'image/png',
+    'image/x-png',
+    'image/webp',
+    'image/gif',
+    'image/svg+xml',
+    'image/avif',
+]);
+
+const allowedFormats = ['jpg', 'png', 'jpeg', 'webp', 'gif', 'svg', 'avif'];
 
 let storage: multer.StorageEngine;
 let therapistStorage: multer.StorageEngine;
@@ -34,7 +47,7 @@ if (isCloudinaryConfigured) {
         params: async (req: any, file: any) => {
             return {
                 folder: 'rebalance_banners',
-                allowed_formats: ['jpg', 'png', 'jpeg', 'webp'],
+                allowed_formats: allowedFormats,
             };
         },
     });
@@ -45,7 +58,7 @@ if (isCloudinaryConfigured) {
         params: async (req: any, file: any) => {
             return {
                 folder: 'rebalance_therapists',
-                allowed_formats: ['jpg', 'png', 'jpeg', 'webp'],
+                allowed_formats: allowedFormats,
             };
         },
     });
@@ -85,18 +98,25 @@ if (isCloudinaryConfigured) {
 export const upload = multer({ storage });
 export { cloudinary };
 
+const allowedExtensions = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif', '.svg', '.avif']);
+
+const imageFileFilter: multer.Options['fileFilter'] = (_req, file, callback) => {
+    const mime = (file.mimetype || '').toLowerCase().split(';')[0]?.trim() || '';
+    const ext = path.extname(file.originalname || '').toLowerCase();
+
+    if (!allowedMimeTypes.has(mime) && !mime.startsWith('image/') && !allowedExtensions.has(ext)) {
+        callback(new ApiError(400, 'Only image files (JPG, PNG, WEBP, GIF, SVG, AVIF) are allowed.', { code: 'INVALID_FILE_TYPE' }));
+        return;
+    }
+    callback(null, true);
+};
+
 export const bannerUpload = multer({
     storage,
     limits: {
         fileSize: 5 * 1024 * 1024,
     },
-    fileFilter: (_req, file, callback) => {
-        if (!allowedMimeTypes.has(file.mimetype)) {
-            callback(new Error('Only JPG, PNG, and WEBP images are allowed.'));
-            return;
-        }
-        callback(null, true);
-    },
+    fileFilter: imageFileFilter,
 });
 
 export const therapistImageUpload = multer({
@@ -104,11 +124,5 @@ export const therapistImageUpload = multer({
     limits: {
         fileSize: 5 * 1024 * 1024,
     },
-    fileFilter: (_req, file, callback) => {
-        if (!allowedMimeTypes.has(file.mimetype)) {
-            callback(new Error('Only JPG, PNG, and WEBP images are allowed.'));
-            return;
-        }
-        callback(null, true);
-    },
+    fileFilter: imageFileFilter,
 });

@@ -15,9 +15,10 @@ export const createBanner = async (req: Request, res: Response) => {
     try {
         const { title, isActive } = req.body;
 
+        const file = (req as any).file;
         let imageUrl = '';
-        if ((req as any).file) {
-            imageUrl = (req as any).file.path;
+        if (file) {
+            imageUrl = file.path || file.secure_url || file.url || '';
         } else if (req.body.imageUrl) {
             imageUrl = req.body.imageUrl;
         } else {
@@ -48,11 +49,12 @@ export const updateBanner = async (req: Request, res: Response) => {
             return sendError(res, 404, 'Banner not found', { code: 'BANNER_NOT_FOUND' });
         }
 
-        if (title) banner.title = title;
+        if (title !== undefined && title !== null) banner.title = title;
         if (isActive !== undefined) banner.isActive = isActive === 'true' || isActive === true;
 
-        if ((req as any).file) {
-            banner.imageUrl = (req as any).file.path;
+        const file = (req as any).file;
+        if (file) {
+            banner.imageUrl = file.path || file.secure_url || file.url || banner.imageUrl;
         } else if (req.body.imageUrl) {
             banner.imageUrl = req.body.imageUrl;
         }

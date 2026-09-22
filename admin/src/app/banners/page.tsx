@@ -90,11 +90,7 @@ export default function BannersPage() {
             formData.append('image', imageFile!);
             formData.append('isActive', 'true');
 
-            await api.post('/banners', formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                },
-            });
+            await api.post('/banners', formData);
 
             setTitle('');
             setImageFile(null);
@@ -121,6 +117,9 @@ export default function BannersPage() {
         setEditFormData({ title: banner.title, isActive: banner.isActive });
         setEditPreviewUrl(banner.imageUrl);
         setEditFile(null);
+        if (editFileInputRef.current) {
+            editFileInputRef.current.value = '';
+        }
         setIsEditOpen(true);
     };
 
@@ -162,15 +161,14 @@ export default function BannersPage() {
 
         if (editFile) {
             formData.append('image', editFile);
+        } else if (editingBanner.imageUrl) {
+            formData.append('imageUrl', editingBanner.imageUrl);
         }
 
         try {
-            await api.put(`/banners/${editingBanner._id}`, formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                },
-            });
+            await api.put(`/banners/${editingBanner._id}`, formData);
             setIsEditOpen(false);
+            setEditFile(null);
             toast({
                 title: 'Banner updated',
                 description: 'The banner changes were saved successfully.',

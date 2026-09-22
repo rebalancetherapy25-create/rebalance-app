@@ -30,10 +30,12 @@ export const createOfferBanner = async (req: Request, res: Response) => {
         const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
         if (files) {
             if (files['mobileImage']?.[0]) {
-                mobileImageUrl = files['mobileImage'][0].path;
+                const f = files['mobileImage'][0];
+                mobileImageUrl = f.path || (f as any).secure_url || (f as any).url || mobileImageUrl;
             }
             if (files['desktopImage']?.[0]) {
-                desktopImageUrl = files['desktopImage'][0].path;
+                const f = files['desktopImage'][0];
+                desktopImageUrl = f.path || (f as any).secure_url || (f as any).url || desktopImageUrl;
             }
         }
 
@@ -79,10 +81,12 @@ export const updateOfferBanner = async (req: Request, res: Response) => {
         const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
         if (files) {
             if (files['mobileImage']?.[0]) {
-                mobileImageUrl = files['mobileImage'][0].path;
+                const f = files['mobileImage'][0];
+                mobileImageUrl = f.path || (f as any).secure_url || (f as any).url || mobileImageUrl;
             }
             if (files['desktopImage']?.[0]) {
-                desktopImageUrl = files['desktopImage'][0].path;
+                const f = files['desktopImage'][0];
+                desktopImageUrl = f.path || (f as any).secure_url || (f as any).url || desktopImageUrl;
             }
         }
 
@@ -90,8 +94,8 @@ export const updateOfferBanner = async (req: Request, res: Response) => {
         if (text !== undefined) banner.text = text;
         if (code !== undefined) banner.code = code;
         if (link !== undefined) banner.link = link;
-        if (mobileImageUrl !== undefined) banner.mobileImageUrl = mobileImageUrl;
-        if (desktopImageUrl !== undefined) banner.desktopImageUrl = desktopImageUrl;
+        if (mobileImageUrl !== undefined && mobileImageUrl !== '') banner.mobileImageUrl = mobileImageUrl;
+        if (desktopImageUrl !== undefined && desktopImageUrl !== '') banner.desktopImageUrl = desktopImageUrl;
         if (isActive !== undefined) banner.isActive = isActive === 'true' || isActive === true;
 
         await banner.save();

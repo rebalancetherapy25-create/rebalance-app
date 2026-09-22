@@ -163,11 +163,7 @@ export default function OfferBannersPage() {
                 if (desktopFile) formData.append('desktopImage', desktopFile);
             }
 
-            await api.post('/offer-banners', formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                },
-            });
+            await api.post('/offer-banners', formData);
 
             setText('');
             setCode('');
@@ -212,6 +208,8 @@ export default function OfferBannersPage() {
         setEditDesktopFile(null);
         setEditMobilePreview(banner.mobileImageUrl || null);
         setEditDesktopPreview(banner.desktopImageUrl || null);
+        if (editMobileInputRef.current) editMobileInputRef.current.value = '';
+        if (editDesktopInputRef.current) editDesktopInputRef.current.value = '';
         setIsEditOpen(true);
     };
 
@@ -254,16 +252,20 @@ export default function OfferBannersPage() {
                 formData.append('text', editFormData.text.trim());
                 formData.append('code', editFormData.code.trim());
             } else {
+                if (editFormData.mobileImageUrl) {
+                    formData.append('mobileImageUrl', editFormData.mobileImageUrl);
+                }
+                if (editFormData.desktopImageUrl) {
+                    formData.append('desktopImageUrl', editFormData.desktopImageUrl);
+                }
                 if (editMobileFile) formData.append('mobileImage', editMobileFile);
                 if (editDesktopFile) formData.append('desktopImage', editDesktopFile);
             }
 
-            await api.put(`/offer-banners/${editingBanner._id}`, formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                },
-            });
+            await api.put(`/offer-banners/${editingBanner._id}`, formData);
             setIsEditOpen(false);
+            setEditMobileFile(null);
+            setEditDesktopFile(null);
             toast({
                 title: 'Offer banner updated',
                 description: 'The offer banner was updated successfully.',

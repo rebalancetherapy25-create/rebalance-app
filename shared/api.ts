@@ -27,6 +27,17 @@ export const attachApiClientBehavior = (api: ApiClient, refreshPath: string) => 
         config.headers[CSRF_HEADER_NAME] = csrfToken;
       }
     }
+
+    if (typeof FormData !== 'undefined' && config.data instanceof FormData && config.headers) {
+      if (typeof config.headers.delete === 'function') {
+        config.headers.delete('Content-Type');
+        config.headers.delete('content-type');
+      } else {
+        delete config.headers['Content-Type'];
+        delete config.headers['content-type'];
+      }
+    }
+
     return config;
   });
 

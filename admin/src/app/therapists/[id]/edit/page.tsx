@@ -356,9 +356,7 @@ export default function EditTherapistPage() {
                                         formData.append('image', file);
                                         
                                         try {
-                                            const res = await api.post(`/admin/therapists/${id}/image`, formData, {
-                                                headers: { 'Content-Type': 'multipart/form-data' },
-                                            });
+                                            const res = await api.post(`/admin/therapists/${id}/image`, formData);
                                             setProfileImage(res.data.imageUrl);
                                             toast({ title: 'Image uploaded successfully' });
                                         } catch (err) {

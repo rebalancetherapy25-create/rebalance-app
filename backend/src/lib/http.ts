@@ -141,6 +141,25 @@ export const errorHandler = (error: unknown, req: Request, res: Response, _next:
         return sendError(res, error.statusCode, error.message, options);
     }
 
+    if (error && typeof error === 'object' && ((error as any).name === 'MulterError' || ('code' in error && String((error as any).code).startsWith('LIMIT_')))) {
+        const multerError = error as any;
+        let msg = multerError.message || 'File upload error';
+        if (multerError.code === 'LIMIT_FILE_SIZE') {
+            msg = 'Image file size is too large (maximum allowed size is 5MB).';
+        } else if (multerError.code === 'LIMIT_UNEXPECTED_FILE') {
+            msg = `Unexpected file field: ${multerError.field || 'unknown'}.`;
+        }
+        return sendError(res, 400, msg, { code: multerError.code || 'MULTER_ERROR' });
+    }
+
+    if (error && typeof error === 'object' && typeof (error as any).statusCode === 'number') {
+        const errObj = error as any;
+        return sendError(res, errObj.statusCode, errObj.message || 'Request failed', {
+            code: errObj.code,
+            fields: errObj.fields,
+        });
+    }
+
     return sendError(res, 500, 'Something went wrong', { code: 'INTERNAL_SERVER_ERROR' });
 };
 
