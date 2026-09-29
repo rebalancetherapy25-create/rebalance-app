@@ -47,7 +47,7 @@ export function Footer() {
                     {/* Socials */}
                     <div className="flex items-center gap-2 shrink-0">
                         <a 
-                            href="https://www.instagram.com/rebalancetherapy.co?igsi=MXJvNW5uZzZ5MnEweA%3D%3D&utm_source=qr" 
+                            href="https://www.instagram.com/rebalance_therapy.co?stkn=MXJvNW5uZzZ5MnEweA%3D%3D&utm_source=qr" 
                             target="_blank" 
                             rel="noopener noreferrer" 
                             aria-label="Instagram"

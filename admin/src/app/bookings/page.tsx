@@ -208,6 +208,7 @@ export default function BookingsPage() {
         time: '',
         sessionType: 'video',
         status: 'confirmed',
+        meetingLink: '',
     });
     const [createLoading, setCreateLoading] = useState(false);
 
@@ -292,7 +293,7 @@ export default function BookingsPage() {
     }, [bookings, searchQuery, statusFilter, therapistFilter, sortField, sortDir]);
 
     const resetCreateForm = () =>
-        setCreateFormData({ userId: '', therapistId: '', date: '', time: '', sessionType: 'video', status: 'confirmed' });
+        setCreateFormData({ userId: '', therapistId: '', date: '', time: '', sessionType: 'video', status: 'confirmed', meetingLink: '' });
 
     const handleCreateSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -748,6 +749,20 @@ export default function BookingsPage() {
                                     </button>
                                 ))}
                             </div>
+                        </div>
+
+                        {/* Meeting Link (optional) */}
+                        <div className="space-y-1.5">
+                            <label className="block text-sm font-medium text-neutral-300">
+                                Meeting Link <span className="text-neutral-600 font-normal">(optional)</span>
+                            </label>
+                            <input
+                                type="url"
+                                value={createFormData.meetingLink}
+                                onChange={(e) => setCreateFormData((f) => ({ ...f, meetingLink: e.target.value }))}
+                                className="w-full px-3 py-2.5 bg-neutral-950 border border-neutral-800 rounded-lg text-sm text-white focus:ring-1 focus:ring-emerald-500 focus:outline-none placeholder:text-neutral-600"
+                                placeholder="https://meet.google.com/..."
+                            />
                         </div>
 
                         <DialogFooter className="pt-4 border-t border-neutral-800">

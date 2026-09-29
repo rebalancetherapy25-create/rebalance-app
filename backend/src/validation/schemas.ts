@@ -124,6 +124,7 @@ export const adminSchemas = {
         time: timeLike,
         sessionType: z.preprocess((val) => typeof val === 'string' ? val.toLowerCase() : val, z.enum(['video', 'phone', 'chat', 'audio'])),
         status: z.enum(['pending', 'confirmed', 'completed', 'cancelled']).optional(),
+        meetingLink: z.string().trim().optional(),
         bookingReason: z.string().optional(),
         notes: z.string().optional(),
     }),

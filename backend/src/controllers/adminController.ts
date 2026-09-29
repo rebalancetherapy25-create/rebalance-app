@@ -6,9 +6,12 @@ import { runBookingMaintenance } from '../services/bookingMaintenanceService';
 import { createTherapistAccountAndInvite } from '../services/therapistInviteService';
 import { sendEmail } from '../services/emailService';
 import { queueEmail } from '../services/emailOutboxService';
-import { sendBookingConfirmedNotification, sendMeetingLinkAddedNotification } from '../services/bookingNotificationService';
-import { bookingRescheduledEmail } from '../emails/templates/bookingRescheduled';
-import { bookingCancelledEmail } from '../emails/templates/bookingCancelled';
+import {
+    sendBookingConfirmedNotification,
+    sendMeetingLinkAddedNotification,
+    sendBookingRescheduledNotification,
+    sendBookingCancelledNotification,
+} from '../services/bookingNotificationService';
 import { sendData, sendError } from '../lib/http';
 import {
     ACTIVE_BOOKING_STATUSES,
@@ -355,11 +358,12 @@ export const getBookings = async (req: Request, res: Response) => {
 
 export const createBooking = async (req: Request, res: Response) => {
     try {
-        const { userId, therapistId, date, time, sessionType, status } = req.body;
+        const { userId, therapistId, date, time, sessionType, status, meetingLink } = req.body;
         const normalizedDate = normalizeDate(String(date));
         const normalizedTime = normalizeTime(String(time));
         const normalizedSessionType = normalizeSessionType(String(sessionType));
         const normalizedStatus = String(status || 'confirmed').toLowerCase() as BookingStatus;
+        const normalizedMeetingLink = meetingLink ? String(meetingLink).trim() || undefined : undefined;
 
         if (!userId || !therapistId || !normalizedDate || !normalizedTime || !normalizedSessionType) {
             return sendError(res, 400, 'userId, therapistId, date, time and valid sessionType are required', {
@@ -400,13 +404,23 @@ export const createBooking = async (req: Request, res: Response) => {
             sessionType: normalizedSessionType,
             amount: Math.round(Number(therapist.price || 0)),
             status: normalizedStatus,
+            meetingLink: normalizedMeetingLink,
         });
 
         if (normalizedStatus === 'confirmed' || normalizedStatus === 'completed') {
             await adminMarkSlotBooked(String(therapistId), normalizedDate, normalizedTime);
         }
 
-        return sendData(res, booking, 201);
+        if (normalizedStatus === 'confirmed') {
+            try {
+                await sendBookingConfirmedNotification(booking);
+            } catch (notificationErr) {
+                console.error('[AdminBookingCreate] Error sending booking confirmation notification:', notificationErr);
+            }
+        }
+
+        const populated = await Booking.findById(booking._id).populate('userId', 'name email').populate('therapistId', 'name email');
+        return sendData(res, populated || booking, 201);
     } catch (error) {
         return sendError(res, 500, 'Server error creating booking', { code: 'ADMIN_BOOKING_CREATE_FAILED' });
     }
@@ -481,7 +495,7 @@ export const updateAdminPassword = async (req: Request, res: Response) => {
 };
 export const updateBookingStatus = async (req: Request, res: Response) => {
     try {
-        const booking = await Booking.findById(req.params.id).populate('userId', 'name email').populate('therapistId', 'name');
+        const booking = await Booking.findById(req.params.id).populate('userId', 'name email').populate('therapistId', 'name email');
 
         if (!booking) {
             return sendError(res, 404, 'Booking not found', { code: 'BOOKING_NOT_FOUND' });
@@ -595,38 +609,25 @@ export const updateBookingStatus = async (req: Request, res: Response) => {
             }
         }
 
-        if (recipientEmail) {
-            try {
-                if (didReschedule) {
-                    const tpl = bookingRescheduledEmail({
-                        recipientName,
-                        therapistName,
-                        previousDate,
-                        previousTime: formatSlotTime(previousTime),
-                        nextDate: booking.date,
-                        nextTime: formatSlotTime(booking.time),
-                        ...(booking.meetingLink ? { meetingLink: booking.meetingLink } : {}),
-                    });
-                    await queueEmail(recipientEmail, tpl.subject, tpl.html);
-                } else if (didCancel) {
-                    const tpl = bookingCancelledEmail({
-                        recipientName,
-                        therapistName,
-                        date: booking.date,
-                        time: formatSlotTime(booking.time),
-                    });
-                    await queueEmail(recipientEmail, tpl.subject, tpl.html);
-                } else if (didConfirm) {
+        try {
+            if (didReschedule) {
+                await sendBookingRescheduledNotification(booking, previousDate, previousTime);
+            } else if (didCancel) {
+                await sendBookingCancelledNotification(booking);
+            } else if (didConfirm) {
+                await sendBookingConfirmedNotification(booking);
+            } else if (didAddOrUpdateMeetingLink && booking.meetingLink) {
+                if (!booking.confirmationEmailSent && booking.status === 'confirmed') {
                     await sendBookingConfirmedNotification(booking);
-                } else if (didAddOrUpdateMeetingLink && booking.meetingLink) {
+                } else {
                     await sendMeetingLinkAddedNotification(booking);
                 }
-            } catch (emailErr) {
-                console.error('[AdminBookingUpdate] Non-fatal error sending email:', emailErr);
             }
+        } catch (emailErr) {
+            console.error('[AdminBookingUpdate] Non-fatal error sending email:', emailErr);
         }
 
-        const populated = await Booking.findById(booking._id).populate('userId', 'name email').populate('therapistId', 'name');
+        const populated = await Booking.findById(booking._id).populate('userId', 'name email').populate('therapistId', 'name email');
         return sendData(res, { success: true, booking: populated });
     } catch (error) {
         return sendError(res, 500, 'Server error updating booking', { code: 'ADMIN_BOOKING_UPDATE_FAILED' });
