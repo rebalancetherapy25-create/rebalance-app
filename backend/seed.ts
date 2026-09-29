@@ -8,6 +8,7 @@ dotenv.config();
 const therapists = [
     {
         name: 'Dr. Priya Sharma',
+        email: 'priya.sharma@rebalancetherapy.co.in',
         bio: 'I specialize in helping individuals navigate anxiety, depression, and life transitions using evidence-based CBT techniques. My approach is warm, non-judgmental, and tailored to each person\'s unique journey.',
         credentials: 'PhD Clinical Psychology, NIMHANS Bangalore, Certified CBT Practitioner',
         gender: 'Female',
@@ -36,6 +37,7 @@ const therapists = [
     },
     {
         name: 'Dr. Arjun Mehta',
+        email: 'arjun.mehta@rebalancetherapy.co.in',
         bio: 'With a background in both psychiatry and psychotherapy, I work with adults dealing with trauma, PTSD, and relationship difficulties. I use EMDR and somatic approaches to help clients process and heal.',
         credentials: 'MD Psychiatry, AIIMS Delhi, Certified EMDR Therapist, Somatic Experiencing Practitioner',
         gender: 'Male',
@@ -61,6 +63,7 @@ const therapists = [
     },
     {
         name: 'Dr. Sneha Iyer',
+        email: 'sneha.iyer@rebalancetherapy.co.in',
         bio: 'I am passionate about supporting women through reproductive mental health challenges including postpartum depression, pregnancy loss, and infertility. I bring deep empathy and clinical expertise to every session.',
         credentials: 'MSc Counselling Psychology, Tata Institute, Postpartum Support International Certified',
         gender: 'Female',
@@ -88,6 +91,7 @@ const therapists = [
     },
     {
         name: 'Dr. Rohan Kapoor',
+        email: 'rohan.kapoor@rebalancetherapy.co.in',
         bio: 'I work with adolescents and young adults navigating academic pressure, identity questions, and social anxiety. My approach combines motivational interviewing with mindfulness to foster lasting resilience.',
         credentials: 'MEd Counselling, Delhi University, Certified Adolescent Therapist, Mindfulness-Based Stress Reduction',
         gender: 'Male',
@@ -113,6 +117,7 @@ const therapists = [
     },
     {
         name: 'Dr. Kavya Nair',
+        email: 'kavya.nair@rebalancetherapy.co.in',
         bio: 'As a couples and family therapist, I help partners rebuild trust, improve communication, and rediscover connection. I use Emotionally Focused Therapy (EFT) and the Gottman Method in my practice.',
         credentials: 'MSc Family Therapy, Manipal University, Gottman Level 2 Certified, EFT Trained',
         gender: 'Female',
@@ -138,6 +143,7 @@ const therapists = [
     },
     {
         name: 'Dr. Vikram Rao',
+        email: 'vikram.rao@rebalancetherapy.co.in',
         bio: 'I specialize in OCD, phobias, and health anxiety using Exposure and Response Prevention (ERP) therapy. I believe in practical, structured treatment that gives clients real tools to reclaim their lives.',
         credentials: 'PhD Psychology, IIT Bombay, IOCDF Certified OCD Specialist, ERP Practitioner',
         gender: 'Male',
@@ -163,6 +169,7 @@ const therapists = [
     },
     {
         name: 'Dr. Ananya Bose',
+        email: 'ananya.bose@rebalancetherapy.co.in',
         bio: 'I help professionals and executives manage burnout, workplace stress, and career transitions. My coaching-therapy hybrid approach focuses on both emotional wellbeing and practical performance strategies.',
         credentials: 'MBA + MSc Occupational Psychology, ISB Hyderabad, ICF Certified Coach',
         gender: 'Female',
@@ -188,6 +195,7 @@ const therapists = [
     },
     {
         name: 'Dr. Sameer Joshi',
+        email: 'sameer.joshi@rebalancetherapy.co.in',
         bio: 'I work with individuals facing addiction and substance use challenges, using a compassionate, non-shaming approach rooted in motivational interviewing and harm reduction principles.',
         credentials: 'MD Psychiatry, KEM Mumbai, Addiction Psychiatry Fellowship, CRAFT Certified',
         gender: 'Male',
@@ -215,6 +223,7 @@ const therapists = [
     },
     {
         name: 'Dr. Meera Pillai',
+        email: 'meera.pillai@rebalancetherapy.co.in',
         bio: 'I specialize in grief, loss, and existential concerns. Whether you are mourning a person, a relationship, or a version of yourself, I offer a compassionate space to process and find meaning.',
         credentials: 'MA Existential Psychotherapy, Hyderabad University, Certified Grief Counsellor, ADEC Member',
         gender: 'Female',
@@ -240,6 +249,7 @@ const therapists = [
     },
     {
         name: 'Dr. Aditya Verma',
+        email: 'aditya.verma@rebalancetherapy.co.in',
         bio: 'I work with clients experiencing ADHD, learning differences, and neurodivergence. My strengths-based approach helps individuals harness their unique minds and build systems that work for them.',
         credentials: 'MEd Special Education, BHU Varanasi, ADHD Certified Clinician, Positive Psychology Practitioner',
         gender: 'Male',

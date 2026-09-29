@@ -10,37 +10,63 @@ import { bookingCancelledEmail } from '../emails/templates/bookingCancelled';
 import { therapistBookingCancelledEmail } from '../emails/templates/therapistBookingCancelled';
 import { paymentFailedEmail } from '../emails/templates/paymentFailed';
 import { formatSlotTime } from '../utils/schedule';
+import config from '../config/env';
 
-const resolveTherapistEmail = async (therapistRef: any): Promise<string | undefined> => {
-    if (therapistRef?.email) {
-        return therapistRef.email;
-    }
-    const therapistId = therapistRef?._id || therapistRef;
-    if (therapistId) {
+export const resolveTherapistInfo = async (therapistRef: any): Promise<{ name: string; email?: string; id?: string }> => {
+    let name = therapistRef?.name;
+    let email = therapistRef?.email;
+    const id = String(therapistRef?._id || therapistRef || '');
+
+    if ((!name || !email) && id) {
         try {
-            const therapistDoc = await Therapist.findById(therapistId).select('email');
-            if (therapistDoc?.email) return therapistDoc.email;
-            const account = await TherapistAccount.findOne({ therapistId });
-            if (account?.email) return account.email;
+            const therapistDoc = await Therapist.findById(id).select('name email');
+            if (therapistDoc) {
+                if (!name && therapistDoc.name) name = therapistDoc.name;
+                if (!email && therapistDoc.email) email = therapistDoc.email;
+            }
+            if (!email) {
+                const account = await TherapistAccount.findOne({ therapistId: id });
+                if (account?.email) email = account.email;
+            }
         } catch (err) {
-            console.error('[Notification] Error finding therapist account email:', err);
+            console.error('[Notification] Error resolving therapist doc/account:', err);
         }
     }
-    return undefined;
+
+    if (!email && config.adminEmail) {
+        console.warn(`[Notification] Therapist "${name || id}" has no registered email; using fallback admin email (${config.adminEmail})`);
+        email = config.adminEmail;
+    }
+
+    return {
+        name: name || 'your therapist',
+        email,
+        id,
+    };
+};
+
+export const resolveTherapistEmail = async (therapistRef: any): Promise<string | undefined> => {
+    const info = await resolveTherapistInfo(therapistRef);
+    return info.email;
+};
+
+const ensureBookingWithRelations = async (bookingOrId: any) => {
+    let booking = bookingOrId;
+    if (typeof booking === 'string' || booking?._bsontype === 'ObjectID' || !booking?.date || !booking?._id) {
+        booking = await Booking.findById(bookingOrId || booking)
+            .populate('userId', 'name email')
+            .populate('therapistId', 'name email');
+    } else if (!booking.therapistId || typeof booking.therapistId !== 'object' || !('name' in booking.therapistId)) {
+        booking = await Booking.findById(booking._id)
+            .populate('userId', 'name email')
+            .populate('therapistId', 'name email');
+    }
+    return booking;
 };
 
 export const sendBookingConfirmedNotification = async (bookingOrId: any): Promise<boolean> => {
     try {
-        let booking = bookingOrId;
-        if (typeof booking === 'string' || booking?._bsontype === 'ObjectID' || !booking?.date) {
-            booking = await Booking.findById(bookingOrId)
-                .populate('userId', 'name email')
-                .populate('therapistId', 'name email');
-        } else if (!booking.populated || !booking.populated('userId') || !booking.populated('therapistId')) {
-            booking = await Booking.findById(booking._id)
-                .populate('userId', 'name email')
-                .populate('therapistId', 'name email');
-        }
+        const booking = await ensureBookingWithRelations(bookingOrId);
 
         if (!booking) {
             console.warn('[Notification] Cannot send confirmation email: booking not found');
@@ -64,13 +90,13 @@ export const sendBookingConfirmedNotification = async (bookingOrId: any): Promis
         // Works for both registered user and guest user
         const clientEmail: string | undefined = userRef?.email || booking.guestContact?.email;
         const clientName: string = userRef?.name || booking.guestContact?.name || 'there';
-        const therapistName: string = therapistRef?.name || 'your therapist';
+        const therapistInfo = await resolveTherapistInfo(therapistRef);
 
         // 1. Send confirmation email to client
         if (clientEmail) {
             const clientTpl = bookingConfirmedEmail({
                 recipientName: clientName,
-                therapistName,
+                therapistName: therapistInfo.name,
                 date: booking.date,
                 time: formatSlotTime(booking.time),
                 ...(booking.meetingLink ? { meetingLink: booking.meetingLink } : {}),
@@ -83,10 +109,9 @@ export const sendBookingConfirmedNotification = async (bookingOrId: any): Promis
         }
 
         // 2. Send confirmation email to therapist
-        const therapistEmail = await resolveTherapistEmail(therapistRef);
-        if (therapistEmail) {
+        if (therapistInfo.email) {
             const therapistTpl = therapistBookingConfirmedEmail({
-                therapistName,
+                therapistName: therapistInfo.name,
                 clientName,
                 date: booking.date,
                 time: formatSlotTime(booking.time),
@@ -95,10 +120,10 @@ export const sendBookingConfirmedNotification = async (bookingOrId: any): Promis
                 meetingLink: booking.meetingLink,
             });
 
-            await queueEmail(therapistEmail, therapistTpl.subject, therapistTpl.html);
-            console.log(`[Notification] Therapist confirmation email queued for ${therapistEmail} (booking ${booking._id})`);
+            await queueEmail(therapistInfo.email, therapistTpl.subject, therapistTpl.html);
+            console.log(`[Notification] Therapist confirmation email queued for ${therapistInfo.email} (booking ${booking._id})`);
         } else {
-            console.log(`[Notification] No therapist email registered for therapist ${therapistName}`);
+            console.log(`[Notification] No therapist email registered for therapist ${therapistInfo.name}`);
         }
 
         return true;
@@ -110,16 +135,7 @@ export const sendBookingConfirmedNotification = async (bookingOrId: any): Promis
 
 export const sendMeetingLinkAddedNotification = async (bookingOrId: any): Promise<boolean> => {
     try {
-        let booking = bookingOrId;
-        if (typeof booking === 'string' || booking?._bsontype === 'ObjectID' || !booking?.meetingLink) {
-            booking = await Booking.findById(bookingOrId)
-                .populate('userId', 'name email')
-                .populate('therapistId', 'name email');
-        } else if (!booking.populated || !booking.populated('userId') || !booking.populated('therapistId')) {
-            booking = await Booking.findById(booking._id)
-                .populate('userId', 'name email')
-                .populate('therapistId', 'name email');
-        }
+        const booking = await ensureBookingWithRelations(bookingOrId);
 
         if (!booking || !booking.meetingLink) {
             console.warn('[Notification] Cannot send meeting link email: booking or meetingLink missing');
@@ -132,13 +148,13 @@ export const sendMeetingLinkAddedNotification = async (bookingOrId: any): Promis
         // Works for both registered user and guest user
         const clientEmail: string | undefined = userRef?.email || booking.guestContact?.email;
         const clientName: string = userRef?.name || booking.guestContact?.name || 'there';
-        const therapistName: string = therapistRef?.name || 'your therapist';
+        const therapistInfo = await resolveTherapistInfo(therapistRef);
 
         // 1. Send meeting link email to client
         if (clientEmail) {
             const clientTpl = meetingLinkAddedEmail({
                 recipientName: clientName,
-                therapistName,
+                therapistName: therapistInfo.name,
                 date: booking.date,
                 time: formatSlotTime(booking.time),
                 meetingLink: booking.meetingLink,
@@ -151,18 +167,19 @@ export const sendMeetingLinkAddedNotification = async (bookingOrId: any): Promis
         }
 
         // 2. Send meeting link email to therapist
-        const therapistEmail = await resolveTherapistEmail(therapistRef);
-        if (therapistEmail) {
+        if (therapistInfo.email) {
             const therapistTpl = therapistMeetingLinkAddedEmail({
-                therapistName,
+                therapistName: therapistInfo.name,
                 clientName,
                 date: booking.date,
                 time: formatSlotTime(booking.time),
                 meetingLink: booking.meetingLink,
             });
 
-            await queueEmail(therapistEmail, therapistTpl.subject, therapistTpl.html);
-            console.log(`[Notification] Therapist meeting link email queued for ${therapistEmail} (booking ${booking._id})`);
+            await queueEmail(therapistInfo.email, therapistTpl.subject, therapistTpl.html);
+            console.log(`[Notification] Therapist meeting link email queued for ${therapistInfo.email} (booking ${booking._id})`);
+        } else {
+            console.log(`[Notification] No therapist email registered for therapist ${therapistInfo.name}`);
         }
 
         return true;
@@ -174,16 +191,7 @@ export const sendMeetingLinkAddedNotification = async (bookingOrId: any): Promis
 
 export const sendPaymentFailedNotification = async (bookingOrId: any, reason?: string): Promise<boolean> => {
     try {
-        let booking = bookingOrId;
-        if (typeof booking === 'string' || booking?._bsontype === 'ObjectID' || !booking?.date) {
-            booking = await Booking.findById(bookingOrId)
-                .populate('userId', 'name email')
-                .populate('therapistId', 'name email');
-        } else if (!booking.populated || !booking.populated('userId') || !booking.populated('therapistId')) {
-            booking = await Booking.findById(booking._id)
-                .populate('userId', 'name email')
-                .populate('therapistId', 'name email');
-        }
+        const booking = await ensureBookingWithRelations(bookingOrId);
 
         if (!booking) {
             console.warn('[Notification] Cannot send payment failed email: booking not found');
@@ -206,7 +214,7 @@ export const sendPaymentFailedNotification = async (bookingOrId: any, reason?: s
 
         const clientEmail: string | undefined = userRef?.email || booking.guestContact?.email;
         const clientName: string = userRef?.name || booking.guestContact?.name || 'there';
-        const therapistName: string = therapistRef?.name || 'your therapist';
+        const therapistInfo = await resolveTherapistInfo(therapistRef);
 
         if (!clientEmail) {
             console.warn(`[Notification] No client email found for payment failed booking: ${booking._id}`);
@@ -218,7 +226,7 @@ export const sendPaymentFailedNotification = async (bookingOrId: any, reason?: s
 
         const clientTpl = paymentFailedEmail({
             recipientName: clientName,
-            therapistName,
+            therapistName: therapistInfo.name,
             date: booking.date,
             time: formatSlotTime(booking.time),
             retryUrl,
@@ -240,16 +248,7 @@ export const sendBookingRescheduledNotification = async (
     previousTime: string
 ): Promise<boolean> => {
     try {
-        let booking = bookingOrId;
-        if (typeof booking === 'string' || booking?._bsontype === 'ObjectID' || !booking?.date) {
-            booking = await Booking.findById(bookingOrId)
-                .populate('userId', 'name email')
-                .populate('therapistId', 'name email');
-        } else if (!booking.populated || !booking.populated('userId') || !booking.populated('therapistId')) {
-            booking = await Booking.findById(booking._id)
-                .populate('userId', 'name email')
-                .populate('therapistId', 'name email');
-        }
+        const booking = await ensureBookingWithRelations(bookingOrId);
 
         if (!booking) {
             console.warn('[Notification] Cannot send rescheduled email: booking not found');
@@ -261,13 +260,13 @@ export const sendBookingRescheduledNotification = async (
 
         const clientEmail: string | undefined = userRef?.email || booking.guestContact?.email;
         const clientName: string = userRef?.name || booking.guestContact?.name || 'there';
-        const therapistName: string = therapistRef?.name || 'your therapist';
+        const therapistInfo = await resolveTherapistInfo(therapistRef);
 
         // 1. Send rescheduled email to client
         if (clientEmail) {
             const clientTpl = bookingRescheduledEmail({
                 recipientName: clientName,
-                therapistName,
+                therapistName: therapistInfo.name,
                 previousDate,
                 previousTime: formatSlotTime(previousTime),
                 nextDate: booking.date,
@@ -280,22 +279,23 @@ export const sendBookingRescheduledNotification = async (
             console.warn(`[Notification] No client email found for booking: ${booking._id}`);
         }
 
-        // 2. Send rescheduled email to therapist
-        const therapistEmail = await resolveTherapistEmail(therapistRef);
-        if (therapistEmail) {
+        // 2. Send rescheduled email to therapist (or fallback clinic admin)
+        if (therapistInfo.email) {
             const therapistTpl = therapistBookingRescheduledEmail({
-                therapistName,
+                therapistName: therapistInfo.name,
                 clientName,
+                clientEmail,
                 previousDate,
                 previousTime: formatSlotTime(previousTime),
                 nextDate: booking.date,
                 nextTime: formatSlotTime(booking.time),
+                sessionType: booking.sessionType,
                 ...(booking.meetingLink ? { meetingLink: booking.meetingLink } : {}),
             });
-            await queueEmail(therapistEmail, therapistTpl.subject, therapistTpl.html);
-            console.log(`[Notification] Therapist reschedule email queued for ${therapistEmail} (booking ${booking._id})`);
+            await queueEmail(therapistInfo.email, therapistTpl.subject, therapistTpl.html);
+            console.log(`[Notification] Therapist reschedule email queued for ${therapistInfo.email} (booking ${booking._id})`);
         } else {
-            console.log(`[Notification] No therapist email registered for therapist ${therapistName}`);
+            console.warn(`[Notification] No recipient email found for therapist ${therapistInfo.name}`);
         }
 
         return true;
@@ -307,16 +307,7 @@ export const sendBookingRescheduledNotification = async (
 
 export const sendBookingCancelledNotification = async (bookingOrId: any): Promise<boolean> => {
     try {
-        let booking = bookingOrId;
-        if (typeof booking === 'string' || booking?._bsontype === 'ObjectID' || !booking?.date) {
-            booking = await Booking.findById(bookingOrId)
-                .populate('userId', 'name email')
-                .populate('therapistId', 'name email');
-        } else if (!booking.populated || !booking.populated('userId') || !booking.populated('therapistId')) {
-            booking = await Booking.findById(booking._id)
-                .populate('userId', 'name email')
-                .populate('therapistId', 'name email');
-        }
+        const booking = await ensureBookingWithRelations(bookingOrId);
 
         if (!booking) {
             console.warn('[Notification] Cannot send cancelled email: booking not found');
@@ -328,13 +319,13 @@ export const sendBookingCancelledNotification = async (bookingOrId: any): Promis
 
         const clientEmail: string | undefined = userRef?.email || booking.guestContact?.email;
         const clientName: string = userRef?.name || booking.guestContact?.name || 'there';
-        const therapistName: string = therapistRef?.name || 'your therapist';
+        const therapistInfo = await resolveTherapistInfo(therapistRef);
 
         // 1. Send cancelled email to client
         if (clientEmail) {
             const clientTpl = bookingCancelledEmail({
                 recipientName: clientName,
-                therapistName,
+                therapistName: therapistInfo.name,
                 date: booking.date,
                 time: formatSlotTime(booking.time),
             });
@@ -344,19 +335,18 @@ export const sendBookingCancelledNotification = async (bookingOrId: any): Promis
             console.warn(`[Notification] No client email found for booking: ${booking._id}`);
         }
 
-        // 2. Send cancelled email to therapist
-        const therapistEmail = await resolveTherapistEmail(therapistRef);
-        if (therapistEmail) {
+        // 2. Send cancelled email to therapist (or fallback clinic admin)
+        if (therapistInfo.email) {
             const therapistTpl = therapistBookingCancelledEmail({
-                therapistName,
+                therapistName: therapistInfo.name,
                 clientName,
                 date: booking.date,
                 time: formatSlotTime(booking.time),
             });
-            await queueEmail(therapistEmail, therapistTpl.subject, therapistTpl.html);
-            console.log(`[Notification] Therapist cancellation email queued for ${therapistEmail} (booking ${booking._id})`);
+            await queueEmail(therapistInfo.email, therapistTpl.subject, therapistTpl.html);
+            console.log(`[Notification] Therapist cancellation email queued for ${therapistInfo.email} (booking ${booking._id})`);
         } else {
-            console.log(`[Notification] No therapist email registered for therapist ${therapistName}`);
+            console.warn(`[Notification] No recipient email found for therapist ${therapistInfo.name}`);
         }
 
         return true;

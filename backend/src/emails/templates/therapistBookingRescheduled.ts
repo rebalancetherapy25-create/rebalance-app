@@ -3,18 +3,22 @@ import { emailLayout, esc } from './layout';
 export const therapistBookingRescheduledEmail = (options: {
     therapistName: string;
     clientName: string;
+    clientEmail?: string | undefined;
     previousDate: string;
     previousTime: string;
     nextDate: string;
     nextTime: string;
+    sessionType?: string | undefined;
     meetingLink?: string | undefined;
 }) => {
     const therapistName = esc(options.therapistName);
     const clientName = esc(options.clientName);
+    const clientEmail = options.clientEmail ? esc(options.clientEmail) : '';
     const previousDate = esc(options.previousDate);
     const previousTime = esc(options.previousTime);
     const nextDate = esc(options.nextDate);
     const nextTime = esc(options.nextTime);
+    const sessionType = options.sessionType ? esc(options.sessionType) : '';
     const meetingLink = options.meetingLink ? esc(options.meetingLink) : '';
 
     const linkBlock = meetingLink
@@ -30,7 +34,8 @@ export const therapistBookingRescheduledEmail = (options: {
       <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 20px 0;">
         <p class="p" style="margin: 0 0 8px 0; color: #64748b;"><strong>Previous Time:</strong> <del>${previousDate} at ${previousTime}</del></p>
         <p class="p" style="margin: 0 0 8px 0; color: #0f172a;"><strong>New Time:</strong> <strong>${nextDate} at ${nextTime}</strong></p>
-        <p class="p" style="margin: 0;"><strong>Client:</strong> ${clientName}</p>
+        ${sessionType ? `<p class="p" style="margin: 0 0 8px 0; text-transform: capitalize;"><strong>Format:</strong> ${sessionType} Session</p>` : ''}
+        <p class="p" style="margin: 0;"><strong>Client:</strong> ${clientName}${clientEmail ? ` (${clientEmail})` : ''}</p>
       </div>
       ${linkBlock}
     `;
