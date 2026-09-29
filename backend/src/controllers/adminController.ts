@@ -414,6 +414,9 @@ export const createBooking = async (req: Request, res: Response) => {
         if (normalizedStatus === 'confirmed') {
             try {
                 await sendBookingConfirmedNotification(booking);
+                if (booking.meetingLink) {
+                    await sendMeetingLinkAddedNotification(booking);
+                }
             } catch (notificationErr) {
                 console.error('[AdminBookingCreate] Error sending booking confirmation notification:', notificationErr);
             }
@@ -614,12 +617,14 @@ export const updateBookingStatus = async (req: Request, res: Response) => {
                 await sendBookingRescheduledNotification(booking, previousDate, previousTime);
             } else if (didCancel) {
                 await sendBookingCancelledNotification(booking);
-            } else if (didConfirm) {
-                await sendBookingConfirmedNotification(booking);
-            } else if (didAddOrUpdateMeetingLink && booking.meetingLink) {
-                if (!booking.confirmationEmailSent && booking.status === 'confirmed') {
+            } else {
+                if (didConfirm) {
                     await sendBookingConfirmedNotification(booking);
-                } else {
+                }
+                if (didAddOrUpdateMeetingLink && booking.meetingLink) {
+                    if (!booking.confirmationEmailSent && booking.status === 'confirmed') {
+                        await sendBookingConfirmedNotification(booking);
+                    }
                     await sendMeetingLinkAddedNotification(booking);
                 }
             }
