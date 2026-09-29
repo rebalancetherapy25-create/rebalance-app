@@ -268,7 +268,7 @@ export default function TherapistProfileTabs({
                                     Ready to take the first step?
                                 </h4>
                                 <p className="text-xs sm:text-sm text-muted-foreground font-medium">
-                                    Book an introductory call and see if we&apos;re the right fit.
+                                    Book a session and see if we&apos;re the right fit.
                                 </p>
                             </div>
 
@@ -285,7 +285,7 @@ export default function TherapistProfileTabs({
                                         {...bookingProps}
                                         trigger={
                                             <Button className="h-11 rounded-full bg-[#581C2B] hover:bg-[#461521] text-xs sm:text-sm font-bold text-white px-6 shadow-md transition-all active:scale-[0.98]">
-                                                Book Intro Call
+                                                Book a Session
                                             </Button>
                                         }
                                     />

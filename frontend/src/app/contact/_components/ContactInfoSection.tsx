@@ -14,13 +14,14 @@ const CONTACT_INFO = [
         icon: Phone,
         title: "Call Us",
         detail: "+91 94839 00043",
+        subtext: "Available for guidance & support.",
         link: "tel:+919483900043"
     }
 ];
 
 export function ContactInfoSection() {
     return (
-        <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-6">
+        <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-6">
             {CONTACT_INFO.map((info, idx) => {
                 const Icon = info.icon;
                 return (
@@ -30,7 +31,7 @@ export function ContactInfoSection() {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.8, delay: 0.2 + (idx * 0.1) }}
-                        className="group relative flex flex-col p-8 rounded-[2rem] bg-white/40 backdrop-blur-xl border border-white/60 shadow-xl shadow-primary/5 hover:shadow-2xl hover:border-white/80 transition-all duration-500 overflow-hidden"
+                        className="group relative flex flex-col p-6 sm:p-8 rounded-[2rem] bg-white/40 backdrop-blur-xl border border-white/60 shadow-xl shadow-primary/5 hover:shadow-2xl hover:border-white/80 transition-all duration-500 overflow-hidden"
                     >
                         <div className="absolute inset-0 bg-gradient-to-br from-white/60 to-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                         
@@ -40,7 +41,9 @@ export function ContactInfoSection() {
                             </div>
                             
                             <h3 className="text-xl font-normal text-foreground mb-2 font-display">{info.title}</h3>
-                            <p className="text-lg text-foreground font-medium mb-1 whitespace-nowrap">{info.detail}</p>
+                            <p className="text-base sm:text-lg text-foreground font-medium mb-1 break-words [overflow-wrap:anywhere] select-all">
+                                {info.detail}
+                            </p>
                             {info.subtext && <p className="text-sm text-muted-foreground">{info.subtext}</p>}
                         </div>
                     </motion.a>
