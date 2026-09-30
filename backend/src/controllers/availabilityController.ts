@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { Availability, Therapist } from '../models';
-import { extractWeeklyTemplate, normalizeDate, normalizeTime, isWithin30DayWindow } from '../utils/schedule';
+import { extractWeeklyTemplate, normalizeDate, normalizeTime, isWithin30DayWindow, isSlotInPast } from '../utils/schedule';
 import { releaseExpiredSlotHolds } from '../services/bookingMaintenanceService';
 import { sendData, sendError } from '../lib/http';
 
@@ -50,6 +50,7 @@ export const getTherapistAvailability = async (req: Request, res: Response) => {
             const template = extractWeeklyTemplate(therapist);
             const dayOfWeek = new Date(`${normalizedDate}T00:00:00.000Z`).getUTCDay();
             const templateSlots = (template.find(t => t.dayOfWeek === dayOfWeek)?.slots ?? [])
+                .filter(time => !isSlotInPast(normalizedDate, time))
                 .map(time => ({ time, isBooked: false }));
             res.setHeader('X-Availability-Record', '0');
             res.setHeader('X-Availability-Source', 'weekly-template');
@@ -59,10 +60,11 @@ export const getTherapistAvailability = async (req: Request, res: Response) => {
         res.setHeader('X-Availability-Record', '1');
         res.setHeader('X-Availability-Source', 'database-record');
 
-        // Filter out booked and currently held slots
+        // Filter out booked, currently held slots, and any slots that have already passed
         const availableSlots = availability.slots.filter((slot) => {
             if (slot.isBooked) return false;
             if (slot.reservedUntil && new Date(slot.reservedUntil) > now) return false;
+            if (isSlotInPast(normalizedDate, slot.time)) return false;
             return true;
         });
 
@@ -87,6 +89,10 @@ export const lockSlot = async (req: Request, res: Response) => {
 
         if (!isWithin30DayWindow(normalizedDate)) {
             return sendError(res, 400, 'Appointments can only be booked within the next 30 days.', { code: 'BOOKING_OUT_OF_RANGE' });
+        }
+
+        if (isSlotInPast(normalizedDate, normalizedTime)) {
+            return sendError(res, 400, 'Selected time slot has already passed', { code: 'AVAILABILITY_SLOT_IN_PAST' });
         }
 
         const now = new Date();

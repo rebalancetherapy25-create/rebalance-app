@@ -186,13 +186,36 @@ export const syncFutureAvailabilitiesWithTemplate = async (therapistId: string, 
     }
 };
 
+export const getTodayDateStringIST = (): string => {
+    return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).format(new Date());
+};
+
+export const isSlotInPast = (dateStr: string, timeStr: string, bufferMinutes = 0): boolean => {
+    const normalizedTime = normalizeTime(timeStr);
+    const normalizedDate = normalizeDate(dateStr);
+    if (!normalizedTime || !normalizedDate) return false;
+
+    const slotTimestamp = new Date(`${normalizedDate}T${normalizedTime}:00+05:30`).getTime();
+    if (Number.isNaN(slotTimestamp)) return false;
+
+    return slotTimestamp <= Date.now() + bufferMinutes * 60 * 1000;
+};
+
+export const filterPastSlots = (dateStr: string, slots: string[], bufferMinutes = 0): string[] => {
+    return slots.filter((slot) => !isSlotInPast(dateStr, slot, bufferMinutes));
+};
+
 // Enforces that appointments can only be booked within the rolling 30-day window
 export const isWithin30DayWindow = (dateStr: string): boolean => {
     const target = new Date(`${dateStr}T00:00:00.000Z`);
     if (Number.isNaN(target.getTime())) return false;
 
-    const now = new Date();
-    const todayStr = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}`;
+    const todayStr = getTodayDateStringIST();
     const start = new Date(`${todayStr}T00:00:00.000Z`);
 
     const end = new Date(start);

@@ -1,5 +1,5 @@
 import { Availability, Booking, Therapist } from '../models';
-import { getTemplateSlotsForDate } from '../utils/schedule';
+import { getTemplateSlotsForDate, isSlotInPast } from '../utils/schedule';
 
 export type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
 
@@ -36,6 +36,8 @@ const ensureRuntimeAvailabilityForDate = async (therapist: any, date: string) =>
 };
 
 export const ensureAvailabilityForSlot = async (therapistId: string, date: string, time: string) => {
+    if (isSlotInPast(date, time)) return { ok: false as const, error: 'Selected slot has already passed' };
+
     const therapist = await Therapist.findById(therapistId);
     if (!therapist) return { ok: false as const, error: 'Therapist not found' };
 

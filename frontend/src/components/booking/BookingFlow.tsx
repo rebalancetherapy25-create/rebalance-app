@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { getApiBaseUrl, unwrapApiData } from '@/lib/runtime';
 import { CSRF_HEADER_NAME, ensureCsrfToken } from '@/lib/auth';
-import { buildDateOptions, type DateOption, type LegacyAvailability } from '@/lib/booking';
+import { buildDateOptions, filterPastSlots, type DateOption, type LegacyAvailability } from '@/lib/booking';
 import { formatSlotTime } from '@/lib/date';
 import { emailPattern } from '@/lib/form-validation';
 
@@ -177,11 +177,12 @@ export default function BookingFlow({
                 dateOptions.map(async (opt) => {
                     try {
                         const res = await fetch(`${API_BASE}/availability/${therapistId}?date=${opt.date}&_t=${Date.now()}`, { cache: 'no-store' });
-                        if (!res.ok) { resultMap[opt.date] = opt.slots; return; }
+                        if (!res.ok) { resultMap[opt.date] = filterPastSlots(opt.date, opt.slots); return; }
                         const hasRecord = res.headers.get('X-Availability-Record') === '1';
                         const data = unwrapApiData(await res.json()) as { time: string }[];
-                        resultMap[opt.date] = data?.length > 0 ? data.map((s) => s.time).sort() : hasRecord ? [] : opt.slots;
-                    } catch { resultMap[opt.date] = opt.slots; }
+                        const rawSlots = data?.length > 0 ? data.map((s) => s.time).sort() : hasRecord ? [] : opt.slots;
+                        resultMap[opt.date] = filterPastSlots(opt.date, rawSlots);
+                    } catch { resultMap[opt.date] = filterPastSlots(opt.date, opt.slots); }
                 })
             );
             if (!active) return;
@@ -214,13 +215,19 @@ export default function BookingFlow({
                 if (res.ok && active) {
                     const hasRecord = res.headers.get('X-Availability-Record') === '1';
                     const data = unwrapApiData(await res.json()) as { time: string }[];
-                    const slots = data?.length > 0 ? data.map((s) => s.time).sort() : hasRecord ? [] : dateOptions.find((o) => o.date === date)?.slots ?? [];
+                    const rawSlots = data?.length > 0 ? data.map((s) => s.time).sort() : hasRecord ? [] : dateOptions.find((o) => o.date === date)?.slots ?? [];
+                    const slots = filterPastSlots(date, rawSlots);
                     setKnownSlotsMap((prev) => ({ ...prev, [date]: slots }));
                     setLiveSlots(slots);
+                    // Clear selected time if it has passed or is no longer available
+                    setTime((prevTime) => (prevTime && !slots.includes(prevTime) ? '' : prevTime));
                 }
             } catch (err) {
                 if ((err as Error).name !== 'AbortError' && active) {
-                    setLiveSlots(knownSlotsMap[date] ?? dateOptions.find((o) => o.date === date)?.slots ?? []);
+                    const fallback = knownSlotsMap[date] ?? dateOptions.find((o) => o.date === date)?.slots ?? [];
+                    const slots = filterPastSlots(date, fallback);
+                    setLiveSlots(slots);
+                    setTime((prevTime) => (prevTime && !slots.includes(prevTime) ? '' : prevTime));
                 }
             } finally { if (!controller.signal.aborted && active) setFetchingSlots(false); }
         };
@@ -419,8 +426,8 @@ export default function BookingFlow({
     const prevStep = () => setCurrentStep((p) => Math.max(p - 1, 0));
     const payableAmount = orderData ? orderData.amount / 100 : price;
     const timerPct = timeLeft !== null ? (timeLeft / 300) * 100 : 100;
-    const today = new Date().toISOString().split('T')[0];
-    const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+    const today = dateOptions[0]?.date || new Date().toISOString().split('T')[0];
+    const tomorrow = dateOptions[1]?.date || new Date(Date.now() + 86400000).toISOString().split('T')[0];
 
     const SlotGroup = ({ label, icon, slots }: { label: string; icon: React.ReactNode; slots: string[] }) => {
         if (!slots.length) return null;

@@ -11,6 +11,7 @@ import BookingModal from '@/components/booking/BookingModal';
 import { getApiBaseUrl, unwrapApiData } from '@/lib/runtime';
 import TherapistProfileTabs from './_components/TherapistProfileTabs';
 import { TherapyHeadIllustration } from './_components/TherapyHeadIllustration';
+import { filterPastSlots, getTodayDateStringIST } from '@/lib/booking';
 
 interface FAQ {
     question: string;
@@ -117,24 +118,28 @@ const getNext5Days = (availability: Availability[] = [], weeklyAvailability: Wee
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     
     const result = [];
-    const today = new Date();
+    const todayStr = getTodayDateStringIST();
+    const [y, m, d] = todayStr.split('-').map(Number);
+    const baseDate = new Date(y, m - 1, d);
     
     for (let i = 0; i < 5; i++) {
-        const nextDate = new Date();
-        nextDate.setDate(today.getDate() + i);
+        const nextDate = new Date(baseDate);
+        nextDate.setDate(baseDate.getDate() + i);
         
         const dayIndex = nextDate.getDay();
         const dayName = daysOfWeek[dayIndex];
         const shortDayName = shortDays[dayIndex];
         const dateNum = nextDate.getDate();
         const monthName = months[nextDate.getMonth()];
+        const isoDate = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}-${String(dateNum).padStart(2, '0')}`;
         
         // Match modern numerical weeklyAvailability first, fallback to legacy weekday string
         let match: WeeklyAvailability | Availability | undefined = weeklyAvailability?.find((a) => Number(a?.dayOfWeek) === dayIndex);
         if (!match || !match.slots) {
             match = availability?.find((a) => String(a?.day || '').toLowerCase() === String(dayName || '').toLowerCase());
         }
-        const slots = Array.isArray(match?.slots) ? match.slots : [];
+        const rawSlots = Array.isArray(match?.slots) ? match.slots : [];
+        const slots = filterPastSlots(isoDate, rawSlots);
         
         let label = shortDayName;
         if (i === 0) label = 'Today';

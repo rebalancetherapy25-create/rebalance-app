@@ -5,7 +5,7 @@ import Razorpay from 'razorpay';
 import { queueEmail } from '../services/emailOutboxService';
 import { releaseExpiredSlotHolds, runBookingMaintenance } from '../services/bookingMaintenanceService';
 import { AuthRequest } from '../middlewares/authMiddleware';
-import { formatSlotTime, getTemplateSlotsForDate, normalizeDate, normalizeTime, isWithin30DayWindow } from '../utils/schedule';
+import { formatSlotTime, getTemplateSlotsForDate, normalizeDate, normalizeTime, isWithin30DayWindow, isSlotInPast } from '../utils/schedule';
 import { bookingConfirmedEmail } from '../emails/templates/bookingConfirmed';
 import { sendData, sendError } from '../lib/http';
 import { assertRazorpayConfig, confirmBookingPaymentByOrderId, verifyRazorpayPaymentSignature } from '../services/paymentService';
@@ -108,6 +108,10 @@ export const createBooking = async (req: AuthRequest, res: Response) => {
 
         if (!isWithin30DayWindow(normalizedDate)) {
             return sendError(res, 400, 'Appointments can only be booked within the next 30 days.', { code: 'BOOKING_OUT_OF_RANGE' });
+        }
+
+        if (isSlotInPast(normalizedDate, normalizedTime)) {
+            return sendError(res, 400, 'Selected time slot has already passed', { code: 'BOOKING_SLOT_PAST' });
         }
 
         const therapist = await Therapist.findById(therapistId);
