@@ -20,7 +20,7 @@ jobs:
         shell: bash
         run: |
           printf '%s' "${{ secrets.EC2_SSH_KEY_B64 }}" | base64 --decode > ./deploy_key
-          chmod 600 ./deploy_key
+          chmod 644 ./deploy_key
 
       - name: Validate SSH Key
         run: |
