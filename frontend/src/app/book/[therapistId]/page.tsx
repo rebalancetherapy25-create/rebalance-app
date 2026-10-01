@@ -17,6 +17,7 @@ interface TherapistForBooking {
     price: number;
     sessionTypes: string[];
     availability: { day: string; slots: string[] }[];
+    weeklyAvailability?: { dayOfWeek: number; slots: string[] }[];
 }
 
 export default function BookingFlowPage({ params }: { params: { therapistId: string } }) {
@@ -38,7 +39,8 @@ export default function BookingFlowPage({ params }: { params: { therapistId: str
                         title: data.specialties?.[0] || 'Therapist',
                         price: data.price,
                         sessionTypes: data.sessionTypes || ['Video'],
-                        availability: data.availability || []
+                        availability: data.availability || [],
+                        weeklyAvailability: data.weeklyAvailability || []
                     });
                 }
             } catch (error) {
@@ -85,6 +87,7 @@ export default function BookingFlowPage({ params }: { params: { therapistId: str
                     price={therapist.price}
                     sessionTypes={therapist.sessionTypes}
                     availability={therapist.availability}
+                    weeklyAvailability={therapist.weeklyAvailability}
                     onComplete={() => router.push(`/therapists/${therapist.id}`)}
                 />
             </div>

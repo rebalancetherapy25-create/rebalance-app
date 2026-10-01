@@ -228,6 +228,7 @@ export default async function TherapistProfilePage({ params }: { params: { id: s
         price: t.price,
         sessionTypes: t.sessionTypes,
         availability: t.availability,
+        weeklyAvailability: t.weeklyAvailability,
     };
 
     const calendarDays = getNext5Days(t.availability, t.weeklyAvailability);

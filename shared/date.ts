@@ -1,6 +1,18 @@
 const EN_IN_LOCALE = 'en-IN';
 
-export const bookingDateTime = (date: string, time: string) => new Date(`${date}T${time}:00`);
+export const bookingDateTime = (date: string, time: string) => {
+  const match = time.trim().match(/^(\d{1,2}):(\d{2})(\s*(AM|PM))?$/i);
+  if (match) {
+    let h = parseInt(match[1], 10);
+    const m = match[2];
+    const ampm = match[4]?.toUpperCase();
+    if (ampm === 'PM' && h < 12) h += 12;
+    if (ampm === 'AM' && h === 12) h = 0;
+    const formattedTime = `${String(h).padStart(2, '0')}:${m}`;
+    return new Date(`${date}T${formattedTime}:00+05:30`);
+  }
+  return new Date(`${date}T${time}:00+05:30`);
+};
 
 /** Converts a 24-hour HH:mm string (e.g. "14:30") to 12-hour display (e.g. "2:30 PM"). */
 export const formatSlotTime = (time: string): string => {
@@ -30,3 +42,5 @@ export const formatCalendarDate = (date: string, locale = EN_IN_LOCALE) => (
     year: 'numeric',
   })
 );
+
+export { isSlotInPast, filterPastSlots, getTodayDateStringIST } from './booking';

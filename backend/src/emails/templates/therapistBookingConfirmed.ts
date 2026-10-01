@@ -1,8 +1,10 @@
 import { emailLayout, esc } from './layout';
+import { maskEmail, maskClientIdentifier } from '../../utils/mask';
 
 export const therapistBookingConfirmedEmail = (options: {
     therapistName: string;
     clientName: string;
+    clientEmail?: string | undefined;
     date: string;
     time: string;
     sessionType: string;
@@ -10,11 +12,12 @@ export const therapistBookingConfirmedEmail = (options: {
     meetingLink?: string | undefined;
 }) => {
     const therapistName = esc(options.therapistName);
-    const clientName = esc(options.clientName);
+    const clientName = esc(maskClientIdentifier(options.clientName));
+    const clientEmail = options.clientEmail ? esc(maskEmail(options.clientEmail)) : '';
     const date = esc(options.date);
     const time = esc(options.time);
     const sessionType = esc(options.sessionType);
-    const bookingReason = options.bookingReason ? esc(options.bookingReason) : '';
+    const bookingReason = options.bookingReason ? esc(maskClientIdentifier(options.bookingReason)) : '';
     const meetingLink = options.meetingLink ? esc(options.meetingLink) : '';
 
     const linkBlock = meetingLink
@@ -35,17 +38,17 @@ export const therapistBookingConfirmedEmail = (options: {
         <p class="p" style="margin: 0 0 8px 0;"><strong>Date:</strong> ${date}</p>
         <p class="p" style="margin: 0 0 8px 0;"><strong>Time:</strong> ${time}</p>
         <p class="p" style="margin: 0 0 8px 0; text-transform: capitalize;"><strong>Type:</strong> ${sessionType}</p>
-        <p class="p" style="margin: 0;"><strong>Client:</strong> ${clientName}</p>
+        <p class="p" style="margin: 0;"><strong>Client:</strong> ${clientName}${clientEmail ? ` (${clientEmail})` : ''}</p>
       </div>
       ${reasonBlock}
       ${linkBlock}
     `;
 
     return {
-        subject: `New Booking Confirmed: ${options.clientName} (${date} at ${time})`,
+        subject: `New Booking Confirmed: ${clientName} (${date} at ${time})`,
         html: emailLayout({
             title: 'New session booked',
-            preheader: `New appointment with ${options.clientName} on ${date} at ${time}`,
+            preheader: `New appointment with ${clientName} on ${date} at ${time}`,
             body,
         }),
     };

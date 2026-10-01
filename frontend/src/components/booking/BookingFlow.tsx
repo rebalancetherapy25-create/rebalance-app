@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { getApiBaseUrl, unwrapApiData } from '@/lib/runtime';
 import { CSRF_HEADER_NAME, ensureCsrfToken } from '@/lib/auth';
-import { buildDateOptions, filterPastSlots, type DateOption, type LegacyAvailability } from '@/lib/booking';
+import { buildDateOptions, filterPastSlots, isSlotInPast, type DateOption, type LegacyAvailability } from '@/lib/booking';
 import { formatSlotTime } from '@/lib/date';
 import { emailPattern } from '@/lib/form-validation';
 
@@ -47,11 +47,12 @@ interface BookingFlowProps {
     price: number;
     sessionTypes: string[];
     availability: LegacyAvailability[];
+    weeklyAvailability?: { dayOfWeek: number; slots: string[] }[];
     onComplete?: () => void;
 }
 
 export default function BookingFlow({
-    therapistId, therapistName, specialty, price, sessionTypes, availability, onComplete
+    therapistId, therapistName, specialty, price, sessionTypes, availability, weeklyAvailability, onComplete
 }: BookingFlowProps) {
     const [currentStep, setCurrentStep] = useState(0);
     const [sessionType, setSessionType] = useState('');
@@ -153,7 +154,8 @@ export default function BookingFlow({
     }, [couponCode, orderData]);
 
     useEffect(() => {
-        const options = buildDateOptions(availability || []);
+        const sourceAvailability = weeklyAvailability?.length ? weeklyAvailability : availability || [];
+        const options = buildDateOptions(sourceAvailability);
         setDateOptions(options);
         setSessionType(sessionTypes?.[0] ?? 'Video');
         const firstAvailable = options.find((o) => o.slots.length > 0) || options[0];
@@ -166,7 +168,27 @@ export default function BookingFlow({
             const s = document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]');
             if (s) document.body.removeChild(s);
         };
-    }, [sessionTypes, availability]);
+    }, [sessionTypes, availability, weeklyAvailability]);
+
+    // Periodically re-evaluate date options and slots as time advances
+    useEffect(() => {
+        const sourceAvailability = weeklyAvailability?.length ? weeklyAvailability : availability || [];
+        const interval = setInterval(() => {
+            const freshOptions = buildDateOptions(sourceAvailability);
+            setDateOptions(freshOptions);
+            if (date) {
+                setKnownSlotsMap((prev) => {
+                    const currentSlots = prev[date];
+                    if (!currentSlots) return prev;
+                    const filtered = filterPastSlots(date, currentSlots);
+                    return { ...prev, [date]: filtered };
+                });
+                setLiveSlots((prev) => filterPastSlots(date, prev));
+                setTime((prevTime) => (prevTime && isSlotInPast(date, prevTime) ? '' : prevTime));
+            }
+        }, 30000);
+        return () => clearInterval(interval);
+    }, [availability, weeklyAvailability, date]);
 
     useEffect(() => {
         if (!therapistId || !dateOptions.length) return;
@@ -695,10 +717,25 @@ export default function BookingFlow({
                                         })()}
                                     </div>
                                 ) : (
-                                    <div className="flex flex-col items-center py-10 text-center rounded-2xl border border-dashed border-border/40 bg-muted/20">
+                                    <div className="flex flex-col items-center py-10 px-4 text-center rounded-2xl border border-dashed border-border/40 bg-muted/20">
                                         <Calendar className="w-8 h-8 text-muted-foreground/40 mb-3" />
-                                        <p className="text-sm font-bold text-foreground">No slots on this day</p>
-                                        <p className="text-xs text-muted-foreground mt-1">Try selecting another date →</p>
+                                        <p className="text-sm font-bold text-foreground">
+                                            {date === today ? 'All slots for today have already passed' : 'No slots on this day'}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground mt-1 max-w-xs">
+                                            {date === today
+                                                ? 'Please choose tomorrow or an upcoming date to schedule your session.'
+                                                : 'Try selecting another date from the calendar →'}
+                                        </p>
+                                        {date === today && tomorrow && (
+                                            <button
+                                                type="button"
+                                                onClick={() => { setDate(tomorrow); setTime(''); }}
+                                                className="mt-4 px-4 py-2 rounded-xl bg-primary text-background font-bold text-xs shadow-sm hover:opacity-90 active:scale-95 transition-all"
+                                            >
+                                                View Tomorrow&apos;s Slots →
+                                            </button>
+                                        )}
                                     </div>
                                 )}
 

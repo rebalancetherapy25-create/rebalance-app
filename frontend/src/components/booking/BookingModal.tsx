@@ -18,6 +18,7 @@ interface BookingModalProps {
     price: number;
     sessionTypes: string[];
     availability: { day: string; slots: string[] }[];
+    weeklyAvailability?: { dayOfWeek: number; slots: string[] }[];
     trigger?: React.ReactNode;
 }
 
@@ -28,6 +29,7 @@ export default function BookingModal({
     price,
     sessionTypes,
     availability,
+    weeklyAvailability,
     trigger
 }: BookingModalProps) {
     const [open, setOpen] = useState(false);
@@ -54,6 +56,7 @@ export default function BookingModal({
                         price={price}
                         sessionTypes={sessionTypes}
                         availability={availability}
+                        weeklyAvailability={weeklyAvailability}
                         onComplete={() => setOpen(false)}
                     />
                 </div>

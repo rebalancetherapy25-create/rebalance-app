@@ -1,4 +1,5 @@
 import { emailLayout, esc } from './layout';
+import { maskEmail, maskClientIdentifier } from '../../utils/mask';
 
 export const therapistBookingRescheduledEmail = (options: {
     therapistName: string;
@@ -12,8 +13,8 @@ export const therapistBookingRescheduledEmail = (options: {
     meetingLink?: string | undefined;
 }) => {
     const therapistName = esc(options.therapistName);
-    const clientName = esc(options.clientName);
-    const clientEmail = options.clientEmail ? esc(options.clientEmail) : '';
+    const clientName = esc(maskClientIdentifier(options.clientName));
+    const clientEmail = options.clientEmail ? esc(maskEmail(options.clientEmail)) : '';
     const previousDate = esc(options.previousDate);
     const previousTime = esc(options.previousTime);
     const nextDate = esc(options.nextDate);
@@ -41,10 +42,10 @@ export const therapistBookingRescheduledEmail = (options: {
     `;
 
     return {
-        subject: `Session Rescheduled: ${options.clientName} (${nextDate} at ${nextTime})`,
+        subject: `Session Rescheduled: ${clientName} (${nextDate} at ${nextTime})`,
         html: emailLayout({
             title: 'Session rescheduled',
-            preheader: `Rescheduled appointment with ${options.clientName} on ${nextDate} at ${nextTime}`,
+            preheader: `Rescheduled appointment with ${clientName} on ${nextDate} at ${nextTime}`,
             body,
         }),
     };

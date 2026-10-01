@@ -10,6 +10,7 @@ import { bookingCancelledEmail } from '../emails/templates/bookingCancelled';
 import { therapistBookingCancelledEmail } from '../emails/templates/therapistBookingCancelled';
 import { paymentFailedEmail } from '../emails/templates/paymentFailed';
 import { formatSlotTime } from '../utils/schedule';
+import { maskEmail } from '../utils/mask';
 import config from '../config/env';
 
 export const resolveTherapistInfo = async (therapistRef: any): Promise<{ name: string; email?: string; id?: string }> => {
@@ -113,6 +114,7 @@ export const sendBookingConfirmedNotification = async (bookingOrId: any): Promis
             const therapistTpl = therapistBookingConfirmedEmail({
                 therapistName: therapistInfo.name,
                 clientName,
+                clientEmail: maskEmail(clientEmail),
                 date: booking.date,
                 time: formatSlotTime(booking.time),
                 sessionType: booking.sessionType,
@@ -171,6 +173,7 @@ export const sendMeetingLinkAddedNotification = async (bookingOrId: any): Promis
             const therapistTpl = therapistMeetingLinkAddedEmail({
                 therapistName: therapistInfo.name,
                 clientName,
+                clientEmail: maskEmail(clientEmail),
                 date: booking.date,
                 time: formatSlotTime(booking.time),
                 meetingLink: booking.meetingLink,
@@ -284,7 +287,7 @@ export const sendBookingRescheduledNotification = async (
             const therapistTpl = therapistBookingRescheduledEmail({
                 therapistName: therapistInfo.name,
                 clientName,
-                clientEmail,
+                clientEmail: maskEmail(clientEmail),
                 previousDate,
                 previousTime: formatSlotTime(previousTime),
                 nextDate: booking.date,
@@ -340,6 +343,7 @@ export const sendBookingCancelledNotification = async (bookingOrId: any): Promis
             const therapistTpl = therapistBookingCancelledEmail({
                 therapistName: therapistInfo.name,
                 clientName,
+                clientEmail: maskEmail(clientEmail),
                 date: booking.date,
                 time: formatSlotTime(booking.time),
             });
