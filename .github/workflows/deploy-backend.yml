@@ -20,12 +20,13 @@ jobs:
         shell: bash
         run: |
           printf '%s' "${{ secrets.EC2_SSH_KEY_B64 }}" | base64 --decode > ./deploy_key
-          chmod 644 ./deploy_key
+          chmod 600 ./deploy_key
 
       - name: Validate SSH Key
         run: |
           ssh-keygen -y -f ./deploy_key > /dev/null
           echo "SSH key is valid"
+          chmod 644 ./deploy_key
 
       - name: Copy backend files to EC2
         uses: appleboy/scp-action@v0.1.7
