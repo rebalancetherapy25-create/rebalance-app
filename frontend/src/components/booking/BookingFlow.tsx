@@ -8,15 +8,17 @@ import {
     Video, Phone, MessageCircle, Lock, Globe, Clock,
     Loader2, CheckCircle2, Tag, ChevronDown, ShieldCheck, Calendar, User, Mail,
     Sunrise, Sun, Sunset, ChevronLeft, ChevronRight, FileText,
-    AlertCircle, RotateCcw
+    AlertCircle, RotateCcw, Sparkles, LogIn, UserPlus, Eye, EyeOff, ArrowRight
 } from 'lucide-react';
 import { getApiBaseUrl, unwrapApiData } from '@/lib/runtime';
 import { CSRF_HEADER_NAME, ensureCsrfToken } from '@/lib/auth';
 import { buildDateOptions, filterPastSlots, isSlotInPast, type DateOption, type LegacyAvailability } from '@/lib/booking';
 import { formatSlotTime } from '@/lib/date';
 import { emailPattern } from '@/lib/form-validation';
+import api from '@/lib/api';
 
-const STEPS = ['Date & Time', 'Details', 'Payment', 'Confirmed'];
+export type BookingStep = 'datetime' | 'auth' | 'details' | 'payment' | 'confirmed';
+
 const API_BASE = getApiBaseUrl();
 
 const FORMAT_META: Record<string, { icon: React.ReactNode; label: string; desc: string }> = {
@@ -39,6 +41,16 @@ const groupSlotsByPeriod = (slots: string[]) => {
 interface OrderData { orderId: string; amount: number; currency: string; bookingId: string; keyId?: string; }
 interface RazorpayResponse { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string; }
 interface BookingErrors { name?: string; email?: string; general?: string; payment?: string; }
+interface ApiAuthError {
+    response?: {
+        data?: {
+            error?: string;
+            message?: string;
+            unverified?: boolean;
+            data?: { unverified?: boolean };
+        };
+    };
+}
 
 interface BookingFlowProps {
     therapistId: string;
@@ -54,7 +66,7 @@ interface BookingFlowProps {
 export default function BookingFlow({
     therapistId, therapistName, specialty, price, sessionTypes, availability, weeklyAvailability, onComplete
 }: BookingFlowProps) {
-    const [currentStep, setCurrentStep] = useState(0);
+    const [step, setStep] = useState<BookingStep>('datetime');
     const [sessionType, setSessionType] = useState('');
     const [date, setDate] = useState('');
     const [time, setTime] = useState('');
@@ -75,6 +87,45 @@ export default function BookingFlow({
             dateScrollRef.current.scrollBy({ left: direction === 'left' ? -240 : 240, behavior: 'smooth' });
         }
     };
+
+    // Auth & Guest choice state
+    const [authTab, setAuthTab] = useState<'signup' | 'login' | 'guest'>('signup');
+    const [loginEmail, setLoginEmail] = useState('');
+    const [loginPassword, setLoginPassword] = useState('');
+    const [showLoginPassword, setShowLoginPassword] = useState(false);
+    const [loginLoading, setLoginLoading] = useState(false);
+    const [loginError, setLoginError] = useState('');
+
+    const [signupName, setSignupName] = useState('');
+    const [signupEmail, setSignupEmail] = useState('');
+    const [signupPassword, setSignupPassword] = useState('');
+    const [showSignupPassword, setShowSignupPassword] = useState(false);
+    const [signupLoading, setSignupLoading] = useState(false);
+    const [signupError, setSignupError] = useState('');
+
+    const [otpActive, setOtpActive] = useState(false);
+    const [otpEmail, setOtpEmail] = useState('');
+    const [otpCode, setOtpCode] = useState('');
+    const [otpLoading, setOtpLoading] = useState(false);
+    const [otpError, setOtpError] = useState('');
+    const [resendCooldown, setResendCooldown] = useState(0);
+
+    const activeStepsList: { key: BookingStep; label: string }[] = isAuthenticated
+        ? [
+            { key: 'datetime', label: 'Date & Time' },
+            { key: 'details', label: 'Details' },
+            { key: 'payment', label: 'Payment' },
+            { key: 'confirmed', label: 'Confirmed' },
+          ]
+        : [
+            { key: 'datetime', label: 'Date & Time' },
+            { key: 'auth', label: 'Account' },
+            { key: 'details', label: 'Details' },
+            { key: 'payment', label: 'Payment' },
+            { key: 'confirmed', label: 'Confirmed' },
+          ];
+
+    const currentStepIndex = Math.max(0, activeStepsList.findIndex((s) => s.key === step));
 
     const authFetched = useRef(false);
 
@@ -123,7 +174,7 @@ export default function BookingFlow({
                     setCouponStatus({ type: 'success', message: `${data.data.discountPercentage}% discount applied!` });
                     
                     if (data.data.amount === 0) {
-                        setCurrentStep(3); // Skip Razorpay for 100% off
+                        setStep('confirmed'); // Skip Razorpay for 100% off
                     }
                 } else {
                     setAppliedDiscountData(null);
@@ -260,26 +311,177 @@ export default function BookingFlow({
     }, [date, therapistId, dateOptions]);
 
     useEffect(() => {
-        if (currentStep !== 1 || authFetched.current) return;
+        if (authFetched.current) return;
         authFetched.current = true;
         const detectAuth = async () => {
             try {
                 const response = await fetch(`${API_BASE}/auth/me`, { credentials: 'include' });
                 if (!response.ok) return;
                 const me = unwrapApiData(await response.json());
-                setIsAuthenticated(true);
-                setBookingDetails((prev) => ({ ...prev, name: prev.name || me?.name || '', email: prev.email || me?.email || '' }));
+                if (me?._id || me?.email) {
+                    setIsAuthenticated(true);
+                    setBookingDetails((prev) => ({
+                        ...prev,
+                        name: prev.name || me?.name || '',
+                        email: prev.email || me?.email || '',
+                    }));
+                }
             } catch { /* guest path */ }
         };
         detectAuth();
-    }, [currentStep]);
+    }, []);
 
     useEffect(() => {
         let timer: NodeJS.Timeout;
-        if (currentStep === 2 && timeLeft !== null && timeLeft > 0)
+        if (step === 'payment' && timeLeft !== null && timeLeft > 0)
             timer = setTimeout(() => setTimeLeft((p) => (p ? p - 1 : 0)), 1000);
         return () => clearTimeout(timer);
-    }, [currentStep, timeLeft]);
+    }, [step, timeLeft]);
+
+    useEffect(() => {
+        if (resendCooldown <= 0) return;
+        const timer = setTimeout(() => setResendCooldown((p) => p - 1), 1000);
+        return () => clearTimeout(timer);
+    }, [resendCooldown]);
+
+    const handleAuthLogin = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        setLoginError('');
+        const trimmedEmail = loginEmail.trim();
+        if (!trimmedEmail || !emailPattern.test(trimmedEmail)) {
+            setLoginError('Please enter a valid email address.');
+            return;
+        }
+        if (!loginPassword) {
+            setLoginError('Password is required.');
+            return;
+        }
+
+        setLoginLoading(true);
+        try {
+            const res = await api.post('/auth/login', {
+                email: trimmedEmail,
+                password: loginPassword,
+            });
+            const user = unwrapApiData(res.data) as { name?: string; email?: string };
+            setIsAuthenticated(true);
+            setBookingDetails((prev) => ({
+                ...prev,
+                name: user?.name || prev.name || '',
+                email: user?.email || trimmedEmail,
+            }));
+            setStep('details');
+        } catch (err: unknown) {
+            const apiErr = err as ApiAuthError;
+            if (apiErr?.response?.data?.unverified || apiErr?.response?.data?.data?.unverified) {
+                setOtpEmail(trimmedEmail);
+                setOtpActive(true);
+                setAuthTab('signup');
+                setSignupError('Your email is not verified yet. We sent a verification code to your inbox.');
+                try {
+                    await api.post('/auth/resend-otp', { email: trimmedEmail });
+                } catch {}
+                return;
+            }
+            const msg = apiErr?.response?.data?.error || apiErr?.response?.data?.message || 'Invalid email or password. Please try again.';
+            setLoginError(msg);
+        } finally {
+            setLoginLoading(false);
+        }
+    };
+
+    const handleAuthRegister = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        setSignupError('');
+        const trimmedName = signupName.trim();
+        const trimmedEmail = signupEmail.trim();
+
+        if (!trimmedName || trimmedName.length < 2) {
+            setSignupError('Full name must be at least 2 characters.');
+            return;
+        }
+        if (!trimmedEmail || !emailPattern.test(trimmedEmail)) {
+            setSignupError('Please enter a valid email address.');
+            return;
+        }
+        if (!signupPassword || signupPassword.length < 8) {
+            setSignupError('Password must be at least 8 characters long.');
+            return;
+        }
+
+        setSignupLoading(true);
+        try {
+            await api.post('/auth/register', {
+                name: trimmedName,
+                email: trimmedEmail,
+                password: signupPassword,
+            });
+            setOtpEmail(trimmedEmail);
+            setOtpActive(true);
+            setOtpCode('');
+            setResendCooldown(60);
+        } catch (err: unknown) {
+            const apiErr = err as ApiAuthError;
+            const msg = apiErr?.response?.data?.error || apiErr?.response?.data?.message || 'Failed to create account. Please try again.';
+            setSignupError(msg);
+        } finally {
+            setSignupLoading(false);
+        }
+    };
+
+    const handleAuthVerifyOtp = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        setOtpError('');
+        if (!otpCode.trim() || otpCode.trim().length !== 6) {
+            setOtpError('Please enter the 6-digit verification code.');
+            return;
+        }
+
+        setOtpLoading(true);
+        try {
+            const res = await api.post('/auth/verify-otp', {
+                email: otpEmail.trim(),
+                otp: otpCode.trim(),
+            });
+            const user = unwrapApiData(res.data) as { name?: string; email?: string };
+            setIsAuthenticated(true);
+            setBookingDetails((prev) => ({
+                ...prev,
+                name: user?.name || signupName.trim() || prev.name,
+                email: user?.email || otpEmail.trim(),
+            }));
+            setOtpActive(false);
+            setStep('details');
+        } catch (err: unknown) {
+            const apiErr = err as ApiAuthError;
+            const msg = apiErr?.response?.data?.error || apiErr?.response?.data?.message || 'Invalid or expired code. Please try again.';
+            setOtpError(msg);
+        } finally {
+            setOtpLoading(false);
+        }
+    };
+
+    const handleResendOtp = async () => {
+        if (resendCooldown > 0 || !otpEmail) return;
+        try {
+            await api.post('/auth/resend-otp', { email: otpEmail });
+            setResendCooldown(60);
+            setOtpError('');
+        } catch {
+            setOtpError('Unable to resend verification code right now. Please try again shortly.');
+        }
+    };
+
+    const handleContinueAsGuest = () => {
+        const name = bookingDetails.name.trim() || signupName.trim();
+        const email = bookingDetails.email.trim() || signupEmail.trim() || loginEmail.trim();
+        setBookingDetails((prev) => ({
+            ...prev,
+            name: name || prev.name,
+            email: email || prev.email,
+        }));
+        setStep('details');
+    };
 
     const validateDetails = () => {
         if (isAuthenticated) { setErrors((p) => ({ ...p, name: undefined, email: undefined })); return true; }
@@ -293,11 +495,31 @@ export default function BookingFlow({
     };
 
     const handleNextStep = async () => {
-        if (currentStep === 0) {
+        if (step === 'datetime') {
             if (!date || !time) { setErrors({ ...errors, general: 'Please select a date and time' }); return; }
-            setErrors({}); setCurrentStep(1); return;
+            setErrors({});
+            if (isAuthenticated) {
+                setStep('details');
+            } else {
+                setStep('auth');
+            }
+            return;
         }
-        if (currentStep === 1) {
+        if (step === 'auth') {
+            if (authTab === 'guest') {
+                handleContinueAsGuest();
+            } else if (authTab === 'login') {
+                await handleAuthLogin();
+            } else if (authTab === 'signup') {
+                if (otpActive) {
+                    await handleAuthVerifyOtp();
+                } else {
+                    await handleAuthRegister();
+                }
+            }
+            return;
+        }
+        if (step === 'details') {
             if (!validateDetails()) return;
             setProcessing(true);
             try {
@@ -321,12 +543,13 @@ export default function BookingFlow({
                     setErrors({ ...errors, general: msg }); return;
                 }
                 setOrderData(unwrapApiData(await createRes.json()) as OrderData);
-                setTimeLeft(300); setCurrentStep(2);
+                setTimeLeft(300);
+                setStep('payment');
             } catch { setErrors({ ...errors, general: 'We hit a snag — please try again.' }); }
             finally { setProcessing(false); }
             return;
         }
-        if (currentStep === 2) {
+        if (step === 'payment') {
             if (!orderData) return;
             const razorpayKey = orderData.keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_mocked_key';
             const opts = {
@@ -379,12 +602,12 @@ export default function BookingFlow({
                         }
 
                         if (vRes.ok) {
-                            setCurrentStep(3);
+                            setStep('confirmed');
                         } else {
                             const e = await vRes.json().catch(() => ({}));
                             // If backend confirms it is already confirmed, transition to success
                             if (e?.error?.toLowerCase().includes('already confirmed') || e?.code === 'BOOKING_ALREADY_CONFIRMED') {
-                                setCurrentStep(3);
+                                setStep('confirmed');
                             } else {
                                 setErrors((p) => ({
                                     ...p,
@@ -442,10 +665,21 @@ export default function BookingFlow({
             rzpInstance.open();
             return;
         }
-        setCurrentStep((p) => Math.min(p + 1, STEPS.length - 1));
     };
 
-    const prevStep = () => setCurrentStep((p) => Math.max(p - 1, 0));
+    const prevStep = () => {
+        if (step === 'auth') {
+            setStep('datetime');
+        } else if (step === 'details') {
+            if (isAuthenticated) {
+                setStep('datetime');
+            } else {
+                setStep('auth');
+            }
+        } else if (step === 'payment') {
+            setStep('details');
+        }
+    };
     const payableAmount = orderData ? orderData.amount / 100 : price;
     const timerPct = timeLeft !== null ? (timeLeft / 300) * 100 : 100;
     const today = dateOptions[0]?.date || new Date().toISOString().split('T')[0];
@@ -465,7 +699,17 @@ export default function BookingFlow({
                             <button
                                 key={slot}
                                 type="button"
-                                onClick={() => { setTime(slot); setErrors({}); setTimeout(() => setCurrentStep(1), 180); }}
+                                onClick={() => {
+                                    setTime(slot);
+                                    setErrors({});
+                                    setTimeout(() => {
+                                        if (isAuthenticated) {
+                                            setStep('details');
+                                        } else {
+                                            setStep('auth');
+                                        }
+                                    }, 180);
+                                }}
                                 className={`relative flex items-center justify-center h-11 rounded-xl border-2 font-bold transition-all duration-200 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30 ${
                                     isSelected
                                         ? 'border-primary bg-primary text-background shadow-md shadow-primary/20 scale-[1.04]'
@@ -500,11 +744,11 @@ export default function BookingFlow({
 
                 {/* Steps */}
                 <div className="relative z-10 flex w-full gap-2 overflow-x-auto pb-1 pt-1 lg:flex-1 lg:flex-col lg:gap-4 lg:overflow-visible lg:pb-0 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden touch-pan-x">
-                    {STEPS.map((step, i) => {
-                        const isActive = i === currentStep;
-                        const isPast = i < currentStep;
+                    {activeStepsList.map((s, i) => {
+                        const isActive = i === currentStepIndex;
+                        const isPast = i < currentStepIndex;
                         return (
-                            <div key={step} className={`flex shrink-0 items-center gap-2 lg:gap-3 transition-all duration-300 ${isActive ? 'opacity-100' : 'opacity-50'}`}>
+                            <div key={s.key} className={`flex shrink-0 items-center gap-2 lg:gap-3 transition-all duration-300 ${isActive ? 'opacity-100' : 'opacity-50'}`}>
                                 <div className={`flex h-6 w-6 lg:h-7 lg:w-7 shrink-0 items-center justify-center rounded-lg border-2 text-[9px] lg:text-[10px] font-black transition-all duration-300 ${
                                     isPast ? 'border-background bg-background text-primary scale-105 shadow-sm'
                                     : isActive ? 'border-background bg-background/20 text-background scale-110 shadow-sm'
@@ -512,7 +756,7 @@ export default function BookingFlow({
                                 }`}>
                                     {isPast ? '✓' : i + 1}
                                 </div>
-                                <span className={`whitespace-nowrap text-[9px] lg:text-xs font-bold uppercase tracking-wider ${isActive ? 'text-background' : 'text-background/70'}`}>{step}</span>
+                                <span className={`whitespace-nowrap text-[9px] lg:text-xs font-bold uppercase tracking-wider ${isActive ? 'text-background' : 'text-background/70'}`}>{s.label}</span>
                             </div>
                         );
                     })}
@@ -534,19 +778,23 @@ export default function BookingFlow({
                 <div className="flex h-13 shrink-0 items-center justify-between border-b border-border/10 px-4 sm:px-6 lg:h-15 lg:px-8 py-3">
                     <div className="flex items-center gap-2.5">
                         <span className="rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-tight text-primary">
-                            {currentStep + 1}/{STEPS.length}
+                            {currentStepIndex + 1}/{activeStepsList.length}
                         </span>
                         <h3 className="font-heading text-sm font-black tracking-tight text-foreground lg:text-base">
-                            {currentStep === 3 ? '🎉 Booking Confirmed' : STEPS[currentStep]}
+                            {step === 'confirmed'
+                                ? '🎉 Booking Confirmed'
+                                : step === 'auth'
+                                ? 'Sign In or Continue'
+                                : activeStepsList[currentStepIndex]?.label ?? 'Booking'}
                         </h3>
                     </div>
-                    {currentStep === 0 && (
+                    {step === 'datetime' && (
                         <div className="flex items-center gap-1.5 rounded-full bg-muted/60 px-2.5 py-1">
                             <Globe className="w-3 h-3 text-muted-foreground" />
                             <span className="text-[9px] font-bold text-muted-foreground">IST (GMT+5:30)</span>
                         </div>
                     )}
-                    {currentStep === 2 && timeLeft !== null && (
+                    {step === 'payment' && timeLeft !== null && (
                         <div className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 ${timeLeft < 60 ? 'bg-destructive/10' : 'bg-primary/10'}`}>
                             <Clock className={`w-3 h-3 ${timeLeft < 60 ? 'text-destructive' : 'text-primary'}`} />
                             <span className={`text-[10px] font-black tabular-nums ${timeLeft < 60 ? 'text-destructive' : 'text-primary'}`}>
@@ -557,7 +805,7 @@ export default function BookingFlow({
                 </div>
 
                 {/* Timer progress bar on payment step */}
-                {currentStep === 2 && timeLeft !== null && (
+                {step === 'payment' && timeLeft !== null && (
                     <div className="h-0.5 w-full bg-border/20 shrink-0">
                         <div
                             className={`h-full transition-all duration-1000 ${timeLeft < 60 ? 'bg-destructive' : 'bg-primary'}`}
@@ -569,8 +817,8 @@ export default function BookingFlow({
                 {/* Scrollable content */}
                 <div className="flex-1 overflow-y-auto px-4 pb-24 pt-5 sm:px-6 lg:px-8 lg:pb-10 lg:pt-6">
 
-                    {/* ── Step 0: Date & Time ── */}
-                    {currentStep === 0 && (
+                    {/* ── Step: Date & Time ── */}
+                    {step === 'datetime' && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-400">
 
                             {/* Format selector */}
@@ -746,8 +994,402 @@ export default function BookingFlow({
                         </div>
                     )}
 
-                    {/* ── Step 1: Details ── */}
-                    {currentStep === 1 && (
+                    {/* ── Step: Auth / Account / Guest ── */}
+                    {step === 'auth' && (
+                        <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-400">
+                            {/* Ticket-style booking summary */}
+                            <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/8 via-primary/5 to-transparent">
+                                <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-l-full" />
+                                <div className="flex items-center gap-3 pl-5 pr-4 py-3.5">
+                                    <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center shrink-0 text-primary">
+                                        {FORMAT_META[sessionType]?.icon ?? <MessageCircle className="w-4 h-4" />}
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-sm font-bold text-foreground leading-snug">
+                                            {FORMAT_META[sessionType]?.label ?? sessionType} with {therapistName}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground mt-0.5">
+                                            {new Date(date).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })} · {formatSlotTime(time)} IST
+                                        </p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setStep('datetime')}
+                                        className="shrink-0 text-[10px] font-bold text-primary bg-primary/10 hover:bg-primary/20 px-2.5 py-1 rounded-full transition-colors"
+                                    >
+                                        Change
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Account Benefits Hint Card */}
+                            <div className="relative overflow-hidden rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/10 via-primary/5 to-muted/20 p-4 shadow-sm">
+                                <div className="flex items-start justify-between gap-3 mb-2.5">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-7 h-7 rounded-xl bg-primary/20 text-primary flex items-center justify-center shrink-0">
+                                            <Sparkles className="w-4 h-4" />
+                                        </div>
+                                        <div>
+                                            <h4 className="text-xs font-black uppercase tracking-wide text-foreground">
+                                                Why create an account with us?
+                                            </h4>
+                                            <p className="text-[11px] text-muted-foreground">
+                                                Unlock client perks or continue as a guest anytime
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-primary bg-primary/15 px-2 py-0.5 rounded-full shrink-0">
+                                        Recommended
+                                    </span>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-foreground/80">
+                                    <div className="flex items-start gap-2 bg-background/60 dark:bg-background/40 backdrop-blur-xs p-2 rounded-xl border border-border/20">
+                                        <CheckCircle2 className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+                                        <span className="text-[11px] leading-tight"><strong>Client Dashboard:</strong> Track sessions & 1-click video joins</span>
+                                    </div>
+                                    <div className="flex items-start gap-2 bg-background/60 dark:bg-background/40 backdrop-blur-xs p-2 rounded-xl border border-border/20">
+                                        <CheckCircle2 className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+                                        <span className="text-[11px] leading-tight"><strong>Easy Invoices:</strong> Official GST receipts for reimbursement</span>
+                                    </div>
+                                    <div className="flex items-start gap-2 bg-background/60 dark:bg-background/40 backdrop-blur-xs p-2 rounded-xl border border-border/20">
+                                        <CheckCircle2 className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+                                        <span className="text-[11px] leading-tight"><strong>Self-Rescheduling:</strong> Manage bookings easily anytime</span>
+                                    </div>
+                                    <div className="flex items-start gap-2 bg-background/60 dark:bg-background/40 backdrop-blur-xs p-2 rounded-xl border border-border/20">
+                                        <CheckCircle2 className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+                                        <span className="text-[11px] leading-tight"><strong>100% Confidential:</strong> Bank-grade encryption & privacy</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* 3-Way Choice Selector */}
+                            <div className="grid grid-cols-3 gap-1.5 p-1 bg-muted/40 rounded-2xl border border-border/25 text-xs font-bold">
+                                <button
+                                    type="button"
+                                    onClick={() => { setAuthTab('signup'); setSignupError(''); setLoginError(''); }}
+                                    className={`py-2.5 px-2 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+                                        authTab === 'signup'
+                                            ? 'bg-background text-foreground shadow-sm font-extrabold border border-border/30'
+                                            : 'text-muted-foreground hover:text-foreground'
+                                    }`}
+                                >
+                                    <UserPlus className="w-3.5 h-3.5 text-primary" />
+                                    <span className="truncate">Sign Up</span>
+                                    <span className="hidden md:inline-block text-[9px] bg-primary/10 text-primary font-bold px-1.5 py-0.5 rounded-full">Free</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => { setAuthTab('login'); setSignupError(''); setLoginError(''); }}
+                                    className={`py-2.5 px-2 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+                                        authTab === 'login'
+                                            ? 'bg-background text-foreground shadow-sm font-extrabold border border-border/30'
+                                            : 'text-muted-foreground hover:text-foreground'
+                                    }`}
+                                >
+                                    <LogIn className="w-3.5 h-3.5 text-primary" />
+                                    <span className="truncate">Log In</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => { setAuthTab('guest'); setSignupError(''); setLoginError(''); }}
+                                    className={`py-2.5 px-2 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+                                        authTab === 'guest'
+                                            ? 'bg-background text-foreground shadow-sm font-extrabold border border-border/30'
+                                            : 'text-muted-foreground hover:text-foreground'
+                                    }`}
+                                >
+                                    <User className="w-3.5 h-3.5 text-primary" />
+                                    <span className="truncate">Guest</span>
+                                </button>
+                            </div>
+
+                            {/* Tab Panel: Sign Up */}
+                            {authTab === 'signup' && (
+                                !otpActive ? (
+                                    <div className="rounded-2xl border border-border/25 overflow-hidden shadow-sm bg-background p-4 space-y-3.5">
+                                        <div className="border-b border-border/15 pb-2.5">
+                                            <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">Create Your Account</h4>
+                                            <p className="text-[11px] text-muted-foreground mt-0.5">Quick setup — takes less than 30 seconds</p>
+                                        </div>
+
+                                        {signupError && (
+                                            <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-xl text-xs font-semibold text-destructive">
+                                                <AlertCircle className="w-4 h-4 shrink-0" />
+                                                <span>{signupError}</span>
+                                            </div>
+                                        )}
+
+                                        <form onSubmit={handleAuthRegister} className="space-y-3">
+                                            <div className="space-y-1">
+                                                <label className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                                                    <User className="w-3 h-3" /> Full Name
+                                                </label>
+                                                <Input
+                                                    placeholder="e.g. Priya Sharma"
+                                                    value={signupName}
+                                                    onChange={(e) => { setSignupName(e.target.value); if (signupError) setSignupError(''); }}
+                                                    className="h-10 rounded-xl text-sm bg-muted/30 border-border/30 focus:bg-background"
+                                                />
+                                            </div>
+
+                                            <div className="space-y-1">
+                                                <label className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                                                    <Mail className="w-3 h-3" /> Email Address
+                                                </label>
+                                                <Input
+                                                    type="email"
+                                                    placeholder="you@email.com"
+                                                    value={signupEmail}
+                                                    onChange={(e) => { setSignupEmail(e.target.value); if (signupError) setSignupError(''); }}
+                                                    className="h-10 rounded-xl text-sm bg-muted/30 border-border/30 focus:bg-background"
+                                                />
+                                            </div>
+
+                                            <div className="space-y-1">
+                                                <label className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                                                    <Lock className="w-3 h-3" /> Password
+                                                </label>
+                                                <div className="relative">
+                                                    <Input
+                                                        type={showSignupPassword ? 'text' : 'password'}
+                                                        placeholder="At least 8 characters"
+                                                        value={signupPassword}
+                                                        onChange={(e) => { setSignupPassword(e.target.value); if (signupError) setSignupError(''); }}
+                                                        className="h-10 rounded-xl text-sm bg-muted/30 border-border/30 focus:bg-background pr-10"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setShowSignupPassword(!showSignupPassword)}
+                                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5"
+                                                        tabIndex={-1}
+                                                    >
+                                                        {showSignupPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                                    </button>
+                                                </div>
+                                                <p className="text-[10px] text-muted-foreground/80">We&apos;ll send a 6-digit verification code to your email.</p>
+                                            </div>
+
+                                            <div className="pt-2 flex flex-col sm:flex-row items-center gap-2.5">
+                                                <Button
+                                                    type="submit"
+                                                    disabled={signupLoading || !signupName.trim() || !signupEmail.trim() || signupPassword.length < 8}
+                                                    loading={signupLoading}
+                                                    loadingText="Creating account…"
+                                                    className="w-full sm:flex-1 h-10 rounded-xl text-xs font-black uppercase tracking-wide bg-primary text-background shadow-sm hover:opacity-90"
+                                                >
+                                                    <UserPlus className="w-3.5 h-3.5 mr-1.5" />
+                                                    Sign Up & Continue
+                                                </Button>
+                                                <button
+                                                    type="button"
+                                                    onClick={handleContinueAsGuest}
+                                                    className="text-xs font-bold text-muted-foreground hover:text-foreground underline decoration-dotted transition-colors py-1 px-2"
+                                                >
+                                                    Skip for now & continue as Guest →
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                ) : (
+                                    <div className="rounded-2xl border-2 border-primary/30 overflow-hidden shadow-md bg-background p-5 space-y-4 animate-in fade-in duration-300">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-2xl bg-primary/15 text-primary flex items-center justify-center shrink-0">
+                                                <Mail className="w-5 h-5" />
+                                            </div>
+                                            <div>
+                                                <h4 className="text-sm font-bold text-foreground">Verify Your Email</h4>
+                                                <p className="text-xs text-muted-foreground">
+                                                    We sent a 6-digit code to <strong className="text-foreground">{otpEmail}</strong>
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        {otpError && (
+                                            <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-xl text-xs font-semibold text-destructive">
+                                                <AlertCircle className="w-4 h-4 shrink-0" />
+                                                <span>{otpError}</span>
+                                            </div>
+                                        )}
+
+                                        <form onSubmit={handleAuthVerifyOtp} className="space-y-4">
+                                            <div>
+                                                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-1.5">
+                                                    6-Digit Verification Code
+                                                </label>
+                                                <Input
+                                                    type="text"
+                                                    maxLength={6}
+                                                    autoFocus
+                                                    placeholder="123456"
+                                                    value={otpCode}
+                                                    onChange={(e) => { setOtpCode(e.target.value.replace(/\D/g, '')); if (otpError) setOtpError(''); }}
+                                                    className="h-12 rounded-xl text-center text-xl font-mono font-bold tracking-[0.5em] bg-muted/20 border-border/40 focus:bg-background"
+                                                />
+                                            </div>
+
+                                            <div className="flex items-center justify-between text-xs">
+                                                <button
+                                                    type="button"
+                                                    disabled={resendCooldown > 0}
+                                                    onClick={handleResendOtp}
+                                                    className="text-primary font-bold hover:underline disabled:text-muted-foreground disabled:no-underline"
+                                                >
+                                                    {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : 'Resend Code'}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => { setOtpActive(false); setOtpError(''); }}
+                                                    className="text-muted-foreground hover:text-foreground text-[11px]"
+                                                >
+                                                    Change Email
+                                                </button>
+                                            </div>
+
+                                            <div className="pt-1 flex flex-col sm:flex-row items-center gap-2.5">
+                                                <Button
+                                                    type="submit"
+                                                    disabled={otpLoading || otpCode.trim().length !== 6}
+                                                    loading={otpLoading}
+                                                    loadingText="Verifying…"
+                                                    className="w-full sm:flex-1 h-10 rounded-xl text-xs font-black uppercase tracking-wide bg-primary text-background shadow-sm"
+                                                >
+                                                    <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
+                                                    Verify & Continue
+                                                </Button>
+                                                <button
+                                                    type="button"
+                                                    onClick={handleContinueAsGuest}
+                                                    className="text-xs font-bold text-muted-foreground hover:text-foreground underline decoration-dotted transition-colors py-1 px-2"
+                                                >
+                                                    Skip verification & book as Guest →
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                )
+                            )}
+
+                            {/* Tab Panel: Log In */}
+                            {authTab === 'login' && (
+                                <div className="rounded-2xl border border-border/25 overflow-hidden shadow-sm bg-background p-4 space-y-3.5">
+                                    <div className="border-b border-border/15 pb-2.5">
+                                        <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">Welcome Back</h4>
+                                        <p className="text-[11px] text-muted-foreground mt-0.5">Sign in to book with your saved account</p>
+                                    </div>
+
+                                    {loginError && (
+                                        <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-xl text-xs font-semibold text-destructive">
+                                            <AlertCircle className="w-4 h-4 shrink-0" />
+                                            <span>{loginError}</span>
+                                        </div>
+                                    )}
+
+                                    <form onSubmit={handleAuthLogin} className="space-y-3">
+                                        <div className="space-y-1">
+                                            <label className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                                                <Mail className="w-3 h-3" /> Email Address
+                                            </label>
+                                            <Input
+                                                type="email"
+                                                placeholder="you@email.com"
+                                                value={loginEmail}
+                                                onChange={(e) => { setLoginEmail(e.target.value); if (loginError) setLoginError(''); }}
+                                                className="h-10 rounded-xl text-sm bg-muted/30 border-border/30 focus:bg-background"
+                                            />
+                                        </div>
+
+                                        <div className="space-y-1">
+                                            <div className="flex items-center justify-between">
+                                                <label className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                                                    <Lock className="w-3 h-3" /> Password
+                                                </label>
+                                                <a href="/forgot-password" target="_blank" rel="noopener noreferrer" className="text-[10px] font-bold text-primary hover:underline">
+                                                    Forgot?
+                                                </a>
+                                            </div>
+                                            <div className="relative">
+                                                <Input
+                                                    type={showLoginPassword ? 'text' : 'password'}
+                                                    placeholder="Your password"
+                                                    value={loginPassword}
+                                                    onChange={(e) => { setLoginPassword(e.target.value); if (loginError) setLoginError(''); }}
+                                                    className="h-10 rounded-xl text-sm bg-muted/30 border-border/30 focus:bg-background pr-10"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowLoginPassword(!showLoginPassword)}
+                                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5"
+                                                    tabIndex={-1}
+                                                >
+                                                    {showLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div className="pt-2 flex flex-col sm:flex-row items-center gap-2.5">
+                                            <Button
+                                                type="submit"
+                                                disabled={loginLoading || !loginEmail.trim() || !loginPassword}
+                                                loading={loginLoading}
+                                                loadingText="Signing in…"
+                                                className="w-full sm:flex-1 h-10 rounded-xl text-xs font-black uppercase tracking-wide bg-primary text-background shadow-sm hover:opacity-90"
+                                            >
+                                                <LogIn className="w-3.5 h-3.5 mr-1.5" />
+                                                Log In & Continue
+                                            </Button>
+                                            <button
+                                                type="button"
+                                                onClick={handleContinueAsGuest}
+                                                className="text-xs font-bold text-muted-foreground hover:text-foreground underline decoration-dotted transition-colors py-1 px-2"
+                                            >
+                                                Continue as Guest instead →
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            )}
+
+                            {/* Tab Panel: Continue as Guest */}
+                            {authTab === 'guest' && (
+                                <div className="rounded-2xl border border-border/25 overflow-hidden shadow-sm bg-background p-4 space-y-3.5">
+                                    <div className="border-b border-border/15 pb-2.5">
+                                        <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">Fast Guest Booking</h4>
+                                        <p className="text-[11px] text-muted-foreground mt-0.5">No password required · Instant session confirmation</p>
+                                    </div>
+
+                                    <div className="rounded-xl bg-muted/30 p-3 text-xs text-muted-foreground space-y-1.5 border border-border/20">
+                                        <p className="font-semibold text-foreground">How guest booking works:</p>
+                                        <ul className="space-y-1 text-[11px] list-disc list-inside">
+                                            <li>We will email your private video call link and calendar invite directly to you.</li>
+                                            <li>No password needed. Enter your details on the next step.</li>
+                                            <li>You can always create a password later anytime with the same email.</li>
+                                        </ul>
+                                    </div>
+
+                                    <div className="pt-2 flex flex-col sm:flex-row items-center gap-2.5">
+                                        <Button
+                                            type="button"
+                                            onClick={handleContinueAsGuest}
+                                            className="w-full sm:flex-1 h-10 rounded-xl text-xs font-black uppercase tracking-wide bg-primary text-background shadow-sm hover:opacity-90"
+                                        >
+                                            <ArrowRight className="w-3.5 h-3.5 mr-1.5" />
+                                            Continue to Details →
+                                        </Button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setAuthTab('signup')}
+                                            className="text-xs font-bold text-primary hover:underline transition-colors py-1 px-2"
+                                        >
+                                            Want an account? Sign up instead
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* ── Step: Details ── */}
+                    {step === 'details' && (
                         <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-400">
 
                             {/* Ticket-style booking summary */}
@@ -767,13 +1409,44 @@ export default function BookingFlow({
                                     </div>
                                     <button
                                         type="button"
-                                        onClick={() => setCurrentStep(0)}
+                                        onClick={() => setStep('datetime')}
                                         className="shrink-0 text-[10px] font-bold text-primary bg-primary/10 hover:bg-primary/20 px-2.5 py-1 rounded-full transition-colors"
                                     >
                                         Change
                                     </button>
                                 </div>
                             </div>
+
+                            {/* Account vs Guest Status Badge */}
+                            {!isAuthenticated ? (
+                                <div className="flex items-center justify-between p-3 rounded-2xl bg-muted/30 border border-border/20 text-xs">
+                                    <div className="flex items-center gap-2">
+                                        <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                                        <span className="text-muted-foreground text-[11px]">
+                                            Booking as <strong className="text-foreground">Guest</strong>
+                                        </span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setStep('auth')}
+                                        className="text-[11px] font-bold text-primary hover:underline flex items-center gap-1"
+                                    >
+                                        Log in or Sign up →
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="flex items-center justify-between p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/25 border border-emerald-200 dark:border-emerald-800/40 text-xs">
+                                    <div className="flex items-center gap-2">
+                                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                                        <span className="text-emerald-900 dark:text-emerald-200 text-[11px]">
+                                            Logged in as <strong className="font-bold">{bookingDetails.email}</strong>
+                                        </span>
+                                    </div>
+                                    <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/40 px-2 py-0.5 rounded-full">
+                                        Linked to Dashboard
+                                    </span>
+                                </div>
+                            )}
 
                             {errors.general && (
                                 <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-xl text-xs font-bold text-destructive">
@@ -853,13 +1526,11 @@ export default function BookingFlow({
                                     </div>
                                 </div>
                             </div>
-
-
                         </div>
                     )}
 
-                    {/* ── Step 2: Payment ── */}
-                    {currentStep === 2 && (
+                    {/* ── Step: Payment ── */}
+                    {step === 'payment' && (
                         <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-400">
                             {errors.general && (
                                 <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-xl text-xs font-bold text-destructive">
@@ -894,7 +1565,7 @@ export default function BookingFlow({
                                         ) : (
                                             <Button
                                                 type="button"
-                                                onClick={() => { setErrors({}); setCurrentStep(0); }}
+                                                onClick={() => { setErrors({}); setStep('datetime'); }}
                                                 size="sm"
                                                 className="h-8 rounded-lg px-3.5 text-xs font-bold bg-primary text-background hover:bg-primary/90 shadow-sm"
                                             >
@@ -905,7 +1576,7 @@ export default function BookingFlow({
                                             type="button"
                                             variant="ghost"
                                             size="sm"
-                                            onClick={() => { setErrors({}); setCurrentStep(0); }}
+                                            onClick={() => { setErrors({}); setStep('datetime'); }}
                                             className="h-8 rounded-lg px-2.5 text-xs font-medium text-muted-foreground hover:text-foreground"
                                         >
                                             Change Time Slot
@@ -921,7 +1592,7 @@ export default function BookingFlow({
                                     </div>
                                     <button
                                         type="button"
-                                        onClick={() => { setErrors({}); setCurrentStep(0); }}
+                                        onClick={() => { setErrors({}); setStep('datetime'); }}
                                         className="font-bold underline ml-2 hover:opacity-80 shrink-0"
                                     >
                                         Select Time
@@ -1046,8 +1717,8 @@ export default function BookingFlow({
                         </div>
                     )}
 
-                    {/* ── Step 3: Confirmed ── */}
-                    {currentStep === 3 && (
+                    {/* ── Step: Confirmed ── */}
+                    {step === 'confirmed' && (
                         <div className="flex flex-col items-center text-center py-6 space-y-4 animate-in fade-in zoom-in-95 duration-500">
                             <div className="w-14 h-14 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/30">
                                 <CheckCircle2 className="w-7 h-7 text-white" />
@@ -1063,9 +1734,13 @@ export default function BookingFlow({
                             <div className="w-full rounded-2xl border border-border/20 overflow-hidden text-left shadow-sm">
                                 <div className="bg-primary/5 px-4 py-2.5 border-b border-border/10 flex items-center justify-between">
                                     <p className="text-[10px] font-black uppercase tracking-widest text-primary/70">Session Details</p>
-                                    {!isAuthenticated && (
+                                    {!isAuthenticated ? (
                                         <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
                                             Guest Booking
+                                        </span>
+                                    ) : (
+                                        <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                                            Linked to Account
                                         </span>
                                     )}
                                 </div>
@@ -1132,6 +1807,33 @@ export default function BookingFlow({
                                 )}
                             </div>
 
+                            {/* Post-booking Account Hint Card for Guests */}
+                            {!isAuthenticated && bookingDetails.email && (
+                                <div className="rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/10 via-primary/5 to-muted/20 p-4 text-left space-y-2.5 w-full">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="w-8 h-8 rounded-xl bg-primary/20 text-primary flex items-center justify-center shrink-0">
+                                            <Sparkles className="w-4 h-4" />
+                                        </div>
+                                        <div>
+                                            <h4 className="text-xs font-black uppercase tracking-wide text-foreground">Save this session to your account</h4>
+                                            <p className="text-[11px] text-muted-foreground">View upcoming bookings, session notes & invoices</p>
+                                        </div>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground leading-relaxed">
+                                        Create a free account with <strong className="text-foreground">{bookingDetails.email}</strong> anytime. This booking will automatically sync to your client dashboard!
+                                    </p>
+                                    <div className="pt-1">
+                                        <a
+                                            href={`/register?email=${encodeURIComponent(bookingDetails.email)}&name=${encodeURIComponent(bookingDetails.name)}`}
+                                            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-background font-bold text-xs shadow-sm hover:opacity-90 active:scale-95 transition-all"
+                                        >
+                                            <UserPlus className="w-3.5 h-3.5" />
+                                            Create Free ReBalance Account →
+                                        </a>
+                                    </div>
+                                </div>
+                            )}
+
                             {onComplete && (
                                 <Button onClick={onComplete} className="w-full h-11 rounded-xl bg-primary text-background text-xs font-black uppercase tracking-wider shadow-lg shadow-primary/20">
                                     Done
@@ -1142,25 +1844,49 @@ export default function BookingFlow({
                 </div>
 
                 {/* ── Footer ── */}
-                {currentStep < 3 && (
+                {step !== 'confirmed' && (
                     <div className="mt-auto sticky bottom-0 flex w-full shrink-0 items-center justify-between border-t border-border/10 bg-background/98 px-4 py-3 backdrop-blur-sm sm:px-6 lg:px-8 lg:py-4">
                         <Button
                             variant="ghost"
                             onClick={prevStep}
-                            disabled={currentStep === 0}
-                            className={`h-10 text-xs font-bold text-muted-foreground hover:text-foreground ${currentStep === 0 ? 'invisible' : ''}`}
+                            disabled={step === 'datetime'}
+                            className={`h-10 text-xs font-bold text-muted-foreground hover:text-foreground ${step === 'datetime' ? 'invisible' : ''}`}
                         >
                             ← Back
                         </Button>
 
                         <div className="flex-1" />
 
-                        {currentStep === 0 && time && (
+                        {step === 'datetime' && time && (
                             <Button onClick={handleNextStep} disabled={fetchingSlots} className="h-10 lg:h-11 rounded-xl px-6 text-xs font-black uppercase tracking-wide shadow-md">
                                 Continue →
                             </Button>
                         )}
-                        {currentStep === 1 && (
+                        {step === 'auth' && (
+                            <Button
+                                type="button"
+                                onClick={handleNextStep}
+                                disabled={
+                                    authTab === 'signup'
+                                        ? (otpActive ? otpLoading || otpCode.trim().length !== 6 : signupLoading || !signupName.trim() || !signupEmail.trim() || signupPassword.length < 8)
+                                        : authTab === 'login'
+                                        ? loginLoading || !loginEmail.trim() || !loginPassword
+                                        : false
+                                }
+                                loading={authTab === 'signup' ? (otpActive ? otpLoading : signupLoading) : authTab === 'login' ? loginLoading : false}
+                                loadingText={authTab === 'signup' ? (otpActive ? 'Verifying…' : 'Creating…') : 'Signing in…'}
+                                className="h-10 lg:h-11 rounded-xl px-6 text-xs font-black uppercase tracking-wide shadow-md"
+                            >
+                                {authTab === 'guest'
+                                    ? 'Continue as Guest →'
+                                    : authTab === 'login'
+                                    ? 'Log In & Continue →'
+                                    : otpActive
+                                    ? 'Verify Code →'
+                                    : 'Create Account & Continue →'}
+                            </Button>
+                        )}
+                        {step === 'details' && (
                             <Button
                                 onClick={handleNextStep}
                                 disabled={processing}
@@ -1171,7 +1897,7 @@ export default function BookingFlow({
                                 Review & Pay
                             </Button>
                         )}
-                        {currentStep === 2 && (
+                        {step === 'payment' && (
                             <Button
                                 onClick={handleNextStep}
                                 disabled={timeLeft === 0 || processing}
