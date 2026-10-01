@@ -19,12 +19,12 @@ jobs:
       - name: Prepare SSH Key
         shell: bash
         run: |
-          printf '%s' "${{ secrets.EC2_SSH_KEY_B64 }}" | base64 --decode > "$RUNNER_TEMP/deploy_key"
-          chmod 600 "$RUNNER_TEMP/deploy_key"
+          printf '%s' "${{ secrets.EC2_SSH_KEY_B64 }}" | base64 --decode > ./deploy_key
+          chmod 600 ./deploy_key
 
       - name: Validate SSH Key
         run: |
-          ssh-keygen -y -f "$RUNNER_TEMP/deploy_key" > /dev/null
+          ssh-keygen -y -f ./deploy_key > /dev/null
           echo "SSH key is valid"
 
       - name: Copy backend files to EC2
@@ -32,7 +32,7 @@ jobs:
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
-          key_path: ${{ runner.temp }}/deploy_key
+          key_path: ${{ github.workspace }}/deploy_key
           source: "backend/"
           target: "~/"
 
@@ -41,8 +41,13 @@ jobs:
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
-          key_path: ${{ runner.temp }}/deploy_key
+          key_path: ${{ github.workspace }}/deploy_key
           script: |
             cd ~/backend
             npm install
             pm2 restart rebalance-backend --update-env
+
+      - name: Remove SSH Key
+        if: always()
+        run: |
+          rm -f ./deploy_key
