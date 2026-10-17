@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button';
 import BookingModal from '@/components/booking/BookingModal';
 import { getApiBaseUrl, unwrapApiData } from '@/lib/runtime';
 import TherapistProfileTabs from './_components/TherapistProfileTabs';
-import { TherapyHeadIllustration } from './_components/TherapyHeadIllustration';
 import { filterPastSlots, getTodayDateStringIST } from '@/lib/booking';
 
 interface FAQ {
@@ -431,20 +430,7 @@ export default async function TherapistProfilePage({ params }: { params: { id: s
                             </div>
                         </div>
 
-                        {/* Section 2: About The Therapist Card */}
-                        <div className="bg-[#FAF5F6] rounded-[2rem] sm:rounded-[2.5rem] p-5 sm:p-8 border border-[#F3EBEF] relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6 shadow-xs">
-                            <div className="flex-1 border-l-4 border-[#581C2B] pl-4 sm:pl-5 space-y-3 text-left">
-                                <h3 className="text-xs font-black tracking-widest text-[#2A181E] uppercase">
-                                    ABOUT THE THERAPIST
-                                </h3>
-                                <p className="text-xs sm:text-sm text-foreground/80 font-normal leading-relaxed">
-                                    {t.bio || `${t.name} is a compassionate and experienced clinical psychologist, dedicated to helping individuals navigate life's challenges with clarity, confidence and emotional resilience.`}
-                                </p>
-                            </div>
-                            <TherapyHeadIllustration className="w-32 h-32 sm:w-44 sm:h-44 md:w-52 md:h-52 shrink-0" />
-                        </div>
-
-                        {/* Section 3: Areas of Expertise Card */}
+                        {/* Section 2: Areas of Expertise Card */}
                         <div className="bg-white rounded-[2rem] sm:rounded-[2.5rem] p-6 sm:p-8 border border-[#F0ECEE] shadow-sm space-y-6 text-left">
                             <div className="flex items-center gap-3">
                                 <div className="w-5 h-5 rounded-full border-2 border-[#581C2B] flex items-center justify-center shrink-0">
