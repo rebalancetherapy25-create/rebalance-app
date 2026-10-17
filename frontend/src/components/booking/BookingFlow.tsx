@@ -1049,7 +1049,7 @@ export default function BookingFlow({
                                     </div>
                                     <div className="flex items-start gap-2 bg-background/60 dark:bg-background/40 backdrop-blur-xs p-2 rounded-xl border border-border/20">
                                         <CheckCircle2 className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
-                                        <span className="text-[11px] leading-tight"><strong>Easy Invoices:</strong> Official GST receipts for reimbursement</span>
+                                        <span className="text-[11px] leading-tight"><strong>Easy Receipts:</strong> Official receipts for reimbursement</span>
                                     </div>
                                     <div className="flex items-start gap-2 bg-background/60 dark:bg-background/40 backdrop-blur-xs p-2 rounded-xl border border-border/20">
                                         <CheckCircle2 className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
@@ -1699,9 +1699,7 @@ export default function BookingFlow({
                                             <span>−₹{price - payableAmount}</span>
                                         </div>
                                     )}
-                                    <div className="flex justify-between text-sm text-muted-foreground">
-                                        <span>Taxes & fees</span><span>Included</span>
-                                    </div>
+
                                     <div className="flex justify-between items-center pt-2.5 border-t border-border/20">
                                         <span className="text-base font-black text-foreground">Total</span>
                                         <span className="text-xl font-heading font-black text-primary">₹{payableAmount}</span>
